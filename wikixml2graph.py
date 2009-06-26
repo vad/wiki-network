@@ -44,16 +44,16 @@ def addTalks(user, speakers):
             g.add_vertices(1)
             g.vs[len(g.vs)-1]['login'] = login
     try:
-        print "Add a talk to %s" % (user.encode('latin-1'),)
+        print "Add a talk to %s" % (user.encode('utf-8'),)
     except UnicodeError:
         print "Add a talk to someone with a strange name"
         
-    user = user.encode('latin-1')
+    user = user.encode('utf-8')
     
     check_or_add(user)
     e_to = g.vs['login'].index(user)
     for speaker,weight in speakers:
-        speaker = speaker.encode('latin-1')
+        speaker = speaker.encode('utf-8')
         check_or_add(speaker)
         e_from = g.vs['login'].index(speaker)
         try:
