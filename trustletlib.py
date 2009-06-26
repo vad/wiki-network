@@ -10,7 +10,11 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         #
 #  GNU General Public License for more details.                          #
 #                                                                        #
+#  This code is part of the trustlet project (http://trustlet.org)       #
+#                                                                        #
 ##########################################################################
+
+
 
 import os
 import cPickle as pickle

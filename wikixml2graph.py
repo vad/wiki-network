@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 ##########################################################################
 #                                                                        #
 #  This program is free software; you can redistribute it and/or modify  #
@@ -14,64 +16,74 @@
 from bz2 import BZ2File
 import trustletlib
 import os
+import igraph as ig
 
 ## etree
-try:
-  from lxml import etree
-  print("running with lxml.etree")
-except ImportError:
-  try:
-    # Python 2.5
-    import xml.etree.cElementTree as etree
-    print("running with cElementTree on Python 2.5+")
-  except ImportError:
-    try:
-      # Python 2.5
-      import xml.etree.ElementTree as etree
-      print("running with ElementTree on Python 2.5+")
-    except ImportError:
-      try:
-        # normal cElementTree install
-        import cElementTree as etree
-        print("running with cElementTree")
-      except ImportError:
-        try:
-          # normal ElementTree install
-          import elementtree.ElementTree as etree
-          print("running with ElementTree")
-        except ImportError:
-          print("Failed to import ElementTree from any known place")
+from lxml import etree
 
-#filename = "/hardmnt/neyo0/sra/setti/datasets/furwiki-20090619-pages-meta-current.xml.bz2"
-filename = "/hardmnt/neyo0/sra/setti/datasets/dewiki-20090618-pages-meta-current.xml.bz2"
 #the right translation for "Discussion User" in the language in key
 i18n = trustletlib.load('language_parameters', os.path.join( os.environ['HOME'], 'shared_datasets', 'WikiNetwork', 'languageparameters.c2' ), fault=False ) 
-page_tag = u'{http://www.mediawiki.org/xml/export-0.3/}page'
-title_tag = u'{http://www.mediawiki.org/xml/export-0.3/}title'
-revision_tag = u'{http://www.mediawiki.org/xml/export-0.3/}revision'
-text_tag = u'{http://www.mediawiki.org/xml/export-0.3/}text'
-lang = 'de'
-search = '[['+i18n[lang][1]+':'
+
+tag_prefix = u'{http://www.mediawiki.org/xml/export-0.3/}'
+
+page_tag = tag_prefix + u'page'
+title_tag = tag_prefix + u'title'
+revision_tag = tag_prefix + u'revision'
+text_tag = tag_prefix + u'text'
 count = 0
+g = ig.Graph(n=0, directed=True)
+g.vs['login'] = []
+g.es['weight'] = []
 
 def count_discussion(text):
     return trustletlib.getCollaborators(text, i18n, lang)
 
+def addTalks(user, speakers):
+    def check_or_add(login):
+        if login not in g.vs['login']:
+            g.add_vertices(1)
+            g.vs[len(g.vs)-1]['login'] = login
+    try:
+        print "Add a talk to %s" % (user.encode('latin-1'),)
+    except UnicodeError:
+        print "Add a talk to someone with a strange name"
+        
+    user = user.encode('latin-1')
+    
+    check_or_add(user)
+    e_to = g.vs['login'].index(user)
+    for speaker,weight in speakers:
+        speaker = speaker.encode('latin-1')
+        check_or_add(speaker)
+        e_from = g.vs['login'].index(speaker)
+        try:
+            eid = g.get_eid(e_from, e_to, directed=True)
+            g.es[eid]['weight'] += weight
+        except ig.core.InternalError:
+            g.add_edges((e_from, e_to))
+            eid = g.get_eid(e_from, e_to, directed=True)
+            g.es[eid]['weight'] = weight
+
 def process_page(elem):
     for child in elem:
-        if child.tag == title_tag:
-            a_title = child.text.split(':')
+        if child.tag == title_tag and child.text:
+            a_title = child.text.split('/')[0].split(':')
             if len(a_title) > 1 and a_title[0] == i18n[lang][0]:
-                user = child.text
+                user = a_title[1]
             else:
                 return
         elif child.tag == revision_tag:
             for rc in child:
-                if rc.tag == text_tag and rc.text:
-                    count_discussion(rc.text)
-                    global count
-                    count += 1
-                    print count
+                if rc.tag == text_tag:
+                    assert user, "User still not defined"
+                    if rc.text:
+                        talks = count_discussion(rc.text)
+                        if talks:
+                            addTalks(user, talks)
+                        global count
+                        count += 1
+                        print count
+                    user = None
 
 
 def fast_iter(context, func):
@@ -82,9 +94,29 @@ def fast_iter(context, func):
             del elem.getparent()[0]
     del context
 
-src = BZ2File(filename)
 
-fast_iter(etree.iterparse(src, tag=page_tag), process_page)
+if __name__ == "__main__":
+    import re
+    import optparse
+
+    p = optparse.OptionParser(usage="usage: %prog [options] file")
+    
+    opts, files = p.parse_args()
+    
+    if not files:
+        p.error("Give me a file, please ;-)")
+    xml = files[0]
+
+    s = os.path.split(xml)[1]
+    lang = s[:s.index('wiki')]
+    res = re.search('wiki-(\d{4})(\d{2})(\d{2})-',s)
+    date = '-'.join([res.group(x) for x in xrange(1,4)])
+
+    src = BZ2File(xml)
+
+    fast_iter(etree.iterparse(src, tag=page_tag), process_page)
+
+    g.write("out.graphmlz", format="graphmlz")
 
 #cc = ''
 #for event, elem in etree.iterparse(src, tag=page_tag):
