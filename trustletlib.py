@@ -113,7 +113,7 @@ def getCollaborators( rawWikiText, search, searchEn ):
     weights = {}
     for u in matches:
         un = u.group(1)
-        weights[un] = weights.get(un, 1)
+        weights[un] = weights.get(un, 0) + 1
 
     return [(k,v) for k,v in weights.iteritems()]
 

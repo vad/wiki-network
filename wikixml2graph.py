@@ -135,7 +135,7 @@ def main():
 
     print "Len:", len(g.vs)
 
-    g.write("out.graphmlz", format="graphmlz")
+    g.write("%s_out.graphmlz" % (lang,), format="graphmlz")
 
 
 if __name__ == "__main__":
