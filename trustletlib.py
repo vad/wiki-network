@@ -19,6 +19,8 @@
 import os
 import cPickle as pickle
 from gzip import GzipFile
+import re
+
 
 mtime = lambda f: int(os.stat(f).st_mtime)
 
@@ -104,112 +106,14 @@ def hashable(x):
     raise TypeError,"I don't know this type "+str(type(x))
 
     
-def getCollaborators( rawWikiText, i18n, lang ):
-    """
-    return a list of tuple with ( user, value ), where user is the name of user
-    that put a message on the page, and the value is the number of times that
-    he appear in rawText passed.
-    parameter:
-       lang: lang of wiki [it|nap|vec|en|la]
-       rawWikiText: text in wiki format (normally discussion in wiki)
-    """
-    import re
-    from string import index
+def getCollaborators( rawWikiText, search, searchEn ):
+    rex = '\[\[(%s|%s)\:([^]]*)\]\]' % (search, searchEn)
+    matches = re.finditer(rex, rawWikiText)
 
-    resname = []
+    weights = {}
+    for u in matches:
+        un = u.group(1)
+        weights[un] = weights.get(un, 1)
 
-    start = 0
-    search = '[['+i18n[lang][1]+":"
-    searchEn = '[['+i18n['en'][1]+":"
-    io = len(search)
+    return [(k,v) for k,v in weights.iteritems()]
 
-    while True:
-        #search next user
-        try:
-            iu = index( rawWikiText, search, start ) #index of username
-        except ValueError:
-            if search == searchEn:
-                break
-            
-            # now search for English signatures
-            search = searchEn
-            start = 0
-            io = len(search)
-            continue
-            
-        #begin of the username
-        start = iu + io
-        #find end of username with regex
-        username = re.findall( "[^]|&/]+",rawWikiText[start:] )[0]
-        
-        if username == '' or username == None:
-            print "Damn! I cannot be able to find the name!"
-            print "This is the raw text:"
-            print rawWikiText[start:start+30]
-           
-            print "What is the end character? (all the character before first were ignored)"
-            newdelimiter = sys.stdin.readline().strip()[0]
-            
-            try:
-                end.append( index( rawWikiText, newdelimiter, start ) )
-            except ValueError:
-                print "Damn! you give me a wrong character!.."
-                exit(0)
-
-
-        resname.append( username ) # list of all usernames (possibly more than one times for one)
-        start += len(username) + 1 # not consider the end character
-        
-    #return a list of tuple, the second value of tuple is the weight    
-    return weight( resname )
-
-
-def weight( list, diz=False ):
-    """
-    takes a list of object and search for each object
-    other occurrences of object equal to him.
-    Return a list of tuple with (object,n) where object is object (repeated only once)
-    and n is the number of times that he appear in list
-    Parameter:
-      list: list of object
-    Example:
-      weight( ["mario","pluto","mario"] )
-      ---> [("mario",2),("pluto",1)]
-    """
-    if diz:
-        listweight = {}
-    else:
-        listweight = []
-    tmp = list
-    
-    def update( list, val, diz=False ):
-
-        if diz:
-            if list.has_key(val):
-                new = list.get(val)
-                new += 1
-                list[val] = new
-            else:
-                list[val] = 1
-
-        else:
-            find = False
-            
-            for x in xrange(len(list)):
-                if list[x][0] == val:
-                    find = True
-                    break
-
-            if find:
-                new = list[x][1] + 1
-                del list[x]
-                list.append( (val,new) )
-            else:
-                list.append( (val,1) )
-
-        return
-
-    for x in tmp:
-        update( listweight, x, diz=diz )
-
-    return listweight
