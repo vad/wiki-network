@@ -14,8 +14,6 @@
 #                                                                        #
 ##########################################################################
 
-
-
 import os
 import cPickle as pickle
 from gzip import GzipFile
@@ -31,9 +29,6 @@ def load(key,path,version=False,fault=None,cachedcache=True,info=False):
     fault is the value returned if key is not stored in cache.
     If info will return data and metadata (data: load(...)['dt'])
     """
-
-    #print '                   ',path
-    #return fault
 
     def onlydata(x):
         if hasattr(x,'has_key') and x.has_key('dt'):
@@ -107,13 +102,13 @@ def hashable(x):
 
     
 def getCollaborators( rawWikiText, search, searchEn ):
-    rex = '\[\[(%s|%s)\:([^]]*)\]\]' % (search, searchEn)
+    rex = '\[\[(%s|%s)\:([^]\|/]*)[^]]*\]\]' % (search, searchEn)
     matches = re.finditer(rex, rawWikiText)
 
     weights = {}
     for u in matches:
-        un = u.group(1)
+        un = u.group(2)
         weights[un] = weights.get(un, 0) + 1
 
-    return [(k,v) for k,v in weights.iteritems()]
+    return weights
 

@@ -57,7 +57,7 @@ def addTalks(g, user, speakers):
     #    print "Add a talk to someone with a strange name"
         
     e_to = check_or_add(g, user)
-    for speaker,weight in speakers:
+    for speaker,weight in speakers.iteritems():
         e_from = check_or_add(g, speaker)
         try:
             eid = g.get_eid(e_from, e_to, directed=True)
@@ -69,6 +69,7 @@ def addTalks(g, user, speakers):
     #print "%.4f" % (time()-start,)
 
 def process_page(elem, g):
+    user = None
     for child in elem:
         if child.tag == title_tag and child.text:
             a_title = child.text.split('/')[0].split(':')
@@ -79,19 +80,19 @@ def process_page(elem, g):
         elif child.tag == revision_tag:
             for rc in child:
                 if rc.tag == text_tag:
-                    assert user, "User still not defined"
-                    if rc.text:
+                    #assert user, "User still not defined"
+                    if rc.text and user:
                         #try:
-                        if True:
-                            talks = trustletlib.getCollaborators(rc.text, search, searchEn)
-                            if talks:
-                                addTalks(g, user, talks)
-                            global count
-                            count += 1
+                        #if True:
+                        talks = trustletlib.getCollaborators(rc.text, search, searchEn)
+                        if talks:
+                            addTalks(g, user, talks)
+                        global count
+                        count += 1
+                        if not count % 500:
                             print count
                         #except:
                         #    print "Warning: exception with user %s" % (user,)
-                    user = None
 
 
 def fast_iter(context, func, g):
