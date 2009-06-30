@@ -32,43 +32,67 @@ title_tag = tag_prefix + u'title'
 revision_tag = tag_prefix + u'revision'
 text_tag = tag_prefix + u'text'
 count = 0
-g = ig.Graph(n=0, directed=True)
+#g = ig.Graph(n=0, directed=True)
 #g.vs['login'] = []
-g.es['weight'] = []
+#g.es['weight'] = []
 usernames = {}
 search = None
 searchEn = None
 lang = None
+edges = []
+old_user = None
+elist = None
 
-def addTalks(g, user, speakers):
-    #start = time()
-    def check_or_add(g, login):
-        try:
-            return usernames[login]
-        except KeyError:
-            g.add_vertices(1)
-            idx = len(g.vs)-1
-            usernames[login] = idx
-            return idx
+class EdgeList:
+    edges = [] # a list of tuples: [('sender', 'recipient', 20), ...]
+    temp_edges = {} # a dict of dicts : {'recipient': {'sender1': 20, 'sender2': 2}}
+
+    def cumulate_edge(self, user, talks):
+        if not self.temp_edges.has_key(user):
+            self.temp_edges[user] = talks
+            return
     
-    #try:
-    #    print "Add a talk to %s" % (user,)
-    #except UnicodeError:
-    #    print "Add a talk to someone with a strange name"
-        
-    e_to = check_or_add(g, user)
-    for speaker,weight in speakers.iteritems():
-        e_from = check_or_add(g, speaker)
-        try:
-            eid = g.get_eid(e_from, e_to, directed=True)
-            g.es[eid]['weight'] += weight
-        except ig.core.InternalError:
-            g.add_edges((e_from, e_to))
-            eid = g.get_eid(e_from, e_to, directed=True)
-            g.es[eid]['weight'] = weight
-    #print "%.4f" % (time()-start,)
+        d = self.temp_edges[user]
+        for speaker, msgs in talks.iteritems():
+            d[speaker] = d.get(speaker, 0) + msgs
 
-def process_page(elem, g):
+
+    def flush_cumulate(self):
+        for recipient, talk in self.temp_edges.iteritems():
+            for sender, msgs in talk.iteritems():
+                self.edges.append((sender, recipient, msgs))
+
+        self.temp_edges.clear()
+
+
+    def get_network(self):
+        nodes = set(e[0] for e in self.edges).union(set(e[1] for e in self.edges))
+
+        g = ig.Graph(n = 0, directed=True)
+        g.es['weight'] = []
+        
+        g.add_vertices(len(nodes))
+        
+        dnodes = {}
+        i = 0
+        for node in nodes:
+            dnodes[node] = i
+            i += 1
+
+        g.vs['username'] = list(node.encode('utf-8') for node in nodes)
+        del nodes
+        
+        clean_edges = ((dnodes[e[0]], dnodes[e[1]]) for e in self.edges)
+        g.add_edges(clean_edges)
+        
+        for e_from, e_to, weight in self.edges:
+            eid = g.get_eid(dnodes[e_from], dnodes[e_to], directed=True)
+            g.es[eid]['weight'] = weight
+
+        return g
+
+
+def process_page(elem, elist):
     user = None
     for child in elem:
         if child.tag == title_tag and child.text:
@@ -86,18 +110,21 @@ def process_page(elem, g):
                         #if True:
                         talks = trustletlib.getCollaborators(rc.text, search, searchEn)
                         if talks:
-                            addTalks(g, user, talks)
+                            elist.cumulate_edge(user, talks)
+                            #addTalks(elist, user, talks)
                         global count
                         count += 1
-                        if not count % 500:
+                        if not count%500:
                             print count
+                        if count > 10000:
+                            sys.exit(2)
                         #except:
                         #    print "Warning: exception with user %s" % (user,)
 
 
-def fast_iter(context, func, g):
+def fast_iter(context, func, elist):
     for event, elem in context:
-        func(elem, g)
+        func(elem, elist)
         elem.clear()
         while elem.getprevious() is not None:
             del elem.getparent()[0]
@@ -126,15 +153,21 @@ def main():
     search = unicode(i18n[lang][1])
     searchEn = unicode(i18n['en'][1])
 
+    elist = EdgeList()
+
     src = BZ2File(xml)
 
-    fast_iter(etree.iterparse(src, tag=page_tag), process_page, g)
+    fast_iter(etree.iterparse(src, tag=page_tag), process_page, elist)
 
-    g.vs['login'] = (None,)*len(g.vs)
-    for username, idx in usernames.iteritems():
-        g.vs[idx]['login'] = username.encode('utf-8')
+    elist.flush_cumulate()
+    g = elist.get_network()
+
+    #g.vs['login'] = (None,)*len(g.vs)
+    #for username, idx in usernames.iteritems():
+    #    g.vs[idx]['login'] = username.encode('utf-8')
 
     print "Len:", len(g.vs)
+    print "Edges:", len(g.es)
 
     g.write("%s_out.graphmlz" % (lang,), format="graphmlz")
 
