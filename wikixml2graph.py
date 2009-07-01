@@ -31,21 +31,19 @@ page_tag = tag_prefix + u'page'
 title_tag = tag_prefix + u'title'
 revision_tag = tag_prefix + u'revision'
 text_tag = tag_prefix + u'text'
+
 count = 0
-#g = ig.Graph(n=0, directed=True)
-#g.vs['login'] = []
-#g.es['weight'] = []
-usernames = {}
 search = None
 searchEn = None
 lang = None
-edges = []
 old_user = None
 elist = None
+g = None
 
 class EdgeList:
-    edges = [] # a list of tuples: [('sender', 'recipient', 20), ...]
+    edges = []      # a list of tuples: [(sender_id, recipient_id, 20), ...]
     temp_edges = {} # a dict of dicts : {'recipient': {'sender1': 20, 'sender2': 2}}
+    nodes = {}      # a dict of {'username': vertex_id}
 
     def cumulate_edge(self, user, talks):
         if not self.temp_edges.has_key(user):
@@ -58,37 +56,48 @@ class EdgeList:
 
 
     def flush_cumulate(self):
+        """
+        This function assumes that all edges directed to the same node are present.
+
+        For example you can call cumulate_edge twice with the same user, but in
+        the meanwhile you can't call flush_cumulate()
+        """
+
         for recipient, talk in self.temp_edges.iteritems():
+            # find node with username recipient in self nodes
+            # If not present add it; we give him the id rec_id
+            rec_id = self.nodes.setdefault(recipient, len(self.nodes))
+
             for sender, msgs in talk.iteritems():
-                self.edges.append((sender, recipient, msgs))
+                send_id = self.nodes.setdefault(sender, len(self.nodes))
+                self.edges.append((send_id, rec_id, msgs))
 
         self.temp_edges.clear()
 
 
     def get_network(self):
-        nodes = set(e[0] for e in self.edges).union(set(e[1] for e in self.edges))
-
+        """
+        Get the resulting network and clean cached data
+        """
+        
         g = ig.Graph(n = 0, directed=True)
         g.es['weight'] = []
+        g.vs['username'] = []
+       
+        g.add_vertices(len(self.nodes))
         
-        g.add_vertices(len(nodes))
+        for username, id in self.nodes.iteritems():
+            g.vs[id]['username'] = username.encode('utf-8')
+        self.nodes.clear()
         
-        dnodes = {}
-        i = 0
-        for node in nodes:
-            dnodes[node] = i
-            i += 1
-
-        g.vs['username'] = [node.encode('utf-8') for node in nodes]
-        del nodes
-        
-        clean_edges = ((dnodes[e[0]], dnodes[e[1]]) for e in self.edges)
+        clean_edges = ((e[0], e[1]) for e in self.edges)
         g.add_edges(clean_edges)
         del clean_edges
         
         for e_from, e_to, weight in self.edges:
-            eid = g.get_eid(dnodes[e_from], dnodes[e_to], directed=True)
+            eid = g.get_eid(e_from, e_to, directed=True)
             g.es[eid]['weight'] = weight
+        self.edges = []
 
         return g
 
@@ -110,9 +119,7 @@ def process_page(elem, elist):
                         #if True:
                         try:
                             talks = trustletlib.getCollaborators(rc.text, search, searchEn)
-                            if talks:
-                                elist.cumulate_edge(user, talks)
-                            #addTalks(elist, user, talks)
+                            elist.cumulate_edge(user, talks)
                             global count
                             count += 1
                             if not count%500:
@@ -147,6 +154,7 @@ def main():
 
     global lang
     global search, searchEn
+    global g, elist
     s = os.path.split(xml)[1]
     lang = s[:s.index('wiki')]
     res = re.search('wiki-(\d{4})(\d{2})(\d{2})-',s)
@@ -162,10 +170,6 @@ def main():
 
     elist.flush_cumulate()
     g = elist.get_network()
-
-    #g.vs['login'] = (None,)*len(g.vs)
-    #for username, idx in usernames.iteritems():
-    #    g.vs[idx]['login'] = username.encode('utf-8')
 
     print "Len:", len(g.vs)
     print "Edges:", len(g.es)
