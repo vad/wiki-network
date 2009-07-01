@@ -79,11 +79,12 @@ class EdgeList:
             dnodes[node] = i
             i += 1
 
-        g.vs['username'] = list(node.encode('utf-8') for node in nodes)
+        g.vs['username'] = [node.encode('utf-8') for node in nodes]
         del nodes
         
         clean_edges = ((dnodes[e[0]], dnodes[e[1]]) for e in self.edges)
         g.add_edges(clean_edges)
+        del clean_edges
         
         for e_from, e_to, weight in self.edges:
             eid = g.get_eid(dnodes[e_from], dnodes[e_to], directed=True)
@@ -106,20 +107,20 @@ def process_page(elem, elist):
                 if rc.tag == text_tag:
                     #assert user, "User still not defined"
                     if rc.text and user:
-                        #try:
                         #if True:
-                        talks = trustletlib.getCollaborators(rc.text, search, searchEn)
-                        if talks:
-                            elist.cumulate_edge(user, talks)
+                        try:
+                            talks = trustletlib.getCollaborators(rc.text, search, searchEn)
+                            if talks:
+                                elist.cumulate_edge(user, talks)
                             #addTalks(elist, user, talks)
-                        global count
-                        count += 1
-                        if not count%500:
-                            print count
-                        if count > 10000:
-                            sys.exit(2)
-                        #except:
-                        #    print "Warning: exception with user %s" % (user,)
+                            global count
+                            count += 1
+                            if not count%500:
+                                print count
+                            #if count > 10000:
+                            #    sys.exit(2)
+                        except:
+                            print "Warning: exception with user %s" % (user,)
 
 
 def fast_iter(context, func, elist):
