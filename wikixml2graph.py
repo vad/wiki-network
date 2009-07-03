@@ -14,7 +14,6 @@
 ##########################################################################
 
 from bz2 import BZ2File
-import trustletlib
 import mwlib
 import os, sys
 import igraph as ig
@@ -22,9 +21,6 @@ from time import time
 
 ## etree
 from lxml import etree
-
-#the right translation for "Discussion User" in the language in key
-i18n = trustletlib.load('language_parameters', os.path.join( os.environ['HOME'], 'shared_datasets', 'WikiNetwork', 'languageparameters.c2' ), fault=False ) 
 
 tag_prefix = u'{http://www.mediawiki.org/xml/export-0.3/}'
 
@@ -40,6 +36,8 @@ lang = None
 old_user = None
 ecache = None
 g = None
+lang_user, lang_user_talk = None, None
+en_user, en_user_talk = "User", "User talk"
 
 class EdgeCache:
     edges = []      # a list of tuples: [(sender_id, recipient_id, 20), ...]
@@ -108,7 +106,7 @@ def process_page(elem, ecache):
     for child in elem:
         if child.tag == title_tag and child.text:
             a_title = child.text.split('/')[0].split(':')
-            if len(a_title) > 1 and a_title[0] == i18n[lang][0]:
+            if len(a_title) > 1 and a_title[0] in (en_user_talk, lang_user_talk):
                 user = a_title[1]
             else:
                 return
@@ -157,18 +155,36 @@ def main():
     print xml
 
     global lang
-    global search, searchEn
+    global search, searchEn, lang_user, lang_user_talk
     global g, ecache
     s = os.path.split(xml)[1]
     lang = s[:s.index('wiki')]
     res = re.search('wiki-(\d{4})(\d{2})(\d{2})-',s)
     date = ''.join([res.group(x) for x in xrange(1,4)])
-    search = unicode(i18n[lang][1])
-    searchEn = unicode(i18n['en'][1])
 
     ecache = EdgeCache()
 
     src = BZ2File(xml)
+
+    counter = 0
+    for line in src:
+        keys = re.findall('<namespace key="(\d+)">([^<]*)</namespace>', line)
+        for key, ns in keys:
+            if key == '2':
+                lang_user = ns
+            elif key == '3':
+                lang_user_talk = ns
+
+        counter += 1
+        if counter > 100:
+            break
+            
+    assert lang_user, "User namespace not found"
+    assert lang_user_talk, "User Talk namespace not found"
+
+    src.seek(0)
+    search = unicode(lang_user)
+    searchEn = unicode(en_user)
 
     fast_iter(etree.iterparse(src, tag=page_tag), process_page, ecache)
 
