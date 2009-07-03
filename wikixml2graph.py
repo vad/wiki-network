@@ -15,6 +15,7 @@
 
 from bz2 import BZ2File
 import trustletlib
+import mwlib
 import os, sys
 import igraph as ig
 from time import time
@@ -37,10 +38,10 @@ search = None
 searchEn = None
 lang = None
 old_user = None
-elist = None
+ecache = None
 g = None
 
-class EdgeList:
+class EdgeCache:
     edges = []      # a list of tuples: [(sender_id, recipient_id, 20), ...]
     temp_edges = {} # a dict of dicts : {'recipient': {'sender1': 20, 'sender2': 2}}
     nodes = {}      # a dict of {'username': vertex_id}
@@ -102,7 +103,7 @@ class EdgeList:
         return g
 
 
-def process_page(elem, elist):
+def process_page(elem, ecache):
     user = None
     for child in elem:
         if child.tag == title_tag and child.text:
@@ -113,26 +114,29 @@ def process_page(elem, elist):
                 return
         elif child.tag == revision_tag:
             for rc in child:
-                if rc.tag == text_tag:
-                    #assert user, "User still not defined"
-                    if rc.text and user:
-                        #if True:
-                        try:
-                            talks = trustletlib.getCollaborators(rc.text, search, searchEn)
-                            elist.cumulate_edge(user, talks)
-                            global count
-                            count += 1
-                            if not count%500:
-                                print count
-                            #if count > 10000:
-                            #    sys.exit(2)
-                        except:
-                            print "Warning: exception with user %s" % (user,)
+                if rc.tag != text_tag:
+                    continue
+                    
+                #assert user, "User still not defined"
+                if not (rc.text and user):
+                    continue
+                    
+                try:
+                    talks = mwlib.getCollaborators(rc.text, search, searchEn)
+                    ecache.cumulate_edge(user, talks)
+                    global count
+                    count += 1
+                    if not count%500:
+                        print count
+                    #if count > 10000:
+                    #    sys.exit(2)
+                except:
+                    print "Warning: exception with user %s" % (user.encode('utf-8'),)
 
 
-def fast_iter(context, func, elist):
+def fast_iter(context, func, ecache):
     for event, elem in context:
-        func(elem, elist)
+        func(elem, ecache)
         elem.clear()
         while elem.getprevious() is not None:
             del elem.getparent()[0]
@@ -154,27 +158,27 @@ def main():
 
     global lang
     global search, searchEn
-    global g, elist
+    global g, ecache
     s = os.path.split(xml)[1]
     lang = s[:s.index('wiki')]
     res = re.search('wiki-(\d{4})(\d{2})(\d{2})-',s)
-    date = '-'.join([res.group(x) for x in xrange(1,4)])
+    date = ''.join([res.group(x) for x in xrange(1,4)])
     search = unicode(i18n[lang][1])
     searchEn = unicode(i18n['en'][1])
 
-    elist = EdgeList()
+    ecache = EdgeCache()
 
     src = BZ2File(xml)
 
-    fast_iter(etree.iterparse(src, tag=page_tag), process_page, elist)
+    fast_iter(etree.iterparse(src, tag=page_tag), process_page, ecache)
 
-    elist.flush_cumulate()
-    g = elist.get_network()
+    ecache.flush_cumulate()
+    g = ecache.get_network()
 
     print "Len:", len(g.vs)
     print "Edges:", len(g.es)
 
-    g.write("%s_out.graphmlz" % (lang,), format="graphmlz")
+    g.write("%swiki-%s.pickle" % (lang, date), format="pickle")
 
 
 if __name__ == "__main__":

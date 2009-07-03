@@ -100,15 +100,3 @@ def hashable(x):
 
     raise TypeError,"I don't know this type "+str(type(x))
 
-    
-def getCollaborators( rawWikiText, search, searchEn ):
-    rex = '\[\[(%s|%s)\:([^]\|/]*)[^]]*\]\]' % (search, searchEn)
-    matches = re.finditer(rex, rawWikiText)
-
-    weights = {}
-    for u in matches:
-        un = u.group(2)
-        weights[un] = weights.get(un, 0) + 1
-
-    return weights
-
