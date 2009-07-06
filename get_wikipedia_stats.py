@@ -29,6 +29,7 @@ def get_stats_wikipedia(wiki_id):
         "pms":"ro_RO",
         "nap":"ro_RO",
         "sq":"ro_RO",
+        "de":"de_DE",
     } 
     if wiki_id in locale_for_wiki_id:
         locale.setlocale(locale.LC_NUMERIC, locale_for_wiki_id[wiki_id])
@@ -111,6 +112,7 @@ if __name__ == "__main__":
     #for loc in candidate_locales:
     #    locale.setlocale(locale.LC_NUMERIC, loc)
     #    print "[",locale.localeconv()['thousands_sep'],"] is the separator between thousands in numbers for [",loc,"]"
+    #    print "[",locale.localeconv()['decimal_point'],"] is the separator for decimals in numbers for [",loc,"]"
     list_wiki_ids = [
         'en',
         'de',
