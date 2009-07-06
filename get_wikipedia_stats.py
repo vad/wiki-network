@@ -87,9 +87,9 @@ def get_all_stats(list_wiki_ids):
 
 def pretty_print(stats):
     fw = 23
-    print '|| wiki_id\t || '+(' || '.join([str(attr).ljust(fw)[:fw] for (attr,val) in stats[list_wiki_ids[0]]]))+" ||"
+    print '|| wiki_id\t || '+(' || '.join([str(attr).rjust(fw)[:fw] for (attr,val) in stats[list_wiki_ids[0]]]))+" ||"
     for wiki_id in list_wiki_ids:
-        print "|| "+wiki_id+'\t || '+(' || '.join([str(val).ljust(fw)[:fw] for (attr,val) in stats[wiki_id]]))+" ||"
+        print "|| "+wiki_id+'\t || '+(' || '.join([str(val).rjust(fw)[:fw] for (attr,val) in stats[wiki_id]]))+" ||"
 
 if __name__ == "__main__":
     candidate_locales = ['es_UY', 'fr_FR', 'fi_FI', 'es_CO', 'pt_PT', 'it_IT',
@@ -105,10 +105,17 @@ if __name__ == "__main__":
     #    locale.setlocale(locale.LC_NUMERIC, loc)
     #    print "[",locale.localeconv()['thousands_sep'],"] is the separator between thousands in numbers for [",loc,"]"
     list_wiki_ids = [
-        'nl',
+        'en',
         'de',
+        'fr',
+        'it',
+        'nl',
+        'es',
         'pt',
         'ca',
+        'eo',
+        'commons',
+        'simple',
         'la',
         'eml',
         'scn',
@@ -121,16 +128,9 @@ if __name__ == "__main__":
         'nap',
         'sc',
         'rm',
-        'eo',
         'ia',
         'sq',
-        'simple',
-        'commons',
-        'es',
-        'fr',
         'fur',
-        'it',
-        'en'
     ]
     stats = get_all_stats(list_wiki_ids)
     pretty_print(stats)
