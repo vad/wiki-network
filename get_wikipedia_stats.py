@@ -22,6 +22,13 @@ def get_stats_wikipedia(wiki_id):
         "es":"ro_RO",
         "nl":"ro_RO",
         "ca":"ro_RO",
+        "scn":"ro_RO",
+        "vec":"ro_RO",
+        "lij":"ro_RO",
+        "lmo":"ro_RO",
+        "pms":"ro_RO",
+        "nap":"ro_RO",
+        "sq":"ro_RO",
     } 
     if wiki_id in locale_for_wiki_id:
         locale.setlocale(locale.LC_NUMERIC, locale_for_wiki_id[wiki_id])
@@ -117,20 +124,20 @@ if __name__ == "__main__":
         'commons',
         'simple',
         'la',
-        'eml',
+        'sq',
+        'pms',
         'scn',
-        'sco',
+        'nap',
         'vec',
-        'lij',
         'lmo',
         'co',
-        'pms',
-        'nap',
-        'sc',
-        'rm',
         'ia',
-        'sq',
+        'rm',
         'fur',
+        'sco',
+        'lij',
+        'sc',
+        'eml',
     ]
     stats = get_all_stats(list_wiki_ids)
     pretty_print(stats)
