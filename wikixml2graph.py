@@ -157,7 +157,7 @@ def main():
     global lang
     global search, searchEn, lang_user, lang_user_talk
     global g, ecache
-    s = os.path.split(xml)[1]
+    s = os.path.split(xml)[1] #filename with extension
     lang = s[:s.index('wiki')]
     res = re.search('wiki-(\d{4})(\d{2})(\d{2})-',s)
     date = ''.join([res.group(x) for x in xrange(1,4)])
@@ -176,7 +176,7 @@ def main():
                 lang_user_talk = ns
 
         counter += 1
-        if counter > 100:
+        if counter > 50:
             break
             
     assert lang_user, "User namespace not found"
