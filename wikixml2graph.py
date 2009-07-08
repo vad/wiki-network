@@ -37,7 +37,7 @@ old_user = None
 ecache = None
 g = None
 lang_user, lang_user_talk = None, None
-en_user, en_user_talk = "User", "User talk"
+en_user, en_user_talk = u"User", u"User talk"
 
 class EdgeCache:
     edges = []      # a list of tuples: [(sender_id, recipient_id, 20), ...]
@@ -106,6 +106,7 @@ def process_page(elem, ecache):
     for child in elem:
         if child.tag == title_tag and child.text:
             a_title = child.text.split('/')[0].split(':')
+
             if len(a_title) > 1 and a_title[0] in (en_user_talk, lang_user_talk):
                 user = a_title[1]
             else:
@@ -152,7 +153,6 @@ def main():
     if not files:
         p.error("Give me a file, please ;-)")
     xml = files[0]
-    print xml
 
     global lang
     global search, searchEn, lang_user, lang_user_talk
@@ -168,12 +168,12 @@ def main():
 
     counter = 0
     for line in src:
-        keys = re.findall('<namespace key="(\d+)">([^<]*)</namespace>', line)
+        keys = re.findall(r'<namespace key="(\d+)">([^<]*)</namespace>', line)
         for key, ns in keys:
             if key == '2':
-                lang_user = ns
+                lang_user = unicode(ns, 'utf-8')
             elif key == '3':
-                lang_user_talk = ns
+                lang_user_talk = unicode(ns, 'utf-8')
 
         counter += 1
         if counter > 50:
