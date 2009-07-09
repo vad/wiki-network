@@ -2,8 +2,8 @@
 
 import igraph as ig
 from time import ctime
-from getopt import *
-import os, sys
+from optparse import OptionParser
+import os, sys, re
 import gc
 
 ## GLOBAL VARIABLES
@@ -11,6 +11,7 @@ import gc
 ## FUNCTIONS
 
 def meanDegree(g, type):
+    isinstance(g, ig.Graph) # helper for wing
     degree = g.degree(type=type)
     mean = 1.*sum(degree)/len(degree)
     return mean
@@ -60,48 +61,46 @@ def usage(error = 0):
 
 
 if __name__ == '__main__':
-    try:                                
-        opts, args = getopt(sys.argv[1:], "hdeirtsp", ["help", "details", "degree", "distance", 'density', 'transitivity', 'summary', 'plot']) 
-    except GetoptError:
-        usage(2)
+    op = OptionParser('%prog [options] graph')
+    
+    op.add_option('-d', '--details', action="store_true", dest="details",
+        help="Print details about this graph (# of vertexes and # of edges)")
+    op.add_option('-e', '--degree', action="store_true", dest="degree",
+        help="Print the mean vertex-vertex distance of the graph")
+    op.add_option('-r', '--density', action="store_true", dest="density",
+        help="Print the density of the graph")
+    op.add_option('-t', '--transitivity', action="store_true", dest="transitivity")
+    op.add_option('-i', '--distance', action="store_true", dest="distance")
+    op.add_option('-s', '--summary', action="store_true", dest="summary")
+    op.add_option('-p', '--plot', action="store_true", dest="plot")
+    op.add_option('-c', '--histogram', action="store_true", dest="histogram")
+    op.add_option('-g', '--gnuplot', action="store_true", dest="gnuplot")
+    
+    (options, args) = op.parse_args()
 
     if len(args) != 1:
-        usage(1)
-
-    _details = _degree = _distance = _density = _transitivity = _summary = _plot = False
-    for opt, arg in opts:
-        if opt in ('-d', '--details'):
-            _details = True
-        if opt in ('-e', '--degree'):
-            _degree = True
-        if opt in ('-i', '--distance'):
-            _distance = True
-        if opt in ('-r', '--density'):
-            _density = True
-        if opt in ('-t', '--transitivity'):
-            _transitivity = True
-        if opt in ('-s', '--summary'):
-            _summary = True
-        if opt in ('-p', '--plot'):
-            _plot = True
+        print "Insert one (and only one) file to process\n"
+        op.print_help()
 
     fn = args[0]
     s = os.path.split(fn)[1]
     lang = s[:s.index('wiki')]
+    res = re.search('wiki-(\d{4})(\d{2})(\d{2})',s)
+    date = ''.join([res.group(x) for x in xrange(1,4)])
     g = ig.load(fn)
 
-    if _details:
+    if options.details:
         print "Vertex: %d" % (len(g.vs),)
         print "Edge: %d" % (len(g.es),)
 
-    if _density:
+    if options.density:
         print "Density: %.10f" % (g.density(),)
 
         lenvs = len(g.vs)
         print "Calculated density: %.10f" % (1.*len(g.es)/lenvs/(lenvs-1))
         print ""
 
-    if _degree:
+    if options.degree:
         mid = meanDegree(g, ig.IN)
         mod = meanDegree(g, ig.OUT)
 
@@ -111,13 +110,14 @@ if __name__ == '__main__':
         print "Variance IN Degree: %f" % degreeVariance(g, ig.IN, mid)
         print "Variance OUT Degree: %f" % degreeVariance(g, ig.OUT, mod)
 
-    #if _transitivity:
-    #    print " * transitivity: %f" % (nx.transitivity(g), )
+    if options.transitivity:
+        #print " * transitivity: %f" % (nx.transitivity(g), )
+        pass
     
-    if _summary:
+    if options.summary:
         print "* summary: %s" % (g.summary(), )
 
-    if _distance:
+    if options.distance:
         giant = g.clusters().giant()
 
         print "Length max cluster: %d" % (len(giant.vs), )
@@ -126,7 +126,47 @@ if __name__ == '__main__':
 
         #print "Average distance 2: %f" % giant.average_path_length(True, False)
 
-    if _plot:
+    if options.plot or options.histogram:
+        set_weighted_indegree(g)
+
+
+    if options.histogram:
+        indegrees = sorted(g.vs['indegree'])
+        
+        # group
+        nogrp_indegrees = g.vs.select(sysop_ne=True,bot_ne=True)['indegree']
+        nogrp_list = [(degree, 1) for degree in nogrp_indegrees if degree]
+        
+        sysops_indegrees = g.vs.select(sysop=True)['indegree']
+        sysops_list = [(degree, 2) for degree in sysops_indegrees if degree]
+        
+        bots_indegrees = g.vs.select(bot=True)['indegree']
+        bots_list = [(degree, 3) for degree in bots_indegrees if degree]
+        
+        if options.gnuplot:
+            f = open('hist.dat', 'w')
+        else:
+            f = open('%swiki-%s-hist.dat' % (lang, date), 'w')
+
+        for indegree, grp in sorted(sysops_list + nogrp_list + bots_list, reverse=True):
+            for i in range(grp - 1):
+                print >>f, 0,
+            print >>f, indegree,
+            for i in range(grp, 3):
+                print >>f, 0,
+            print >>f, ""
+        f.close()
+
+    if options.gnuplot:
+        from popen2 import Popen3
+        
+        process = Popen3('gnuplot hist.gnuplot')
+        process.wait()
+        
+        os.rename('hist.png', '%swiki-%s-hist.png' % (lang, date))
+        
+            
+    if options.plot:
         import math
         bots = g.vs.select(bot=True)
         bots['color'] = ('purple',)*len(bots)
@@ -140,7 +180,6 @@ if __name__ == '__main__':
         bur_sysops = g.vs.select(bureaucrat=True, sysop=True)
         bur_sysops['color'] = ('orange',)*len(bur_sysops)
 
-        set_weighted_indegree(g)
         g.vs['size'] = [math.sqrt(v['indegree']+1)*10 for v in g.vs]
 
         ig.plot(g, target=lang+"_general.png", bbox=(0,0,4000,2400), edge_color='grey', layout='fr')
@@ -152,5 +191,4 @@ if __name__ == '__main__':
 
         ig.plot(g, target=lang+"_weighted_edges.png", bbox=(0,0,4000,2400), layout='fr', vertex_label=' ')
 
-    print 'END', ctime()
 
