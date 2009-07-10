@@ -5,44 +5,28 @@ from time import ctime
 from optparse import OptionParser
 import os, sys, re
 import gc
+import numpy
 
 ## GLOBAL VARIABLES
 
 ## FUNCTIONS
 
-def meanDegree(g, type):
+def averageDistance(g):
     isinstance(g, ig.Graph) # helper for wing
-    degree = g.degree(type=type)
-    mean = 1.*sum(degree)/len(degree)
-    return mean
-
-
-def degreeVariance(g, type, mean):
-    '''
-    g:      graph
-    type:   type (igraph.IN or igraph.OUT)
-    mean:   mean degree for this type
-    '''
-    degree = g.degree(type=type)
-    variance = 1.*sum([(nodeDegree - mean)**2 for nodeDegree in degree])/len(g.vs)
-    return variance
-
-
-def printAverageDistance(g):
     #print 'DISTANCES', ctime()
     dSum = 0
     step = 1000
     n = len(g.vs)
     for i in range(0, n, step):
-        if not (i+1) % 100:
-            print 'Step:', i
-            print 1.*dSum*step/i
+        #if not (i+1) % 100:
+        #    print 'Step:', i
+        #    print 1.*dSum*step/i
         uplimit = min(n, i+step)
         
         dSum += 1.*sum([sum(d) for d in g.shortest_paths(range(i, uplimit), weights='weight')]) / (n-1) / (uplimit - i)
 
     avg_dist = 1.*dSum / len(range(0, n, step))
-    #print "Average distance: %f" % avg_dist
+    return avg_dist
 
 
 def set_weighted_indegree(g):
@@ -52,12 +36,6 @@ def set_weighted_indegree(g):
         g_edges = (e for e in edges if not g.is_loop(e))
         node['indegree'] = sum(g.es[eid]['weight'] for eid in g_edges)
 
-
-def usage(error = 0):
-    print "SYNTAX: test.py filename"
-    print ""
-
-    sys.exit(error)
 
 
 if __name__ == '__main__':
@@ -88,41 +66,44 @@ if __name__ == '__main__':
     res = re.search('wiki-(\d{4})(\d{2})(\d{2})',s)
     date = ''.join([res.group(x) for x in xrange(1,4)])
     g = ig.load(fn)
+    isinstance(g, ig.Graph) # helper for wing
 
     if options.details:
-        print "Vertex: %d" % (len(g.vs),)
-        print "Edge: %d" % (len(g.es),)
+        print " * vertexes: %d" % (len(g.vs),)
+        print " * edges: %d" % (len(g.es),)
 
     if options.density:
-        print "Density: %.10f" % (g.density(),)
+        print " * density: %.10f" % (g.density(),)
 
-        lenvs = len(g.vs)
-        print "Calculated density: %.10f" % (1.*len(g.es)/lenvs/(lenvs-1))
-        print ""
+        #lenvs = len(g.vs)
+        #print " * calculated density: %.10f" % (1.*len(g.es)/lenvs/(lenvs-1))
+        #print ""
 
     if options.degree:
-        mid = meanDegree(g, ig.IN)
-        mod = meanDegree(g, ig.OUT)
+        ind = g.degree(type=ig.IN)
+        outd = g.degree(type=ig.OUT)
+        mid = numpy.average(ind)
+        mod = numpy.average(outd)
 
-        print "Mean IN degree: %f" % mid
-        print "Mean OUT degree: %f" % mod
+        print " * mean IN/OUT degree: %f" % mid
+        print " * max IN degree: %f" % max(ind)
+        print " * max OUT degree: %f" % max(outd)
 
-        print "Variance IN Degree: %f" % degreeVariance(g, ig.IN, mid)
-        print "Variance OUT Degree: %f" % degreeVariance(g, ig.OUT, mod)
+        print " * variance IN Degree: %f" % numpy.var(ind)
+        print " * variance OUT Degree: %f" % numpy.var(outd)
 
     if options.transitivity:
         #print " * transitivity: %f" % (nx.transitivity(g), )
         pass
     
     if options.summary:
-        print "* summary: %s" % (g.summary(), )
+        print " * summary: %s" % (g.summary(), )
 
     if options.distance:
         giant = g.clusters().giant()
 
-        print "Length max cluster: %d" % (len(giant.vs), )
-
-        printAverageDistance(giant)
+        print " * length max cluster: %d" % (len(giant.vs), )
+        print " * average distance: %f" % averageDistance(giant)
 
         #print "Average distance 2: %f" % giant.average_path_length(True, False)
 
@@ -134,25 +115,34 @@ if __name__ == '__main__':
         indegrees = sorted(g.vs['indegree'])
         
         # group
-        nogrp_indegrees = g.vs.select(sysop_ne=True,bot_ne=True)['indegree']
+        nogrp_indegrees = g.vs.select(sysop_ne=True, bureaucrat_ne=True, steward_ne=True, founder_ne=True, bot_ne=True)['indegree']
         nogrp_list = [(degree, 1) for degree in nogrp_indegrees if degree]
         
-        sysops_indegrees = g.vs.select(sysop=True)['indegree']
+        sysops_indegrees = g.vs.select(sysop=True, bureaucrat_ne=True, steward_ne=True, founder_ne=True, bot_ne=True)['indegree']
         sysops_list = [(degree, 2) for degree in sysops_indegrees if degree]
         
+        burs_indegrees = g.vs.select(bureaucrat=True, steward_ne=True, founder_ne=True, bot_ne=True)['indegree']
+        burs_list = [(degree, 3) for degree in burs_indegrees if degree]
+        
+        stewards_indegrees = g.vs.select(steward=True, founder_ne=True, bot_ne=True)['indegree']
+        stewards_list = [(degree, 4) for degree in stewards_indegrees if degree]
+        
+        founders_indegrees = g.vs.select(founder=True, bot_ne=True)['indegree']
+        founders_list = [(degree, 5) for degree in founders_indegrees if degree]
+        
         bots_indegrees = g.vs.select(bot=True)['indegree']
-        bots_list = [(degree, 3) for degree in bots_indegrees if degree]
+        bots_list = [(degree, 6) for degree in bots_indegrees if degree]
         
         if options.gnuplot:
             f = open('hist.dat', 'w')
         else:
             f = open('%swiki-%s-hist.dat' % (lang, date), 'w')
 
-        for indegree, grp in sorted(sysops_list + nogrp_list + bots_list, reverse=True):
+        for indegree, grp in sorted(sysops_list + nogrp_list + burs_list + stewards_list + founders_list + bots_list, reverse=True):
             for i in range(grp - 1):
                 print >>f, 0,
             print >>f, indegree,
-            for i in range(grp, 3):
+            for i in range(grp, 6):
                 print >>f, 0,
             print >>f, ""
         f.close()
@@ -164,6 +154,7 @@ if __name__ == '__main__':
         process.wait()
         
         os.rename('hist.png', '%swiki-%s-hist.png' % (lang, date))
+        os.rename('hist.dat', '%swiki-%s-hist.dat' % (lang, date))
         
             
     if options.plot:

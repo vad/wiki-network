@@ -41,14 +41,15 @@ def addGroupAttribute(g, lang, group='bot'):
         furl = urlopen(url)
         res = json.load(furl)
 
-        if not res.has_key('query'):
-            print 'Error in group %s' % group
+        if not res.has_key('query') or not res['query']['allusers']:
+            print 'Group %s has errors or has no users' % group
+            g.vs[group] = [None,]*len(g.vs)
             return g
 
-        for bot in res['query']['allusers']:
-            print bot['name'].encode('utf-8')
+        for user in res['query']['allusers']:
+            print user['name'].encode('utf-8')
             try:
-                g.vs.select(username=bot['name'].encode('utf-8'))[0][group] = True
+                g.vs.select(username=user['name'].encode('utf-8'))[0][group] = True
             except IndexError:
                 pass
         
