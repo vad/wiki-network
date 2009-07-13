@@ -3,7 +3,7 @@
 #set style fill solid border -1
 set log xy
 
-set terminal png size 2000, 1200
+set terminal png butt size 2000, 1200 x000000 xffffff x0000ff xff0000 
 set output "hist.png"
 
 #plot 'hist.dat' using 1 w p t 'Common', '' using 2  w p t 'Sysop'

@@ -138,6 +138,32 @@ if __name__ == '__main__':
         else:
             f = open('%swiki-%s-hist.dat' % (lang, date), 'w')
 
+        all_list = sorted(sysops_list + nogrp_list + burs_list + stewards_list + founders_list + bots_list, reverse=True)
+        ##from pylab import figure, show, ioff, ion
+        ##import matplotlib
+        ##import matplotlib.pyplot as plt
+
+        ##fig = figure(facecolor='white', edgecolor='white')
+        ##ax = fig.add_subplot(111) # a plot with a row and a column
+        
+        ##isinstance(fig, matplotlib.figure.Figure)
+        ##isinstance(ax, matplotlib.axes.Axes)
+        
+        ##ax.set_yscale('log')
+        ##ax.set_xscale('log')
+        
+        ##degrees = [x[0] for x in all_list]
+        ##d_colors = { 1: '#BE1E2D', 2: '#EE8310', 3: 'green', 4: '#92D5EA', 5: 'violet', 6: '#666699'}
+        ##colors = [d_colors[x[1]] for x in all_list]
+        
+        ##ioff()
+        ##ax.bar(range(len(degrees)), degrees, color=colors, edgecolor='white', width=1., log=True)    
+        ##ax.set_ylim(0.9, max(indegrees))
+        ##ion()
+
+        ##show()
+        
+        
         for indegree, grp in sorted(sysops_list + nogrp_list + burs_list + stewards_list + founders_list + bots_list, reverse=True):
             for i in range(grp - 1):
                 print >>f, 0,
