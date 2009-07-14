@@ -41,6 +41,8 @@ def set_weighted_indegree(g):
 if __name__ == '__main__':
     op = OptionParser('%prog [options] graph')
     
+    op.add_option('--as-table', action="store_true", dest="as_table",
+        help="Format output as a table row")
     op.add_option('-d', '--details', action="store_true", dest="details",
         help="Print details about this graph (# of vertexes and # of edges)")
     op.add_option('-e', '--degree', action="store_true", dest="degree",
@@ -68,9 +70,19 @@ if __name__ == '__main__':
     g = ig.load(fn)
     isinstance(g, ig.Graph) # helper for wing
 
+    if options.as_table:
+        import mmap
+        out = mmap.mmap(-1, 1024*1024) #create an in-memory-file
+        sys.stdout = out
+    
     if options.details:
         print " * vertexes: %d" % (len(g.vs),)
         print " * edges: %d" % (len(g.es),)
+
+        nodes_with_outdegree = len(g.vs.select(_outdegree_ge=1))
+        
+        print " * #nodes with out edges: %d (%6f%%)" % (nodes_with_outdegree, 1.*nodes_with_outdegree/len(g.vs))
+        print " * 5 max weights on edges : %s" % (', '.join(str(idx) for idx in sorted(g.es['weight'], reverse=True)[:5]),)
 
     if options.density:
         print " * density: %.10f" % (g.density(),)
@@ -101,8 +113,12 @@ if __name__ == '__main__':
 
     if options.distance:
         giant = g.clusters().giant()
-
-        print " * length max cluster: %d" % (len(giant.vs), )
+        
+        giant_len = len(giant.vs)
+        print " * length max cluster: %d" % (giant_len, )
+        print " * #node in max cluster/#all nodes: %6f" % (1.*giant_len/len(g.vs), )
+        
+    if options.distance:
         print " * average distance: %f" % averageDistance(giant)
 
         #print "Average distance 2: %f" % giant.average_path_length(True, False)
@@ -209,3 +225,18 @@ if __name__ == '__main__':
         ig.plot(g, target=lang+"_weighted_edges.png", bbox=(0,0,4000,2400), layout='fr', vertex_label=' ')
 
 
+    if options.as_table:
+        sys.stdout = sys.__stdout__  # restore stdout back to normal
+        
+        end_pos = out.tell()
+        out.seek(0)
+        table = []
+        while out.tell() < end_pos:
+            l = out.readline()
+            if not l:
+                break
+            table.append(l.split(':')[1].strip())
+        
+        out.close()
+        
+        print "||%s||%s||" % (lang, '||'.join(table))
