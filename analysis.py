@@ -57,31 +57,57 @@ class Tablr:
 
 
 
-def averageDistance(g):
+def averageDistance(g, weighted=True):
     isinstance(g, ig.Graph) # helper for wing
-    #print 'DISTANCES', ctime()
-    dSum = 0
+    dSum = 0.
     step = 1000
     n = len(g.vs)
     for i in range(0, n, step):
-        #if not (i+1) % 100:
-        #    print 'Step:', i
-        #    print 1.*dSum*step/i
+        ##if not (i+1) % 100:
+        ##    print 'Step:', i
+        ##    print 1.*dSum*step/i
         uplimit = min(n, i+step)
 
-        dSum += 1.*sum([sum(d) for d in g.shortest_paths(range(i, uplimit), weights='weight')]) / (n-1) / (uplimit - i)
+        # distances from nodes in range (i, i+step) to all the other nodes
+        if weighted:
+            aDistances = g.shortest_paths(range(i, uplimit), weights='length')
+        else:
+            aDistances = g.shortest_paths(range(i, uplimit))
+
+        dSum += 1.*sum([sum(d) for d in aDistances]) / (n-1) / (uplimit - i)
 
     avg_dist = 1.*dSum / len(range(0, n, step))
     return avg_dist
 
 
-def set_weighted_indegree(g):
-    #todo: improve self-loops check
-    for node in g.vs:
-        edges = g.adjacent(node.index, type=ig.IN)
-        g_edges = (e for e in edges if not g.is_loop(e))
-        node['indegree'] = sum(g.es[eid]['weight'] for eid in g_edges)
+def efficiency(g):
+    isinstance(g, ig.Graph) # helper for wing
+    effSum = 0.
+    step = 1000
+    n = len(g.vs)
+    for i in range(0, n, step):
+        ##if not (i+1) % 100:
+        ##    print 'Step:', i
+        ##    print 1.*dSum*step/i
+        uplimit = min(n, i+step)
 
+        # distances from nodes in range (i, i+step) to all the other nodes
+        aDistances = g.shortest_paths(range(i, uplimit), weights='length')
+        effSum += 1.*sum(sum(1./numpy.array([e for e in d if e])) for d in aDistances)
+
+    efficiency = effSum/(1.*n*(n-1)) # maybe there should be a factor of 2 somewhere (directed graph)
+    return efficiency
+
+
+def set_weighted_degree(g, type=ig.IN):
+    #todo: improve self-loops check
+    stype = type == ig.IN and "in" or "out"
+    k = 'weighted_%sdegree' % stype
+
+    for node in g.vs:
+        edges = g.adjacent(node.index, type=type)
+        g_edges = (e for e in edges if not g.is_loop(e))
+        node[k] = sum(g.es[eid]['weight'] for eid in g_edges)
 
 
 if __name__ == '__main__':
@@ -97,6 +123,7 @@ if __name__ == '__main__':
         help="Print the density of the graph")
     op.add_option('-t', '--transitivity', action="store_true", dest="transitivity")
     op.add_option('-i', '--distance', action="store_true", dest="distance")
+    op.add_option('-f', '--efficiency', action="store_true", dest="efficiency")
     op.add_option('-s', '--summary', action="store_true", dest="summary")
     op.add_option('-c', '--centrality', action="store_true", dest="centrality")
     op.add_option('-p', '--plot', action="store_true", dest="plot")
@@ -118,6 +145,7 @@ if __name__ == '__main__':
     date = ''.join([res.group(x) for x in xrange(1,4)])
     g = ig.load(fn)
     isinstance(g, ig.Graph) # helper for wing
+    g.es['length'] = 1./numpy.array(g.es['weight'])
 
     if options.as_table:
         tablr = Tablr()
@@ -132,9 +160,12 @@ if __name__ == '__main__':
 
         print " * #nodes with out edges: %d (%6f%%)" % (nodes_with_outdegree, 100.*nodes_with_outdegree/len(g.vs))
         print " * #nodes with in edges: %d (%6f%%)" % (nodes_with_indegree, 100.*nodes_with_indegree/len(g.vs))
-        print " * 5 max weights on edges : %s" % (', '.join(str(idx) for idx in sorted(g.es['weight'], reverse=True)[:5]),)
-        print " * reciprocity : %6f" % (g.reciprocity(),)
-        print " * diameter : %6f" % (g.diameter(weights='weight'),)
+        print " * 5 max numMsg on edges : %s" % (', '.join(str(idx) for idx in sorted(g.es['weight'], reverse=True)[:5]),)
+        print " * reciprocity : %6f" % g.reciprocity()
+        print " * diameter : %6f" % g.diameter(weights='length')
+
+        print " * Average weights : %6f" % numpy.average(g.es['weight'])
+
 
     if options.density:
         print " * density: %.10f" % (g.density(),)
@@ -147,12 +178,12 @@ if __name__ == '__main__':
         mid = numpy.average(ind)
         mod = numpy.average(outd)
 
-        print " * mean IN/OUT degree: %f" % mid
-        print " * 5 max IN degree: %s" % ', '.join(map(str, sorted(ind, reverse=True)[:5]))
-        print " * 5 max OUT degree: %s" % ', '.join(map(str, sorted(outd, reverse=True)[:5]))
+        print " * mean IN/OUT degree (no weights): %f" % mid
+        print " * 5 max IN degree (no weights): %s" % ', '.join(map(str, sorted(ind, reverse=True)[:5]))
+        print " * 5 max OUT degree (no weights): %s" % ', '.join(map(str, sorted(outd, reverse=True)[:5]))
 
-        print " * variance IN Degree: %f" % numpy.var(ind)
-        print " * variance OUT Degree: %f" % numpy.var(outd)
+        print " * variance IN Degree (no weights): %f" % numpy.var(ind)
+        print " * variance OUT Degree (no weights): %f" % numpy.var(outd)
 
     if options.transitivity:
         #print " * transitivity: %f" % (nx.transitivity(g), )
@@ -170,27 +201,37 @@ if __name__ == '__main__':
         print " * #node in 5 max clusters/#all nodes: %s" % ', '.join("%6f" % (1.*cluster_len/len(g.vs),) for cluster_len in max_clusters)
 
     if options.distance:
-        print " * average distance: %f" % averageDistance(giant)
+        print " * average distance in the giant component: %f" % averageDistance(giant)
+        print " * average hops in the giant component: %f" % averageDistance(giant, False)
 
         #print "Average distance 2: %f" % giant.average_path_length(True, False)
 
+
+    if options.efficiency:
+        print " * efficiency: %f" % efficiency(g)
+
+
     if options.plot or options.histogram or options.power_law or options.centrality:
-        set_weighted_indegree(g)
+        set_weighted_degree(g)
 
     if options.centrality:
-        g.vs['bw'] = g.betweenness(weights='weight', directed = True)
-        g.vs['ev'] = g.evcent(weights='weight') # eigenvector centrality
+        g.vs['bw'] = g.betweenness(weights='length', directed = True)
+        #g.vs['ev'] = g.evcent(weights='weight') # eigenvector centrality
         g.vs['pr'] = g.pagerank(weights='weight') # pagerank
+        set_weighted_degree(g, type=ig.OUT)
+        total_weights = sum(g.es['weight'])
+        max_edges = len(g.vs)*(len(g.vs)-1)
 
-        print " * Average betweenness : %6f" % numpy.average(g.vs['bw'])
-        print " * Average eigenvector centrality : %6f" % numpy.average(g.vs['ev'])
+        print " * Average betweenness : %6f" % (numpy.average(g.vs['bw'])/max_edges,)
+        #print " * Average eigenvector centrality : %6f" % numpy.average(g.vs['ev'])
         print " * Average pagerank : %6f" % numpy.average(g.vs['pr'])
+        print " * Average IN degree centrality (weighted): %6f" % numpy.average(g.vs['weighted_indegree'])
+        print " * Average OUT degree centrality (weighted) : %6f" % numpy.average(g.vs['weighted_outdegree'])
 
     if options.power_law:
-        indegrees = sorted(g.vs['indegree'], reverse=True)
-        indegrees = indegrees[:indegrees.index(0)] # remove zeros
+        indegrees = g.vs['weighted_indegree']
 
-        alpha_exp = ig.statistics.power_law_fit(indegrees)
+        alpha_exp = ig.statistics.power_law_fit(indegrees, xmin=1)
 
         print " * alpha exp of the power law : %6f " % alpha_exp
 
@@ -268,6 +309,7 @@ if __name__ == '__main__':
 
     if options.as_table:
         tablr.stop()
+
         tablr.printHeader()
         tablr.printData()
 
