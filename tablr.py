@@ -1,4 +1,4 @@
-import sys
+import sys, mmap
 
 class Tablr:
     cache = None
@@ -9,8 +9,6 @@ class Tablr:
         self.cache.close()
 
     def start(self, size, identifier):
-        import mmap
-
         self.cache = mmap.mmap(-1, size) #create an in-memory-file
 
         sys.stdout = self.cache
@@ -23,24 +21,55 @@ class Tablr:
 
     def printData(self):
         self.cache.seek(0)
-        table = []
+        table = [] # general values
+        groupTable = {} # group values
+
         while self.cache.tell() < self.end_pos:
             l = self.cache.readline()
             if not l:
                 break
-            table.append(l.split(':')[1].strip())
+            tmp = l.strip(' *').split(':')
 
-        print "||%s||%s||" % (self.identifier, '||'.join(table))
+            if len(tmp) == 3:
+                #format: " * GROUP : data : value"
+                group_values = groupTable.setdefault(tmp[0].strip(), [])
+                group_values.append(tmp[2].strip())
+            else:
+                #format: " * data : value"
+                table.append(tmp[1].strip())
+
+        if table:
+            print "||%s||%s||" % (self.identifier, '||'.join(table))
+
+        if groupTable:
+            print "GROUP TABLES:"
+            for group_name, group_values in groupTable.iteritems():
+                print "||%s_%s||%s||" % (group_name, self.identifier, '||'.join(group_values))
+
 
     def printHeader(self):
         self.cache.seek(0)
         table = []
+        groupTable = set()
         while self.cache.tell() < self.end_pos:
             l = self.cache.readline()
             if not l:
                 break
-            table.append(l.split(':')[0].strip(' *'))
+            tmp = l.strip(' *').split(':')
 
-        print "||id||%s||" % ('||'.join(table),)
+            if len(tmp) == 3:
+                #format: " * GROUP : data_description : value"
+                groupTable.add(tmp[1].strip())
+            else:
+                #format: " * data_description : value"
+                table.append(tmp[0].strip())
+
+        if table:
+            print 'HEADER:'
+            print "||id||%s||" % (self.identifier, '||'.join(table))
+
+        if groupTable:
+            print "GROUP TABLES HEADER:"
+            print "||id||%s||" % ('||'.join(groupTable),)
 
 

@@ -4,11 +4,14 @@ import numpy
 def load(fn):
     return Graph(ig.load(fn))
 
+
+
 class Graph(object):
     #g = attr(ig.Graph)
 
     def __init__(self, g):
         self.g = g
+        self.classes = {}
 
     def invert_edge_attr(self, source, dest):
         self.g.es[dest] = 1./numpy.array(self.g.es[source])
@@ -79,3 +82,8 @@ class Graph(object):
         avg_dist = 1.*dSum / len(range(0, n, step))
         return avg_dist
 
+
+    def defineClass(self, cls, attr):
+
+        # maybe it's better to store attr only (and not the whole VertexSet)
+        self.classes[cls] = self.g.vs.select(**attr)

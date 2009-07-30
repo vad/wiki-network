@@ -15,6 +15,15 @@ from tablr import Tablr
 
 ## GLOBAL VARIABLES
 
+groups = {
+    'all': {},
+    'bot': {'bot': True},
+    'sysop': {'sysop': True, 'bureaucrat_ne': True, 'steward_ne': True, 'founder_ne': True, 'bot_ne': True},
+    'bureaucrat': {'bureaucrat': True, 'steward_ne': True, 'founder_ne': True, 'bot_ne': True},
+    'steward': {'steward': True, 'founder_ne': True, 'bot_ne': True},
+    'founder': {'founder': True, 'bot_ne': True}
+}
+
 ## FUNCTIONS
 
 
@@ -23,6 +32,8 @@ if __name__ == '__main__':
 
     op.add_option('--as-table', action="store_true", dest="as_table",
         help="Format output as a table row")
+    op.add_option('--group', action="store_true", dest="group",
+        help="Analyze groups")
     op.add_option('-d', '--details', action="store_true", dest="details",
         help="Print details about this graph (# of vertexes and # of edges)")
     op.add_option('-e', '--degree', action="store_true", dest="degree",
@@ -60,7 +71,16 @@ if __name__ == '__main__':
 
     if options.as_table:
         tablr = Tablr()
-        tablr.start(1024*16, lang)
+        tablr.start(1024*32, lang)
+
+    if options.group:
+
+        for group_name, group_attr in groups.iteritems():
+            g.defineClass(group_name, group_attr)
+            print ' * %s : # : %d' % (group_name, len(g.classes[group_name]))
+
+    else:
+        g.defineClass('all', {})
 
     if options.details:
         print " * vertexes: %d" % (vn,)
@@ -84,17 +104,20 @@ if __name__ == '__main__':
         #print " * calculated density: %.10f" % (1.*len(g.es)/lenvs/(lenvs-1))
 
     if options.degree:
-        ind = numpy.array(g.g.degree(type=ig.IN))
-        outd = numpy.array(g.g.degree(type=ig.OUT))
-        mid = numpy.average(ind)
-        mod = numpy.average(outd)
+        g.g.vs['indegree'] = g.g.degree(type=ig.IN)
+        g.g.vs['outdegree'] = g.g.degree(type=ig.OUT)
 
-        print " * mean IN/OUT degree (no weights): %f" % mid
-        print " * 5 max IN degree (no weights): %s" % ', '.join(map(str, sorted(ind, reverse=True)[:5]))
-        print " * 5 max OUT degree (no weights): %s" % ', '.join(map(str, sorted(outd, reverse=True)[:5]))
+        for cls, vs in g.classes.iteritems():
 
-        print " * variance IN Degree (no weights): %f" % numpy.var(ind)
-        print " * variance OUT Degree (no weights): %f" % numpy.var(outd)
+            ind = numpy.array(vs['indegree'])
+            outd = numpy.array(vs['outdegree'])
+
+            print " * %s : mean IN/OUT degree (no weights): %f" % (cls, numpy.average(ind))
+            print " * %s : 5 max IN degree (no weights): %s" % (cls, ', '.join(map(str, sorted(ind, reverse=True)[:5])))
+            print " * %s : 5 max OUT degree (no weights): %s" % (cls, ', '.join(map(str, sorted(outd, reverse=True)[:5])))
+
+            print " * %s : variance IN Degree (no weights): %f" % (cls, numpy.var(ind))
+            print " * %s : variance OUT Degree (no weights): %f" % (cls, numpy.var(outd))
 
     if options.transitivity:
         #print " * transitivity: %f" % (nx.transitivity(g), )
@@ -118,10 +141,8 @@ if __name__ == '__main__':
 
         #print "Average distance 2: %f" % giant.average_path_length(True, False)
 
-
     if options.efficiency:
         print " * efficiency: %f" % g.efficiency(weight='length')
-
 
     if options.plot or options.histogram or options.power_law or options.centrality:
         g.set_weighted_degree()
@@ -134,11 +155,12 @@ if __name__ == '__main__':
         total_weights = sum(g.g.es['weight'])
         max_edges = vn*(vn-1)
 
-        print " * Average betweenness : %6f" % (numpy.average(g.g.vs['bw'])/max_edges,)
-        #print " * Average eigenvector centrality : %6f" % numpy.average(g.vs['ev'])
-        print " * Average pagerank : %6f" % numpy.average(g.g.vs['pr'])
-        print " * Average IN degree centrality (weighted): %6f" % numpy.average(g.g.vs['weighted_indegree'])
-        print " * Average OUT degree centrality (weighted) : %6f" % numpy.average(g.g.vs['weighted_outdegree'])
+        for cls, vs in g.classes.iteritems():
+            print " * %s : Average betweenness : %6f" % (cls, numpy.average(g.classes[cls]['bw'])/max_edges)
+            #print " * Average eigenvector centrality : %6f" % numpy.average(g.vs['ev'])
+            print " * %s : Average pagerank : %6f" % (cls, numpy.average(g.classes[cls]['pr']))
+            print " * %s : Average IN degree centrality (weighted): %6f" % (cls, numpy.average(g.classes[cls]['weighted_indegree']))
+            print " * %s : Average OUT degree centrality (weighted) : %6f" % (cls, numpy.average(g.classes[cls]['weighted_outdegree']))
 
     if options.power_law:
         indegrees = g.g.vs['weighted_indegree']
@@ -149,30 +171,33 @@ if __name__ == '__main__':
 
     if options.histogram:
         # group
-        nogrp_indegrees = g.g.vs.select(sysop_ne=True, bureaucrat_ne=True, steward_ne=True, founder_ne=True, bot_ne=True)['indegree']
-        nogrp_list = [(degree, 1) for degree in nogrp_indegrees if degree]
+        list_with_index = lambda degrees, idx: [(degree, idx) for degree in degrees if degree]
+        all_list = []
 
-        sysops_indegrees = g.g.vs.select(sysop=True, bureaucrat_ne=True, steward_ne=True, founder_ne=True, bot_ne=True)['indegree']
-        sysops_list = [(degree, 2) for degree in sysops_indegrees if degree]
+        nogrp_indegrees = g.g.vs.select(sysop_ne=True, bureaucrat_ne=True, steward_ne=True, founder_ne=True, bot_ne=True)['indegree']
+        all_list += list_with_index(nogrp_indegrees, 1)
+
+        sysops_indegrees = g.classes['sysop']['indegree']
+        all_list += list_with_index(sysops_indegrees, 2)
 
         burs_indegrees = g.g.vs.select(bureaucrat=True, steward_ne=True, founder_ne=True, bot_ne=True)['indegree']
-        burs_list = [(degree, 3) for degree in burs_indegrees if degree]
+        all_list += list_with_index(burs_indegrees, 3)
 
         stewards_indegrees = g.g.vs.select(steward=True, founder_ne=True, bot_ne=True)['indegree']
-        stewards_list = [(degree, 4) for degree in stewards_indegrees if degree]
+        all_list += list_with_index(stewards_indegrees, 4)
 
         founders_indegrees = g.g.vs.select(founder=True, bot_ne=True)['indegree']
-        founders_list = [(degree, 5) for degree in founders_indegrees if degree]
+        all_list += list_with_index(founders_indegrees, 5)
 
         bots_indegrees = g.g.vs.select(bot=True)['indegree']
-        bots_list = [(degree, 6) for degree in bots_indegrees if degree]
+        all_list += list_with_index(bots_indegrees, 6)
 
         if options.gnuplot:
             f = open('hist.dat', 'w')
         else:
             f = open('%swiki-%s-hist.dat' % (lang, date), 'w')
 
-        all_list = sorted(sysops_list + nogrp_list + burs_list + stewards_list + founders_list + bots_list, reverse=True)
+        all_list.sort(reverse=True)
 
         for indegree, grp in sorted(sysops_list + nogrp_list + burs_list + stewards_list + founders_list + bots_list, reverse=True):
             for i in range(grp - 1):
