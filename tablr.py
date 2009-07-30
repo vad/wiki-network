@@ -50,7 +50,7 @@ class Tablr:
     def printHeader(self):
         self.cache.seek(0)
         table = []
-        groupTable = set()
+        groupTable = []
         while self.cache.tell() < self.end_pos:
             l = self.cache.readline()
             if not l:
@@ -59,7 +59,9 @@ class Tablr:
 
             if len(tmp) == 3:
                 #format: " * GROUP : data_description : value"
-                groupTable.add(tmp[1].strip())
+                desc = tmp[1].strip()
+                if desc not in groupTable:
+                    groupTable.append(desc)
             else:
                 #format: " * data_description : value"
                 table.append(tmp[0].strip())
