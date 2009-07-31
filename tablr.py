@@ -68,7 +68,7 @@ class Tablr:
 
         if table:
             print 'HEADER:'
-            print "||id||%s||" % (self.identifier, '||'.join(table))
+            print "||id||%s||" % ('||'.join(table),)
 
         if groupTable:
             print "GROUP TABLES HEADER:"

@@ -24,12 +24,12 @@ class Graph(object):
         """
         isinstance(self.g, ig.Graph) # helper for wing
         effSum = 0.
-        step = 1000
+        step = 200
         n = len(self.g.vs)
         for i in range(0, n, step):
-            ##if not (i+1) % 100:
-            ##    print 'Step:', i
-            ##    print 1.*dSum*step/i
+            #if not i % 100:
+            #    print 'Step:', i
+            #    print 1.*dSum*step/i
             uplimit = min(n, i+step)
 
             # distances from nodes in range (i, i+step) to all the other nodes
@@ -38,7 +38,9 @@ class Graph(object):
             else:
                 aDistances = self.g.shortest_paths(range(i, uplimit))
 
-            effSum += 1.*sum(sum(1./numpy.array([e for e in d if e])) for d in aDistances)
+            aDistances = numpy.array(aDistances)
+
+            effSum += (1./aDistances[aDistances.nonzero()]).sum()
 
         efficiency = effSum/(1.*n*(n-1)) # maybe there should be a factor of 2 somewhere (directed graph)
         return efficiency
@@ -77,7 +79,9 @@ class Graph(object):
             else:
                 aDistances = self.g.shortest_paths(range(i, uplimit))
 
-            dSum += 1.*sum([sum(d) for d in aDistances]) / (n-1) / (uplimit - i)
+            aDistances = numpy.array(aDistances)
+
+            dSum += 1.*aDistances.sum() / (n-1) / (uplimit - i)
 
         avg_dist = 1.*dSum / len(range(0, n, step))
         return avg_dist
