@@ -88,6 +88,5 @@ class Graph(object):
 
 
     def defineClass(self, cls, attr):
-
         # maybe it's better to store attr only (and not the whole VertexSet)
         self.classes[cls] = self.g.vs.select(**attr)

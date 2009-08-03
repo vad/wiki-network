@@ -25,6 +25,15 @@ groups = {
 }
 
 ## FUNCTIONS
+def top(l, nelem=5):
+    import types
+
+    if not len(l):
+        return 'nan'
+    elif type(l[0]) in (types.IntType, numpy.int64, numpy.int32):
+        return ', '.join('%d' % e for e in sorted(l, reverse=True)[:nelem])
+    else:
+        return ', '.join('%6f' % e for e in sorted(l, reverse=True)[:nelem])
 
 
 if __name__ == '__main__':
@@ -91,7 +100,7 @@ if __name__ == '__main__':
 
         print " * #nodes with out edges: %d (%6f%%)" % (nodes_with_outdegree, 100.*nodes_with_outdegree/vn)
         print " * #nodes with in edges: %d (%6f%%)" % (nodes_with_indegree, 100.*nodes_with_indegree/vn)
-        print " * 5 max numMsg on edges : %s" % (', '.join(str(idx) for idx in sorted(g.g.es['weight'], reverse=True)[:5]),)
+        print " * 5 max numMsg on edges : %s" % top(g.g.es['weight'])
         print " * reciprocity : %6f" % g.g.reciprocity()
         #print " * diameter : %6f" % g.g.diameter(weights='length')
 
@@ -114,8 +123,8 @@ if __name__ == '__main__':
 
             print " * %s : mean IN degree (no weights): %f" % (cls, numpy.average(ind))
             print " * %s : mean OUT degree (no weights): %f" % (cls, numpy.average(outd))
-            print " * %s : 5 max IN degree (no weights): %s" % (cls, ', '.join(map(str, sorted(ind, reverse=True)[:5])))
-            print " * %s : 5 max OUT degree (no weights): %s" % (cls, ', '.join(map(str, sorted(outd, reverse=True)[:5])))
+            print " * %s : 5 max IN degree (no weights): %s" % (cls, top(ind))
+            print " * %s : 5 max OUT degree (no weights): %s" % (cls, top(outd))
 
             print " * %s : variance IN Degree (no weights): %f" % (cls, numpy.var(ind))
             print " * %s : variance OUT Degree (no weights): %f" % (cls, numpy.var(outd))
@@ -130,11 +139,11 @@ if __name__ == '__main__':
 
     if options.distance:
         vc = g.g.clusters()
-        max_clusters = sorted(vc.sizes(), reverse=True)[:5]
+        size_clusters = vc.sizes()
         giant = vc.giant()
 
-        print " * length 5 max clusters: %s" % ', '. join(map(str, max_clusters))
-        print " * #node in 5 max clusters/#all nodes: %s" % ', '.join("%6f" % (1.*cluster_len/vn,) for cluster_len in max_clusters)
+        print " * length 5 max clusters: %s" % top(size_clusters)
+        print " * #node in 5 max clusters/#all nodes: %s" % top([1.*cluster_len/vn for cluster_len in size_clusters])
 
     if options.distance:
         gg = sg.Graph(giant)
@@ -159,20 +168,20 @@ if __name__ == '__main__':
 
         for cls, vs in g.classes.iteritems():
             print " * %s : Average betweenness : %6f" % (cls, numpy.average(g.classes[cls]['bw'])/max_edges)
-            print " * %s : 5 max betweenness centrality: %s" % (cls, ', '.join(map(str, sorted(g.classes[cls]['bw'], reverse=True)[:5])))
+            print " * %s : 5 max betweenness centrality: %s" % (cls, top(g.classes[cls]['bw']))
             #print " * Average eigenvector centrality : %6f" % numpy.average(g.vs['ev'])
             print " * %s : Average pagerank : %6f" % (cls, numpy.average(g.classes[cls]['pr']))
-            print " * %s : 5 max pageranks: %s" % (cls, ', '.join(map(str, sorted(g.classes[cls]['pr'], reverse=True)[:5])))
+            print " * %s : 5 max pageranks: %s" % (cls, top(g.classes[cls]['pr'], 5))
             print " * %s : Average IN degree centrality (weighted): %6f" % (cls, numpy.average(g.classes[cls]['weighted_indegree']))
-            print " * %s : 5 max IN degrees central: %s" % (cls, ', '.join(map(str, sorted(g.classes[cls]['weighted_indegree'], reverse=True)[:5])))
+            print " * %s : 5 max IN degrees central: %s" % (cls, top(g.classes[cls]['weighted_indegree']))
             print " * %s : Average OUT degree centrality (weighted) : %6f" % (cls, numpy.average(g.classes[cls]['weighted_outdegree']))
-            print " * %s : 5 max OUT degrees central: %s" % (cls, ', '.join(map(str, sorted(g.classes[cls]['weighted_outdegree'], reverse=True)[:5])))
+            print " * %s : 5 max OUT degrees central: %s" % (cls, top(g.classes[cls]['weighted_outdegree']))
 
     if options.power_law:
         #TODO: gruppi
         indegrees = g.g.vs['weighted_indegree']
 
-        alpha_exp = ig.statistics.power_law_fit(indegrees, xmin=1)
+        alpha_exp = ig.statistics.power_law_fit(indegrees, xmin=6)
 
         print " * alpha exp of the power law : %6f " % alpha_exp
 
