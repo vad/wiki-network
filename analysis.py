@@ -18,14 +18,22 @@ from tablr import Tablr
 groups = {
     'all': {},
     'bot': {'bot': True},
-    'sysop': {'sysop': True, 'bureaucrat_ne': True, 'steward_ne': True, 'founder_ne': True, 'bot_ne': True},
-    'bureaucrat': {'bureaucrat': True, 'steward_ne': True, 'founder_ne': True, 'bot_ne': True},
-    'steward': {'steward': True, 'founder_ne': True, 'bot_ne': True},
-    'founder': {'founder': True, 'bot_ne': True}
+    'not_bot': {'bot_ne': True},
+    'sysop': {'sysop': True, 'bureaucrat_ne': True, 'steward_ne': True, 'founder_ne': True},
+    'bureaucrat': {'bureaucrat': True, 'steward_ne': True, 'founder_ne': True},
+    'steward': {'steward': True, 'founder_ne': True},
+    'founder': {'founder': True},
+    'su': {'sysop': True},
+    'normal_user': {'sysop_ne': True, 'bureaucrat_ne': True, 'steward_ne': True, 'founder_ne': True, 'bot_ne': True, 'anonymous_ne': True},
+    'blocked': {'blocked': True},
+    'not_blocked': {'blocked_ne': True},
+    'anonymous': {'anonymous': True},
+    'not_anonymous': {'anonymous_ne': True},
 }
 
 ## FUNCTIONS
 def top(l, nelem=5):
+    #TODO: if l is a numpy array use numpy.array.sort() instead of sorted
     import types
 
     if not len(l):
@@ -163,7 +171,7 @@ if __name__ == '__main__':
         #g.g.vs['ev'] = g.g.evcent(weights='weight') # eigenvector centrality
         g.g.vs['pr'] = g.g.pagerank(weights='weight') # pagerank
         g.set_weighted_degree(type=ig.OUT)
-        total_weights = sum(g.g.es['weight'])
+        #total_weights = sum(g.g.es['weight'])
         max_edges = vn*(vn-1)
 
         for cls, vs in g.classes.iteritems():

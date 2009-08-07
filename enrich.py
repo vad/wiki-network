@@ -14,16 +14,16 @@
 ##########################################################################
 import os, sys
 import igraph as ig
-from mwlib import addGroupAttribute
+from mwlib import addGroupAttribute, addBlockedAttribute, isip
 
 def main():
     import re
     import optparse
 
-    p = optparse.OptionParser(usage="usage: %prog [options] file")
-    
+    p = optparse.OptionParser(usage="usage: %prog file")
+
     opts, files = p.parse_args()
-    
+
     if not files:
         p.error("Give me a file, please ;-)")
     fn = files[0]
@@ -39,14 +39,20 @@ def main():
     groups = ('bot', 'sysop', 'bureaucrat', 'checkuser', 'steward', 'import', 'transwiki', 'uploader', 'ipblock-exempt', 'oversight', 'founder', 'rollbacker', 'accountcreator', 'autoreviewer', 'abusefilter')
 
     for group in groups:
-        g = addGroupAttribute(g, lang, group)
+        addGroupAttribute(g, lang, group)
 
-    print g.attributes()
+    print 'BLOCKED ACCOUNTS'
+    addBlockedAttribute(g, lang)
+
+    print 'ANONYMOUS USERS'
+    g.vs['anonymous'] = map(isip, g.vs['username'])
+
+    #print g.attributes()
     #print g.vs['bot']
     #print len(g.vs.select(bot=True))
     g.write("%swiki-%s_rich.pickle" % (lang, date), format="pickle")
 
-    
+
 if __name__ == "__main__":
     #import cProfile as profile
     #profile.run('main()', 'mainprof')

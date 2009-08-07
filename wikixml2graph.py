@@ -48,7 +48,7 @@ class EdgeCache:
         if not self.temp_edges.has_key(user):
             self.temp_edges[user] = talks
             return
-    
+
         d = self.temp_edges[user]
         for speaker, msgs in talks.iteritems():
             d[speaker] = d.get(speaker, 0) + msgs
@@ -78,21 +78,21 @@ class EdgeCache:
         """
         Get the resulting network and clean cached data
         """
-        
+
         g = ig.Graph(n = 0, directed=True)
         g.es['weight'] = []
         g.vs['username'] = []
-       
+
         g.add_vertices(len(self.nodes))
-        
+
         for username, id in self.nodes.iteritems():
             g.vs[id]['username'] = username.encode('utf-8')
         self.nodes.clear()
-        
+
         clean_edges = ((e[0], e[1]) for e in self.edges)
         g.add_edges(clean_edges)
         del clean_edges
-        
+
         for e_from, e_to, weight in self.edges:
             eid = g.get_eid(e_from, e_to, directed=True)
             g.es[eid]['weight'] = weight
@@ -103,6 +103,7 @@ class EdgeCache:
 
 def process_page(elem, ecache):
     user = None
+    global count
     for child in elem:
         if child.tag == title_tag and child.text:
             a_title = child.text.split('/')[0].split(':')
@@ -115,17 +116,16 @@ def process_page(elem, ecache):
             for rc in child:
                 if rc.tag != text_tag:
                     continue
-                    
+
                 #assert user, "User still not defined"
                 if not (rc.text and user):
                     continue
-                    
+
                 try:
                     talks = mwlib.getCollaborators(rc.text, search, searchEn)
                     ecache.cumulate_edge(user, talks)
-                    global count
                     count += 1
-                    if not count%500:
+                    if not count % 500:
                         print count
                     #if count > 10000:
                     #    sys.exit(2)
@@ -147,9 +147,9 @@ def main():
     import optparse
 
     p = optparse.OptionParser(usage="usage: %prog [options] file")
-    
+
     opts, files = p.parse_args()
-    
+
     if not files:
         p.error("Give me a file, please ;-)")
     xml = files[0]
@@ -178,7 +178,7 @@ def main():
         counter += 1
         if counter > 50:
             break
-            
+
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
 

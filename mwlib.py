@@ -13,6 +13,20 @@
 ##########################################################################
 
 import re
+from socket import inet_ntoa, inet_aton, error
+from urllib import urlopen
+try:
+    import json
+except ImportError:
+    import simplejson as json
+
+
+def isip(s):
+    try:
+        return inet_ntoa(inet_aton(s)) == s
+    except error:
+        return False
+
 
 def getCollaborators( rawWikiText, search, searchEn ):
     rex = '\[\[(%s|%s)\:([^]\|/]*)[^]]*\]\]' % (search, searchEn)
@@ -27,11 +41,6 @@ def getCollaborators( rawWikiText, search, searchEn ):
 
 
 def addGroupAttribute(g, lang, group='bot'):
-    try:
-        import json
-    except ImportError:
-        import simplejson as json
-    from urllib import urlopen
     url = 'http://%s.wikipedia.org/w/api.php?action=query&list=allusers&augroup=%s&aulimit=500&format=json' % ( lang, group)
 
     start = None
@@ -44,7 +53,7 @@ def addGroupAttribute(g, lang, group='bot'):
         if not res.has_key('query') or not res['query']['allusers']:
             print 'Group %s has errors or has no users' % group
             g.vs[group] = [None,]*len(g.vs)
-            return g
+            return
 
         for user in res['query']['allusers']:
             print user['name'].encode('utf-8')
@@ -52,11 +61,47 @@ def addGroupAttribute(g, lang, group='bot'):
                 g.vs.select(username=user['name'].encode('utf-8'))[0][group] = True
             except IndexError:
                 pass
-        
+
         if res.has_key('query-continue'):
             start = res['query-continue']['allusers']['aufrom']
         else:
             break
 
-    return g
+    return
 
+
+def addBlockedAttribute(g, lang):
+    g.vs['blocked'] = [None,]*len(g.vs)
+    url = base_url = 'http://%s.wikipedia.org/w/api.php?action=query&list=blocks&bklimit=500&format=json' % ( lang, )
+
+    start = None
+    while True:
+        if start:
+            url = '%s&bkstart=%s' % (base_url, start)
+        print "BLOCKED USERS: url = %s" % url
+        furl = urlopen(url)
+        res = json.load(furl)
+
+        if not res.has_key('query') or not res['query']['blocks']:
+            print 'No blocked users'
+            return
+
+        bk_list = []
+        for block in res['query']['blocks']:
+            if not block.has_key('user'):
+                continue
+            print block['user'].encode('utf-8')
+            try:
+                bk_list.append(block['user'].encode('utf-8'))
+            except IndexError:
+                pass
+
+        bk_vs = g.vs.select(username_in=bk_list)
+        bk_vs['blocked'] = (True,)*len(bk_vs)
+
+        if res.has_key('query-continue'):
+            start = res['query-continue']['blocks']['bkstart']
+        else:
+            break
+
+    return

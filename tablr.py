@@ -43,7 +43,7 @@ class Tablr:
 
         if groupTable:
             print "GROUP TABLES:"
-            for group_name, group_values in groupTable.iteritems():
+            for group_name, group_values in sorted(groupTable.iteritems()):
                 print "||%s_%s||%s||" % (group_name, self.identifier, '||'.join(group_values))
 
 
