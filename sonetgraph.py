@@ -24,7 +24,7 @@ class Graph(object):
         """
         isinstance(self.g, ig.Graph) # helper for wing
         effSum = 0.
-        step = 200
+        step = 100
         n = len(self.g.vs)
         for i in range(0, n, step):
             #if not i % 100:

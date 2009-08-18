@@ -39,12 +39,12 @@ class Tablr:
                 table.append(tmp[1].strip())
 
         if table:
-            print "||%s||%s||" % (self.identifier, '||'.join(table))
+            print "||'''%s'''||%s||" % (self.identifier, "||".join(table))
 
         if groupTable:
             print "GROUP TABLES:"
             for group_name, group_values in sorted(groupTable.iteritems()):
-                print "||%s_%s||%s||" % (group_name, self.identifier, '||'.join(group_values))
+                print "||'''%s_%s'''||%s||" % (group_name, self.identifier, '||'.join(group_values))
 
 
     def printHeader(self):
@@ -68,10 +68,10 @@ class Tablr:
 
         if table:
             print 'HEADER:'
-            print "||id||%s||" % ('||'.join(table),)
+            print "||'''id'''||'''%s'''||" % ("'''||'''".join(table),)
 
         if groupTable:
             print "GROUP TABLES HEADER:"
-            print "||id||%s||" % ('||'.join(groupTable),)
+            print "||'''id'''||'''%s'''||" % ("'''||'''".join(groupTable),)
 
 

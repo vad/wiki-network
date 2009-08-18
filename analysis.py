@@ -12,6 +12,7 @@ import igraph as ig
 
 # project
 from tablr import Tablr
+from timr import Timr
 
 ## GLOBAL VARIABLES
 
@@ -88,6 +89,8 @@ if __name__ == '__main__':
     vn = len(g.g.vs) # number of vertexes
     en = len(g.g.es) # number of edges
 
+    timr = Timr()
+
     if options.as_table:
         tablr = Tablr()
         tablr.start(1024*32, lang)
@@ -100,6 +103,7 @@ if __name__ == '__main__':
         g.defineClass('all', {})
 
     if options.details:
+        timr.start('details')
         print " * vertexes: %d" % (vn,)
         print " * edges: %d" % (en,)
 
@@ -113,14 +117,18 @@ if __name__ == '__main__':
         #print " * diameter : %6f" % g.g.diameter(weights='length')
 
         print " * Average weights : %6f" % numpy.average(g.g.es['weight'])
+        timr.stop('details')
 
 
     if options.density:
+        timr.start('density')
         print " * density: %.10f" % (g.g.density(),)
 
         #print " * calculated density: %.10f" % (1.*len(g.es)/lenvs/(lenvs-1))
+        timr.stop('density')
 
     if options.degree:
+        timr.start('degree')
         g.g.vs['indegree'] = g.g.degree(type=ig.IN)
         g.g.vs['outdegree'] = g.g.degree(type=ig.OUT)
 
@@ -137,6 +145,8 @@ if __name__ == '__main__':
             print " * %s : variance IN Degree (no weights): %f" % (cls, numpy.var(ind))
             print " * %s : variance OUT Degree (no weights): %f" % (cls, numpy.var(outd))
 
+        timr.stop('degree')
+
     if options.transitivity:
         ##print " * transitivity: %f" % (nx.transitivity(g), )
         pass
@@ -146,6 +156,8 @@ if __name__ == '__main__':
         print " * summary: %s" % (g.g.summary(), )
 
     if options.distance:
+        timr.start('split clusters')
+
         vc = g.g.clusters()
         size_clusters = vc.sizes()
         giant = vc.giant()
@@ -153,20 +165,36 @@ if __name__ == '__main__':
         print " * length 5 max clusters: %s" % top(size_clusters)
         print " * #node in 5 max clusters/#all nodes: %s" % top([1.*cluster_len/vn for cluster_len in size_clusters])
 
+        timr.stop('split clusters')
+
     if options.distance:
+        timr.start('distance')
+
         gg = sg.Graph(giant)
         print " * average distance in the giant component: %f" % gg.averageDistance(weight='length')
         print " * average hops in the giant component: %f" % gg.averageDistance()
 
         #print "Average distance 2: %f" % giant.average_path_length(True, False)
 
+        timr.stop('distance')
+
     if options.efficiency:
+        timr.start('efficiency')
+
         print " * efficiency: %f" % g.efficiency(weight='length')
 
+        timr.stop('efficiency')
+
     if options.plot or options.histogram or options.power_law or options.centrality:
+        timr.start('set weighted indegree')
+
         g.set_weighted_degree()
 
+        timr.stop('set weighted indegree')
+
     if options.centrality:
+        timr.start('centrality')
+
         g.g.vs['bw'] = g.g.betweenness(weights='length', directed = True)
         #g.g.vs['ev'] = g.g.evcent(weights='weight') # eigenvector centrality
         g.g.vs['pr'] = g.g.pagerank(weights='weight') # pagerank
@@ -185,13 +213,17 @@ if __name__ == '__main__':
             print " * %s : Average OUT degree centrality (weighted) : %6f" % (cls, numpy.average(g.classes[cls]['weighted_outdegree']))
             print " * %s : 5 max OUT degrees central: %s" % (cls, top(g.classes[cls]['weighted_outdegree']))
 
+        timr.stop('centrality')
+
     if options.power_law:
+        timr.start('power law')
         #TODO: gruppi
         indegrees = g.g.vs['weighted_indegree']
 
         alpha_exp = ig.statistics.power_law_fit(indegrees, xmin=6)
 
         print " * alpha exp of the power law : %6f " % alpha_exp
+        timr.stop('power law')
 
     if options.histogram:
         list_with_index = lambda degrees, idx: [(degree, idx) for degree in degrees if degree]
