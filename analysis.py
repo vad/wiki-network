@@ -98,25 +98,28 @@ if __name__ == '__main__':
     if options.group:
         for group_name, group_attr in groups.iteritems():
             g.defineClass(group_name, group_attr)
-            print ' * %s : # : %d' % (group_name, len(g.classes[group_name]))
+            print ' * %s : nodes number : %d' % (group_name, len(g.classes[group_name]))
     else:
         g.defineClass('all', {})
+        
+    print " * lang: %s" % (lang,)
+    print " * date: %s" % (date,)
 
     if options.details:
         timr.start('details')
-        print " * vertexes: %d" % (vn,)
-        print " * edges: %d" % (en,)
+        print " * nodes number: %d" % (vn,)
+        print " * edges number: %d" % (en,)
 
         nodes_with_outdegree = len(g.g.vs.select(_outdegree_ge=1))
         nodes_with_indegree = len(g.g.vs.select(_indegree_ge=1))
 
-        print " * #nodes with out edges: %d (%6f%%)" % (nodes_with_outdegree, 100.*nodes_with_outdegree/vn)
-        print " * #nodes with in edges: %d (%6f%%)" % (nodes_with_indegree, 100.*nodes_with_indegree/vn)
-        print " * 5 max numMsg on edges : %s" % top(g.g.es['weight'])
+        print " * nodes with out edges number: %d (%6f%%)" % (nodes_with_outdegree, 100.*nodes_with_outdegree/vn)
+        print " * nodes with in edges number: %d (%6f%%)" % (nodes_with_indegree, 100.*nodes_with_indegree/vn)
+        print " * max weights on edges : %s" % top(g.g.es['weight'])
         print " * reciprocity : %6f" % g.g.reciprocity()
         #print " * diameter : %6f" % g.g.diameter(weights='length')
 
-        print " * Average weights : %6f" % numpy.average(g.g.es['weight'])
+        print " * average weight : %6f" % numpy.average(g.g.es['weight'])
         timr.stop('details')
 
 
@@ -139,11 +142,11 @@ if __name__ == '__main__':
 
             print " * %s : mean IN degree (no weights): %f" % (cls, numpy.average(ind))
             print " * %s : mean OUT degree (no weights): %f" % (cls, numpy.average(outd))
-            print " * %s : 5 max IN degree (no weights): %s" % (cls, top(ind))
-            print " * %s : 5 max OUT degree (no weights): %s" % (cls, top(outd))
+            print " * %s : max IN degrees (no weights): %s" % (cls, top(ind))
+            print " * %s : max OUT degrees (no weights): %s" % (cls, top(outd))
 
-            print " * %s : variance IN Degree (no weights): %f" % (cls, numpy.var(ind))
-            print " * %s : variance OUT Degree (no weights): %f" % (cls, numpy.var(outd))
+            print " * %s : variance IN degree (no weights): %f" % (cls, numpy.var(ind))
+            print " * %s : variance OUT degree (no weights): %f" % (cls, numpy.var(outd))
 
         timr.stop('degree')
 
@@ -162,8 +165,8 @@ if __name__ == '__main__':
         size_clusters = vc.sizes()
         giant = vc.giant()
 
-        print " * length 5 max clusters: %s" % top(size_clusters)
-        print " * #node in 5 max clusters/#all nodes: %s" % top([1.*cluster_len/vn for cluster_len in size_clusters])
+        print " * length of 5 max clusters: %s" % top(size_clusters)
+        #print " * #node in 5 max clusters/#all nodes: %s" % top([1.*cluster_len/vn for cluster_len in size_clusters])
 
         timr.stop('split clusters')
 
@@ -203,15 +206,15 @@ if __name__ == '__main__':
         max_edges = vn*(vn-1)
 
         for cls, vs in g.classes.iteritems():
-            print " * %s : Average betweenness : %6f" % (cls, numpy.average(g.classes[cls]['bw'])/max_edges)
-            print " * %s : 5 max betweenness centrality: %s" % (cls, top(g.classes[cls]['bw']))
+            print " * %s : average betweenness : %6f" % (cls, numpy.average(g.classes[cls]['bw'])/max_edges)
+            print " * %s : max betweenness: %s" % (cls, top(g.classes[cls]['bw']))
             #print " * Average eigenvector centrality : %6f" % numpy.average(g.vs['ev'])
-            print " * %s : Average pagerank : %6f" % (cls, numpy.average(g.classes[cls]['pr']))
-            print " * %s : 5 max pageranks: %s" % (cls, top(g.classes[cls]['pr'], 5))
-            print " * %s : Average IN degree centrality (weighted): %6f" % (cls, numpy.average(g.classes[cls]['weighted_indegree']))
-            print " * %s : 5 max IN degrees central: %s" % (cls, top(g.classes[cls]['weighted_indegree']))
-            print " * %s : Average OUT degree centrality (weighted) : %6f" % (cls, numpy.average(g.classes[cls]['weighted_outdegree']))
-            print " * %s : 5 max OUT degrees central: %s" % (cls, top(g.classes[cls]['weighted_outdegree']))
+            print " * %s : average pagerank : %6f" % (cls, numpy.average(g.classes[cls]['pr']))
+            print " * %s : max pagerank: %s" % (cls, top(g.classes[cls]['pr'], 5))
+            print " * %s : average IN degree centrality (weighted): %6f" % (cls, numpy.average(g.classes[cls]['weighted_indegree']))
+            print " * %s : max IN degrees centrality (weighted): %s" % (cls, top(g.classes[cls]['weighted_indegree']))
+            print " * %s : average OUT degree centrality (weighted) : %6f" % (cls, numpy.average(g.classes[cls]['weighted_outdegree']))
+            print " * %s : max OUT degrees centrality (weighted): %s" % (cls, top(g.classes[cls]['weighted_outdegree']))
 
         timr.stop('centrality')
 
@@ -302,6 +305,7 @@ if __name__ == '__main__':
     if options.as_table:
         tablr.stop()
 
-        tablr.printHeader()
-        tablr.printData()
+        #tablr.printHeader()
+        #tablr.printData()
+        tablr.saveInDjangoModel()
 

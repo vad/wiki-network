@@ -1,0 +1,3 @@
+[submodule "django_wikinetwork/deps/django_evolution"]
+	path = django_wikinetwork/deps/django_evolution
+	url = git://github.com/clones/django-evolution.git
