@@ -11,14 +11,14 @@ class WikiRunData(Model):
     edges_number = IntegerField(blank=True, null=True)
     nodes_with_out_edges_number = IntegerField(blank=True, null=True)
     nodes_with_in_edges_number = IntegerField(blank=True, null=True)
-    max_weights_on_edges = CharField(max_length=50, blank=True, null=True)
+    max_weights_on_edges = CharField(max_length=100, blank=True, null=True)
     reciprocity = FloatField(blank=True, null=True)
-    average_weight = FloatField(blank=True, null=True)
+    #average_weight = FloatField(blank=True, null=True)
     
     # --density
     density = FloatField(blank=True, null=True)
     
-    length_of_5_max_clusters = CharField(max_length=50, blank=True, null=True)
+    length_of_5_max_clusters = CharField(max_length=100, blank=True, null=True)
     
     # --distance
     average_distance_in_the_giant_component = FloatField(blank=True, null=True)
@@ -49,25 +49,37 @@ class WikiRunGroupData(Model):
     mean_OUT_degree_no_weights = FloatField(blank=True, null=True)
     max_IN_degrees_no_weights = CharField(max_length=100, blank=True)
     max_OUT_degrees_no_weights = CharField(max_length=100, blank=True)
-    variance_IN_degree_no_weights = FloatField(blank=True, null=True)
-    variance_OUT_degree_no_weights = FloatField(blank=True, null=True)
+    stddev_IN_degree_no_weights = FloatField(blank=True, null=True)
+    stddev_OUT_degree_no_weights = FloatField(blank=True, null=True)
+    
+    # --density
+    density = FloatField(blank=True, null=True)
+    
+    # --reciprocity
+    reciprocity = FloatField(blank=True, null=True)    
     
     # --centrality
     average_betweenness = FloatField(blank=True, null=True)
-    variance_betweenness = FloatField(blank=True, null=True)
+    stddev_betweenness = FloatField(blank=True, null=True)
     max_betweenness = CharField(max_length=100, blank=True)
 
     average_pagerank = FloatField(blank=True, null=True)
-    variance_pagerank = FloatField(blank=True, null=True)
+    stddev_pagerank = FloatField(blank=True, null=True)
     max_pagerank = CharField(max_length=100, blank=True)    
     
     average_IN_degree_centrality_weighted = FloatField(blank=True, null=True)
-    variance_IN_degree_centrality_weighted = FloatField(blank=True, null=True)
+    stddev_IN_degree_centrality_weighted = FloatField(blank=True, null=True)
     max_IN_degrees_centrality_weighted = CharField(max_length=100, blank=True)
     
     average_OUT_degree_centrality_weighted = FloatField(blank=True, null=True)
-    variance_OUT_degree_centrality_weighted = FloatField(blank=True, null=True)
+    stddev_OUT_degree_centrality_weighted = FloatField(blank=True, null=True)
     max_OUT_degrees_centrality_weighted = CharField(max_length=100, blank=True)
+    
+    # --power-law
+    alpha_exp_IN_degree_distribution = FloatField(blank=True, null=True)
     
     created = DateTimeField(auto_now_add = True)
     modified = DateTimeField(auto_now = True)
+    
+    def __unicode__(self):
+        return "%s-%s created on: %s" % (self.lang, self.date, self.created.isoformat())

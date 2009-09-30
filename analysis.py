@@ -33,7 +33,7 @@ groups = {
 }
 
 ## FUNCTIONS
-def top(l, nelem=5):
+def top(l, nelem=5, accuracy=10):
     #TODO: if l is a numpy array use numpy.array.sort() instead of sorted
     import types
 
@@ -42,7 +42,8 @@ def top(l, nelem=5):
     elif type(l[0]) in (types.IntType, numpy.int64, numpy.int32):
         return ', '.join('%d' % e for e in sorted(l, reverse=True)[:nelem])
     else:
-        return ', '.join('%6f' % e for e in sorted(l, reverse=True)[:nelem])
+        format = '%%.%df' % (accuracy,)
+        return ', '.join(format % e for e in sorted(l, reverse=True)[:nelem])
 
 
 if __name__ == '__main__':
@@ -57,7 +58,9 @@ if __name__ == '__main__':
     op.add_option('-e', '--degree', action="store_true", dest="degree",
         help="Print the mean vertex-vertex distance of the graph")
     op.add_option('-r', '--density', action="store_true", dest="density",
-        help="Print the density of the graph")
+        help="Print the density of the groups (requires --groups)")
+    op.add_option('--reciprocity', action="store_true", dest="reciprocity",
+        help="Print the reciprocity of the groups  (requires --groups)")
     op.add_option('-t', '--transitivity', action="store_true", dest="transitivity")
     op.add_option('-i', '--distance', action="store_true", dest="distance")
     op.add_option('-f', '--efficiency', action="store_true", dest="efficiency")
@@ -66,7 +69,7 @@ if __name__ == '__main__':
     op.add_option('-p', '--plot', action="store_true", dest="plot")
     op.add_option('--histogram', action="store_true", dest="histogram")
     op.add_option('-g', '--gnuplot', action="store_true", dest="gnuplot")
-    op.add_option('--power-law', action="store_true", dest="power_law")
+    op.add_option('-w', '--power-law', action="store_true", dest="power_law")
 
     (options, args) = op.parse_args()
 
@@ -116,19 +119,25 @@ if __name__ == '__main__':
         print " * nodes with out edges number: %d (%6f%%)" % (nodes_with_outdegree, 100.*nodes_with_outdegree/vn)
         print " * nodes with in edges number: %d (%6f%%)" % (nodes_with_indegree, 100.*nodes_with_indegree/vn)
         print " * max weights on edges : %s" % top(g.g.es['weight'])
-        print " * reciprocity : %6f" % g.g.reciprocity()
+        
         #print " * diameter : %6f" % g.g.diameter(weights='length')
 
-        print " * average weight : %6f" % numpy.average(g.g.es['weight'])
+        #print " * average weight : %6f" % numpy.average(g.g.es['weight'])
         timr.stop('details')
 
 
-    if options.density:
-        timr.start('density')
-        print " * density: %.10f" % (g.g.density(),)
+    if options.density or options.reciprocity:
+        timr.start('density&reciprocity')
+        
+        for cls, vs in g.classes.iteritems():
+            if not len(vs) > 1: continue
+            
+            subgraph = vs.subgraph()
+            
+            print " * %s : density : %.10f" % (cls, subgraph.density())
+            print " * %s : reciprocity : %.10f" % (cls, subgraph.reciprocity())
 
-        #print " * calculated density: %.10f" % (1.*len(g.es)/lenvs/(lenvs-1))
-        timr.stop('density')
+        timr.stop('density&reciprocity')
 
     if options.degree:
         timr.start('degree')
@@ -136,6 +145,7 @@ if __name__ == '__main__':
         g.g.vs['outdegree'] = g.g.degree(type=ig.OUT)
 
         for cls, vs in g.classes.iteritems():
+            if not vs: continue
 
             ind = numpy.array(vs['indegree'])
             outd = numpy.array(vs['outdegree'])
@@ -145,8 +155,8 @@ if __name__ == '__main__':
             print " * %s : max IN degrees (no weights): %s" % (cls, top(ind))
             print " * %s : max OUT degrees (no weights): %s" % (cls, top(outd))
 
-            print " * %s : variance IN degree (no weights): %f" % (cls, numpy.var(ind))
-            print " * %s : variance OUT degree (no weights): %f" % (cls, numpy.var(outd))
+            print " * %s : stddev IN degree (no weights): %f" % (cls, numpy.sqrt(numpy.var(ind)))
+            print " * %s : stddev OUT degree (no weights): %f" % (cls, numpy.sqrt(numpy.var(outd)))
 
         timr.stop('degree')
 
@@ -197,35 +207,61 @@ if __name__ == '__main__':
 
     if options.centrality:
         timr.start('centrality')
-
+        
+        print >> sys.stderr, "betweenness"
         g.g.vs['bw'] = g.g.betweenness(weights='length', directed = True)
         #g.g.vs['ev'] = g.g.evcent(weights='weight') # eigenvector centrality
+        
+        print >> sys.stderr, "pagerank"
         g.g.vs['pr'] = g.g.pagerank(weights='weight') # pagerank
+        
+        print >> sys.stderr, "outdegree"
         g.set_weighted_degree(type=ig.OUT)
         #total_weights = sum(g.g.es['weight'])
         max_edges = vn*(vn-1)
 
         for cls, vs in g.classes.iteritems():
-            print " * %s : average betweenness : %6f" % (cls, numpy.average(g.classes[cls]['bw'])/max_edges)
-            print " * %s : max betweenness: %s" % (cls, top(g.classes[cls]['bw']))
+            if not vs: continue
+            
+            norm_betweenness = numpy.array(g.classes[cls]['bw'])/max_edges
+            print " * %s : average betweenness : %.10f" % (cls, numpy.average(norm_betweenness))
+            print " * %s : stddev betweenness : %.10f" % (cls, numpy.sqrt(numpy.var(norm_betweenness)))
+            print " * %s : max betweenness: %s" % (cls, top(numpy.array(g.classes[cls]['bw'])/max_edges))
+            
             #print " * Average eigenvector centrality : %6f" % numpy.average(g.vs['ev'])
-            print " * %s : average pagerank : %6f" % (cls, numpy.average(g.classes[cls]['pr']))
-            print " * %s : max pagerank: %s" % (cls, top(g.classes[cls]['pr'], 5))
-            print " * %s : average IN degree centrality (weighted): %6f" % (cls, numpy.average(g.classes[cls]['weighted_indegree']))
-            print " * %s : max IN degrees centrality (weighted): %s" % (cls, top(g.classes[cls]['weighted_indegree']))
-            print " * %s : average OUT degree centrality (weighted) : %6f" % (cls, numpy.average(g.classes[cls]['weighted_outdegree']))
-            print " * %s : max OUT degrees centrality (weighted): %s" % (cls, top(g.classes[cls]['weighted_outdegree']))
-
+            
+            print " * %s : average pagerank : %.10f" % (cls, numpy.average(g.classes[cls]['pr']))
+            print " * %s : stddev pagerank : %.10f" % (cls, numpy.sqrt(numpy.var(g.classes[cls]['pr'])))
+            print " * %s : max pagerank: %s" % (cls, top(g.classes[cls]['pr']))
+            
+            wi = g.classes[cls]['weighted_indegree']
+            print " * %s : average IN degree centrality (weighted): %.10f" % (cls, numpy.average(wi))
+            print " * %s : stddev IN degree centrality (weighted): %.10f" % (cls, numpy.sqrt(numpy.var(wi)))
+            print " * %s : max IN degrees centrality (weighted): %s" % (cls, top(wi))
+            del wi
+                  
+            wo = g.classes[cls]['weighted_outdegree']
+            print " * %s : average OUT degree centrality (weighted) : %.10f" % (cls, numpy.average(wo))
+            print " * %s : stddev OUT degree centrality (weighted) : %.10f" % (cls, numpy.sqrt(numpy.var(wo)))
+            print " * %s : max OUT degrees centrality (weighted): %s" % (cls, top(wo))
+            del wo
+            
         timr.stop('centrality')
 
     if options.power_law:
         timr.start('power law')
-        #TODO: gruppi
-        indegrees = g.g.vs['weighted_indegree']
+        for cls, vs in g.classes.iteritems():
+            if not vs: continue
+            
+            indegrees = vs['weighted_indegree']
 
-        alpha_exp = ig.statistics.power_law_fit(indegrees, xmin=6)
+            try:
+                alpha_exp = ig.statistics.power_law_fit(indegrees, xmin=6)
+                print " * %s : alpha exp IN degree distribution : %10f " % (cls, alpha_exp)
+            except ValueError:
+                print >> sys.stderr, " * %s : alpha exp IN degree distribution : ERROR" % (cls,)
 
-        print " * alpha exp of the power law : %6f " % alpha_exp
+            
         timr.stop('power law')
 
     if options.histogram:

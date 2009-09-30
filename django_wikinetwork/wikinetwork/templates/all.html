@@ -1,0 +1,77 @@
+{% load unslugify_tag %}
+<html>
+<head>
+  <title>{{ title }}</title>
+  <style type="text/css">
+    td {
+      border: 1px solid black;
+    }
+
+    #targetcol {
+      border: 1px solid black;
+      font: normal 11px arial;
+      margin: 20px;
+      width: 300px;
+      float: right;
+    }
+    
+    li.simpleon {
+      color:green;
+      font-weight:bold;
+    }
+    
+    li.simpleoff {
+      color:red;
+      font-weight:bold;
+    }
+  </style>
+  <link rel="STYLESHEET" href="/media_static/css/style.css" type="text/css">
+
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
+<script src="/media_static/js/jquery.cookie.js"></script>
+<script src="/media_static/js/jquery.tablesorter.min.js"></script>
+<script src="/media_static/js/jquery.columnmanager.pack.js"></script>
+
+
+
+<script>
+$(document).ready(function() {
+  $('#runs').columnManager({listTargetID:'targetcol', onClass: 'simpleon', offClass: 'simpleoff', saveState: true});
+
+  $("#runs").tablesorter(/*{ 
+        // sort on the first column and third column, order asc 
+        //sortList: [[0,0],[2,0]] 
+  }*/);
+  
+});
+</script>
+
+</head>
+<p><a href="/wikinetwork/">index</a></p>
+<div id="targetcol"></div>
+<table id="runs" style="border:1px solid black" class="tablesorter">
+  <thead> 
+    <tr>
+      {% for h in header %}
+      <th>
+        {{ h|unslugify|capfirst }}
+      </th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in data %}
+      <tr>
+        {% for cell in row %}
+          <td>
+            {{ cell }}
+  
+          </td>
+
+        {% endfor %}
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</html>

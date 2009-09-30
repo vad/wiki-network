@@ -11,8 +11,10 @@ hist:
 	cd ${SOURCE} ; ./analysis.py -cg ${DATASET}/${LANG}wiki-${DATE}_rich.pickle
 
 analysis:
-#cd ${SOURCE} ; ./analysis.py --as-table --group -derc --distance --power-law ${DATASET}/${LANG}wiki-${DATE}_rich.pickle > ${DATASET}/${LANG}wiki-${DATE}.table
-	cd ${SOURCE} ; ./analysis.py --as-table --group -derc --distance --power-law ${DATASET}/${LANG}wiki-${DATE}_rich.pickle > ${HOME}/datasets/wikipedia/${LANG}wiki-${DATE}.dat
+	cd ${SOURCE} ; ./analysis.py --as-table --group -derc --distance --power-law ${DATASET}/${LANG}wiki-${DATE}_rich.pickle
+
+centrality:
+	cd ${SOURCE} ; ./analysis.py --as-table --group -c ${DATASET}/${LANG}wiki-${DATE}_rich.pickle
 
 all-hist: graph enrich hist
 
