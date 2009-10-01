@@ -14,6 +14,11 @@ def get_big(qs, limit=10000):
 
 
 def get_header(qs):
+    r"""
+    qs: QuerySet
+    @returns: a list with the headers
+    """
+    
     r = qs[0]
     header = [f.name for f in r._meta.fields]
     header.remove('id')
@@ -24,8 +29,16 @@ def get_header(qs):
 
 
 def format_percentage(number, ref):
-    return '%d (%.1f%%)' % (number, 100.*number/ref)
+    import types
+    
+    if type(number) in (types.IntType, ):
+        return '%d (%.1f%%)' % (number, 100.*number/ref)
+    else:
+        return '%.6f (%.1f%%)' % (number, 100.*number/ref)
 
+
+
+## VIEWS
 
 def index(request):
     return render_to_response('index.html')
@@ -87,12 +100,21 @@ def all(request, cls=None):
     })
 
 def group(request, cls=None):
+    # define
+    ref_group = "all"
+    values_to_be_referred = ("nodes_number", "mean_IN_degree_no_weights",
+        "mean_OUT_degree_no_weights", "density", "reciprocity", "average_betweenness",
+        "average_pagerank", "average_IN_degree_centrality_weighted",
+        "average_OUT_degree_centrality_weighted")
+    
+    # query
     all_run = WikiRunGroupData.objects.all()
+    
+    # which headers?
     header = get_header(all_run)
     header.remove('wikirun')
-    
-    #assert False, header
-    
+     
+    # for which languages? groups
     if cls == "it":
         lang_list = it_wikis
         title = "Italian wikis"
@@ -102,16 +124,18 @@ def group(request, cls=None):
     else:
         lang_list = sorted(set(r.lang for r in all_run))
         title = "All wikis"
-       
+    
+    # for which languages? single languages
     get_lang = request.GET.get('lang', "")
     if get_lang:
         lang_list = (get_lang,)
 
+    # for which groups?
     get_group = request.GET.get('group', "")
     if get_group:
-        group_list = set((get_group, 'all'))
+        group_list = set((get_group, ref_group))
     else:
-        group_list = sorted(set(all_run.values_list('group')))
+        group_list = sorted(set([e[0] for e in all_run.values_list('group')]))
         
     data = []
     for lang in lang_list:
@@ -131,12 +155,24 @@ def group(request, cls=None):
             # all wikipedia run on this lang and for this group and on the most recent date
             newer_run = group_lang_all_run.filter(date=newer_date).order_by('modified').values()
 
-            #join all values in a single model instance
+            #merge all the runs with the same (date, lang, group) in a single model instance
             complete_run = {}
             for run in newer_run:
                 for h in header:
                     if run[h]:
                         complete_run[h] = run[h]
+                    
+            # create percentage referred to the ref_group
+            if group == ref_group:
+                ref_group_values = complete_run
+                
+            else:
+                print group
+                for h in values_to_be_referred:
+                    try:
+                        complete_run[h] = format_percentage(complete_run[h], ref_group_values[h])
+                    except KeyError:
+                        pass
                     
             data.append([complete_run.get(h, 'NA') for h in header])
 
