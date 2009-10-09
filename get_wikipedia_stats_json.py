@@ -3,7 +3,11 @@
 # the script
 # - gets statistics in json format from different wikipedias
 # 
-import urllib2,simplejson
+import urllib2
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 def get_stats_wikipedia(wiki_id):
     '''Return a list of tuples with (attribute,value). wiki_id is the id of the wiki such as en or it or simple'''
@@ -17,7 +21,7 @@ def get_stats_wikipedia(wiki_id):
     page = opener.open( url ).read()
     
     #print page
-    stats = simplejson.loads(page)['query']['statistics']
+    stats = json.loads(page)['query']['statistics']
 
     return stats
 
