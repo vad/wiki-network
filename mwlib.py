@@ -29,7 +29,7 @@ def isip(s):
 
 
 def getCollaborators( rawWikiText, search, searchEn ):
-    rex = '\[\[(%s|%s)\:([^]\|/]*)[^]]*\]\]' % (search, searchEn)
+    rex = '\[\[(%s|%s)\:([^]\|/]*)[^]/]*\]\]' % (search, searchEn)
     matches = re.finditer(rex, rawWikiText)
 
     weights = {}

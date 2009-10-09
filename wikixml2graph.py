@@ -194,8 +194,8 @@ def main():
     print "Len:", len(g.vs)
     print "Edges:", len(g.es)
 
-    #g.write("%swiki-%s.pickle" % (lang, date), format="pickle")
-    g.write("%swiki-%s.graphml" % (lang, date), format="graphml")
+    g.write("%swiki-%s.pickle" % (lang, date), format="pickle")
+    #g.write("%swiki-%s.graphml" % (lang, date), format="graphml")
 
 
 if __name__ == "__main__":

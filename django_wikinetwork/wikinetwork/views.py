@@ -133,9 +133,13 @@ def group(request, cls=None):
     # for which groups?
     get_group = request.GET.get('group', "")
     if get_group:
-        group_list = set((get_group, ref_group))
+        get_group_list = get_group.split(',')
+        group_list = sorted(set(get_group_list + [ref_group,]))
     else:
         group_list = sorted(set([e[0] for e in all_run.values_list('group')]))
+        
+    group_list.remove(ref_group)
+    group_list.insert(0, ref_group)
         
     data = []
     for lang in lang_list:
@@ -163,11 +167,11 @@ def group(request, cls=None):
                         complete_run[h] = run[h]
                     
             # create percentage referred to the ref_group
+            #print lang, group
             if group == ref_group:
                 ref_group_values = complete_run
                 
             else:
-                print group
                 for h in values_to_be_referred:
                     try:
                         complete_run[h] = format_percentage(complete_run[h], ref_group_values[h])

@@ -13,6 +13,10 @@ hist:
 analysis:
 	cd ${SOURCE} ; ./analysis.py --as-table --group -derc --distance --power-law ${DATASET}/${LANG}wiki-${DATE}_rich.pickle
 
+param-analysis:
+	cd ${SOURCE} ; ./analysis.py ${PARAMS} ${DATASET}/${LANG}wiki-${DATE}_rich.pickle
+
+
 centrality:
 	cd ${SOURCE} ; ./analysis.py --as-table --group -c ${DATASET}/${LANG}wiki-${DATE}_rich.pickle
 
