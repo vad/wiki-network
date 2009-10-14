@@ -83,3 +83,25 @@ class WikiRunGroupData(Model):
     
     def __unicode__(self):
         return "%s-%s created on: %s" % (self.lang, self.date, self.created.isoformat())
+    
+    
+class WikiStat(Model):
+    lang = CharField(max_length=20, blank=False)
+    
+    ## {u'articles': 119816, u'jobs': 11, u'users': 24920, u'admins': 15, u'edits': 2493575, u'activeusers': 477, u'images': 12693, u'pages': 264348}
+    articles = IntegerField(blank=True, null=True)
+    jobs = IntegerField(blank=True, null=True)
+    users = IntegerField(blank=True, null=True)
+    admins = IntegerField(blank=True, null=True)
+    edits = IntegerField(blank=True, null=True)
+    activeusers = IntegerField(blank=True, null=True)
+    images = IntegerField(blank=True, null=True)
+    pages = IntegerField(blank=True, null=True)
+    
+    created = DateTimeField(auto_now_add = True)
+    modified = DateTimeField(auto_now = True)
+    
+    
+    def __unicode__(self):
+        return "%s, stats of %s" % (self.lang, self.created.isoformat())
+    

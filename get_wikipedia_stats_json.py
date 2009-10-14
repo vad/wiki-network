@@ -1,8 +1,13 @@
+#!/usr/bin/env python
+
+
 #Copyright Paolo Massa paolo@gnuband.org
 #GPLv3.0 licence - Free Software
 # the script
 # - gets statistics in json format from different wikipedias
 # 
+
+
 import urllib2
 try:
     import json
@@ -20,16 +25,26 @@ def get_stats_wikipedia(wiki_id):
     opener.addheaders = [('User-agent', 'PhaulyWikipediaStatisticsCollecter/0.1')]
     page = opener.open( url ).read()
     
-    #print page
     stats = json.loads(page)['query']['statistics']
 
     return stats
 
 def get_all_stats(list_wiki_ids):
-    stats = {}
+    import os
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
+    from django_wikinetwork.wikinetwork.models import WikiStat
+    
     for wiki_id in list_wiki_ids:
-        stats[wiki_id] = get_stats_wikipedia(wiki_id)
-    return stats
+        stats = get_stats_wikipedia(wiki_id)
+        
+        # convert unicode keywords to string
+        stats = dict(zip(map(str, stats.keys()), stats.values()))
+        stats['lang'] = wiki_id
+        print stats
+        
+        ws = WikiStat(**stats)
+        ws.save()
+
 
 if __name__ == "__main__":
     list_wiki_ids = [
@@ -59,6 +74,8 @@ if __name__ == "__main__":
         'lij',
         'sc',
         'eml',
+        'zh',
+        'ja',
+        'pl',
     ]
-    stats = get_all_stats(list_wiki_ids)
-    print stats
+    get_all_stats(list_wiki_ids)
