@@ -29,6 +29,9 @@ def get_all_stats(list_wiki_ids):
 
 if __name__ == "__main__":
     list_wiki_ids = [
+        'meta',
+        'test',
+        'simple',
         'en',
         'de',
         'fr',
