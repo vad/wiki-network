@@ -55,6 +55,10 @@ if __name__ == "__main__":
         'lij',
         'sc',
         'eml',
+        'he',
+        'no',
+        'ru',
+        'sv',
     ]
     stats = get_all_stats(list_wiki_ids)
     print stats
