@@ -1,3 +1,5 @@
+
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 from django_wikinetwork.wikinetwork.models import WikiRunData, WikiRunGroupData
 from django.db.models import Max
@@ -99,6 +101,8 @@ def all(request, cls=None):
         'title': title,
     })
 
+
+
 def group(request, cls=None):
     # define
     ref_group = "all"
@@ -187,3 +191,34 @@ def group(request, cls=None):
         'header': header,
         'title': title,
     })
+
+
+def celery(request):
+    if 'lang' in request.GET and 'date' in request.GET: # If the form has been submitted...
+        from django_wikinetwork.wikinetwork.tasks import AnalyseTask
+        
+        task = AnalyseTask.delay(lang=request.GET['lang'], date=request.GET['date'])
+        
+        return HttpResponse("<pre>%s</pre>" % task.task_id)
+    
+    else:
+        from django_wikinetwork.wikinetwork.models import WikiLang
+        
+        results = WikiLang.objects.values()
+        
+        langs = [str(l['lang']) for l in results]
+        
+
+
+    return render_to_response('celery-create-run.html', {
+        'langs': langs
+    })
+
+
+def task_list(request):
+    from celery.registry import TaskRegistry
+    reg = TaskRegistry()
+    print reg.get_all()
+    return render_to_response('index.html')
+
+

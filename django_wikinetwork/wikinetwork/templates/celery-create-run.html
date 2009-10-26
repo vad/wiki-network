@@ -1,0 +1,24 @@
+<html>
+<head>
+  <title>Start a run</title>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
+</head>
+<body>
+<script>
+function openTab(){
+  var date = $("#date").val();
+  var lang = $("#lang").val();
+  window.open("?lang="+ lang +"&date="+ date);
+}
+</script>
+<form action="." method="GET" name="runParams">
+<select name="lang" id="lang">
+  {% for l in langs %}
+    <option value="{{l}}">{{l}}</option>
+  {% endfor %}
+</select>
+<input name="date" value="2009" id="date"/>
+</form>
+<p><a href="javascript:void(0)" onclick="openTab()">Run!</a>
+</body>
+</html>

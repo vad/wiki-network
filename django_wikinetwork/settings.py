@@ -80,4 +80,12 @@ INSTALLED_APPS = (
     'django.contrib.admindocs',
     'django_wikinetwork.wikinetwork',
     'django_evolution',
+    'celery',
 )
+
+AMQP_SERVER = "bowie"
+AMQP_PORT = 5672
+AMQP_USER = "research"
+AMQP_PASSWORD = "mandove"
+AMQP_VHOST = "bowie"
+

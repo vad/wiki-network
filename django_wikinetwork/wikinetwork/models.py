@@ -105,3 +105,34 @@ class WikiStat(Model):
     def __unicode__(self):
         return "%s, stats of %s" % (self.lang, self.created.isoformat())
     
+    
+class WikiLang(Model):
+    lang = CharField(max_length=20, primary_key=True)
+    
+    lang_group = CharField(max_length=20, blank=True, null=True)
+
+    created = DateTimeField(auto_now_add = True)
+    modified = DateTimeField(auto_now = True)
+    
+    def __unicode__(self):
+        return self.lang
+    
+    
+class BigWikiStat(Model):
+    rank = IntegerField(blank=True, null=True)
+    _id = IntegerField(blank=True, null=True)
+    name = CharField(max_length=200)
+    total = IntegerField(blank=True, null=True)
+    good = IntegerField(blank=True, null=True)
+    edits = IntegerField(blank=True, null=True)
+    views = IntegerField(blank=True, null=True)
+    admins = IntegerField(blank=True, null=True)
+    users = IntegerField(blank=True, null=True)
+    images = IntegerField(blank=True, null=True)
+    ratio = FloatField(blank=True, null=True)
+    type = CharField(max_length=50, blank=True, null=True)
+    url = CharField(max_length=200, blank=True, null=True)
+    ts = DateTimeField()
+    
+    created = DateTimeField(auto_now_add = True)
+    modified = DateTimeField(auto_now = True)

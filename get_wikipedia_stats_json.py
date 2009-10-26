@@ -40,7 +40,6 @@ def get_all_stats(list_wiki_ids):
         # convert unicode keywords to string
         stats = dict(zip(map(str, stats.keys()), stats.values()))
         stats['lang'] = wiki_id
-        print stats
         
         ws = WikiStat(**stats)
         ws.save()
