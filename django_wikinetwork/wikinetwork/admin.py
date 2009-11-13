@@ -1,4 +1,4 @@
-from django_wikinetwork.wikinetwork.models import WikiRunData, WikiRunGroupData, WikiStat, WikiLang, BigWikiStat
+from django_wikinetwork.wikinetwork.models import WikiRunData, WikiRunGroupData, WikiStat, WikiLang, BigWikiStat, CeleryRun
 from django.contrib import admin
 
 class WikiRunDataAdmin(admin.ModelAdmin):
@@ -21,3 +21,4 @@ admin.site.register(WikiRunGroupData, WikiRunGroupDataAdmin)
 admin.site.register(WikiStat, WikiStatAdmin)
 admin.site.register(WikiLang)
 admin.site.register(BigWikiStat)
+admin.site.register(CeleryRun)

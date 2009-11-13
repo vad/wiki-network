@@ -1,7 +1,7 @@
 
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
-from django_wikinetwork.wikinetwork.models import WikiRunData, WikiRunGroupData
+from django_wikinetwork.wikinetwork.models import WikiRunData, WikiRunGroupData, CeleryRun
 from django.db.models import Max
 
 #for wing debugging
@@ -197,9 +197,19 @@ def celery(request):
     if 'lang' in request.GET and 'date' in request.GET: # If the form has been submitted...
         from django_wikinetwork.wikinetwork.tasks import AnalyseTask
         
-        task = AnalyseTask.delay(lang=request.GET['lang'], date=request.GET['date'])
+        date = request.GET['date']
+        lang = request.GET['lang']
         
-        return HttpResponse("<pre>%s</pre>" % task.task_id)
+        task = AnalyseTask.delay(lang=lang, date=date)
+        
+        cr = CeleryRun()
+        cr.date = date
+        cr.lang = lang
+        cr.name = task.task_id
+        
+        cr.save()
+        
+        return HttpResponse("")
     
     else:
         from django_wikinetwork.wikinetwork.models import WikiLang
@@ -207,8 +217,6 @@ def celery(request):
         results = WikiLang.objects.values()
         
         langs = [str(l['lang']) for l in results]
-        
-
 
     return render_to_response('celery-create-run.html', {
         'langs': langs
@@ -216,9 +224,27 @@ def celery(request):
 
 
 def task_list(request):
-    from celery.registry import TaskRegistry
-    reg = TaskRegistry()
-    print reg.get_all()
-    return render_to_response('index.html')
+    from celery.result import AsyncResult
+    from celery.task import is_done
 
-
+    runs = CeleryRun.objects.all()
+    header = get_header(runs)
+    header.append('done')
+    #assert False, header
+    druns = runs.values()
+    
+    data = []
+    for drun in druns:
+        name = drun['name']
+        
+        result = AsyncResult(name)
+        drun['done'] = is_done(name)    # Ready means execution has finished.
+        #assert False, result.ready()
+        
+        data.append([drun[h] for h in header])
+    
+    return render_to_response('all.html', {
+        'data': data,
+        'header': header,
+        'title': 'tasks',
+    })

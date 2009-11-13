@@ -136,3 +136,15 @@ class BigWikiStat(Model):
     
     created = DateTimeField(auto_now_add = True)
     modified = DateTimeField(auto_now = True)
+    
+class CeleryRun(Model):
+    #celery related
+    name = CharField(max_length=36)
+    running = BooleanField(default=True)
+    
+    #wiki related
+    lang = CharField(max_length=20, blank=False)
+    date = CharField(max_length=8, blank=False)
+    
+    created = DateTimeField(auto_now_add = True)
+    modified = DateTimeField(auto_now = True)
