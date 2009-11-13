@@ -4,7 +4,7 @@ from subprocess import *
 import settings
 
 class AnalyseTask(Task):
-    def run(self, lang):
+    def run(self, lang, options):
         import os
         from glob import glob
         
@@ -17,8 +17,10 @@ class AnalyseTask(Task):
         fn = sorted(glob(files))[-1]
         logger.info("Running: %s, filename: %s" % (lang, fn))
         
-        p = Popen("/sra0/sra/setti/Source/wiki-network/analysis.py --as-table --group --reciprocity --density %s" % fn,
-            shell=True, stderr=PIPE)
+        cmd = "/sra0/sra/setti/Source/wiki-network/analysis.py --as-table --group %s %s" % (' '.join(options), fn)
+        logger.info(cmd)
+        
+        p = Popen(cmd, shell=True, stderr=PIPE)
         
         return fn
         

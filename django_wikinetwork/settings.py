@@ -91,3 +91,7 @@ AMQP_VHOST = "bowie"
 
 from socket import gethostname
 DATASET_PATH = '/hardmnt/%s0/sra/setti/datasets/wikipedia/' % gethostname()
+
+#to import analysis.py
+import sys
+sys.path.insert(0, '..')

@@ -45,8 +45,7 @@ def top(l, nelem=5, accuracy=10):
         format = '%%.%df' % (accuracy,)
         return ', '.join(format % e for e in sorted(l, reverse=True)[:nelem])
 
-
-if __name__ == '__main__':
+def create_option_parser():
     op = OptionParser('%prog [options] graph')
 
     op.add_option('--as-table', action="store_true", dest="as_table",
@@ -70,6 +69,12 @@ if __name__ == '__main__':
     op.add_option('--histogram', action="store_true", dest="histogram")
     op.add_option('-g', '--gnuplot', action="store_true", dest="gnuplot")
     op.add_option('-w', '--power-law', action="store_true", dest="power_law")
+    
+    return op
+
+
+if __name__ == '__main__':
+    op = create_option_parser()
 
     (options, args) = op.parse_args()
 

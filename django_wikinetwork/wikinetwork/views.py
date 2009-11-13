@@ -3,6 +3,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 from django_wikinetwork.wikinetwork.models import WikiRunData, WikiRunGroupData, CeleryRun
 from django.db.models import Max
+import sys
 
 #for wing debugging
 #import wingdbstub
@@ -198,8 +199,12 @@ def celery(request):
         from django_wikinetwork.wikinetwork.tasks import AnalyseTask
         
         lang = request.GET['lang']
+        sOptions = request.GET.get('options', '')
         
-        task = AnalyseTask.delay(lang=lang)
+        options = sOptions.split(',')
+        #assert False, options
+        
+        task = AnalyseTask.delay(lang=lang, options=options)
         
         cr = CeleryRun()
         cr.lang = lang
@@ -210,6 +215,17 @@ def celery(request):
         return HttpResponse("")
     
     else:
+
+        #assert False, sys.path
+        import analysis
+
+        op = analysis.create_option_parser()
+
+        options = [o._long_opts[0] for o in op.option_list]
+        options.remove('--as-table')
+        options.remove('--help')
+        options.remove('--group')
+        
         from django_wikinetwork.wikinetwork.models import WikiStat
         
         results = WikiStat.objects.values('lang').distinct().order_by('lang')
@@ -217,7 +233,9 @@ def celery(request):
         langs = [str(l['lang']) for l in results]
 
     return render_to_response('celery-create-run.html', {
-        'langs': langs
+        'langs': langs,
+        'options': options
+        
     })
 
 

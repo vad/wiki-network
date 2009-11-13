@@ -3,4 +3,4 @@ register = template.Library()
 
 @register.filter
 def unslugify(s):
-    return s.replace('_', ' ')
+    return s.replace('_', ' ').replace('-', ' ')

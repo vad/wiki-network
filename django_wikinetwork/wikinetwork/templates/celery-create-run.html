@@ -1,41 +1,51 @@
+{% load unslugify_tag %}
 <html>
-<head>
-  <title>Start a run</title>
-  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
-</head>
-<script>
-function openTab(){
-  $('input[name="lang"][checked]').each(function() {
-    window.open("?lang="+ $(this).val());
-  });
-}
+  <head>
+    <title>Start a run</title>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
 
-function selectAllLang(){
-  if ($('input[name="lang"]').length != $('input[name="lang"][checked]').length)
-    $('input[name="lang"]').attr('checked', true);
-  else
-    $('input[name="lang"]').attr('checked', false);
-}
+    <script>
+      function openTab(){
+        var options = Array();
+        $('input[name="options"][checked]').each(function(){
+          options.push($(this).val());
+        });
+        
+        sOptions = options.join(',');
+      
+        $('input[name="lang"][checked]').each(function() {
+          window.open("?lang="+ $(this).val() +'&options='+ sOptions);
+        });
+      }
+      
+      function selectAllLang(){
+        if ($('input[name="lang"]').length != $('input[name="lang"][checked]').length)
+          $('input[name="lang"]').attr('checked', true);
+        else
+          $('input[name="lang"]').attr('checked', false);
+      }
 
-</script>
-<body>
-<div style="display:block">
-<p><a href="/wikinetwork/">index</a></p>
-<div style="display:block">
-<form action="." method="GET" name="runParams">
+    </script>
+  </head>
+  <body>
+    <p><a href="/wikinetwork/">index</a></p>
+    <div style="display:block">
+      {% for l in langs %}
+      <div style="display:inline-block;width:150px;">
+        <input type="checkbox" name="lang" value="{{l}}" />{{ l }}
+      </div>
+      {% endfor %}
+    </div>
+    <p><a href="javascript:void(0)" onclick="selectAllLang()">(Un)Select all</a></p>
 
-  {% for l in langs %}
-  <div style="display:inline-block;width:150px;">
-    <input type="checkbox" name="lang" value="{{l}}" />{{ l }}
-  </div>
-  {% endfor %}
-
-</form>
-</div>
-<div style="display:block;">
-<p><a href="javascript:void(0)" onclick="selectAllLang()">(Un)Select all</a></p>
-<p><a href="javascript:void(0)" onclick="openTab()">Run!</a></p>
-</div>
-</div>
-</body>
+    <div style="display:block">
+      {% for o in options %}
+        <div style="display:inline-block;width:150px;">
+          <input type="checkbox" name="options" value="{{o}}" />{{ o|unslugify|capfirst }}
+        </div>
+        {% endfor %}
+    </div>
+    
+    <p><a href="javascript:void(0)" onclick="openTab()">Run!</a></p>
+  </body>
 </html>
