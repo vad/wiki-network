@@ -144,7 +144,6 @@ class CeleryRun(Model):
     
     #wiki related
     lang = CharField(max_length=20, blank=False)
-    date = CharField(max_length=8, blank=False)
     
     created = DateTimeField(auto_now_add = True)
     modified = DateTimeField(auto_now = True)

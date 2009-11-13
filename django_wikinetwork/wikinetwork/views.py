@@ -194,16 +194,14 @@ def group(request, cls=None):
 
 
 def celery(request):
-    if 'lang' in request.GET and 'date' in request.GET: # If the form has been submitted...
+    if 'lang' in request.GET: # If the form has been submitted...
         from django_wikinetwork.wikinetwork.tasks import AnalyseTask
         
-        date = request.GET['date']
         lang = request.GET['lang']
         
-        task = AnalyseTask.delay(lang=lang, date=date)
+        task = AnalyseTask.delay(lang=lang)
         
         cr = CeleryRun()
-        cr.date = date
         cr.lang = lang
         cr.name = task.task_id
         
@@ -212,9 +210,9 @@ def celery(request):
         return HttpResponse("")
     
     else:
-        from django_wikinetwork.wikinetwork.models import WikiLang
+        from django_wikinetwork.wikinetwork.models import WikiStat
         
-        results = WikiLang.objects.values()
+        results = WikiStat.objects.values('lang').distinct().order_by('lang')
         
         langs = [str(l['lang']) for l in results]
 
@@ -230,6 +228,7 @@ def task_list(request):
     runs = CeleryRun.objects.all()
     header = get_header(runs)
     header.append('done')
+    header.append('created')
     #assert False, header
     druns = runs.values()
     

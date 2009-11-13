@@ -89,3 +89,5 @@ AMQP_USER = "research"
 AMQP_PASSWORD = "mandove"
 AMQP_VHOST = "bowie"
 
+from socket import gethostname
+DATASET_PATH = '/hardmnt/%s0/sra/setti/datasets/wikipedia/' % gethostname()

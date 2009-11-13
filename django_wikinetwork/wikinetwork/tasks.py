@@ -1,22 +1,26 @@
 from celery.task import Task
 from celery.registry import tasks
-
+from subprocess import *
+import settings
 
 class AnalyseTask(Task):
-    def run(self, lang, date):
-        from subprocess import *
+    def run(self, lang):
         import os
+        from glob import glob
         
         logger = self.get_logger()
-        logger.info("Running: %s-%s" % (lang, date))
+        logger.info("Running: %s" % (lang,))
         
-        p = Popen("/sra0/sra/setti/Source/wiki-network/analysis.py --as-table --group --reciprocity --density $HHOME/datasets/wikipedia/%swiki-%s_rich.pickle" % (lang, date),
+        files = '%s/%swiki-*_rich.pickle' % (settings.DATASET_PATH, lang,)
+        
+        # find the most recent file
+        fn = sorted(glob(files))[-1]
+        logger.info("Running: %s, filename: %s" % (lang, fn))
+        
+        p = Popen("/sra0/sra/setti/Source/wiki-network/analysis.py --as-table --group --reciprocity --density %s" % fn,
             shell=True, stderr=PIPE)
-                
-        #sts = os.waitpid(p.pid, 0)
         
-        #return p.stderr.readlines()
-        return []
+        return fn
         
         
 tasks.register(AnalyseTask)
