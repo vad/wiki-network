@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% load unslugify_tag %}
 
 {% block content %}
@@ -14,13 +13,14 @@ $(document).ready(function() {
   }*/);
   
 });
+
 </script>
 
 <div id="targetcol"></div>
 {% if not data %}
  no data
-{% endif %}
 
+{% else %}
 <table id="runs" class="tablesorter">
   <thead> 
     <tr>
@@ -29,6 +29,7 @@ $(document).ready(function() {
         {{ h|unslugify|capfirst }}
       </th>
       {% endfor %}
+      <th> Actions </th>
     </tr>
   </thead>
   <tbody>
@@ -41,9 +42,10 @@ $(document).ready(function() {
           </td>
 
         {% endfor %}
+        <td><a href="javascript:void(0)" onclick="$.get('../hide/{{ row|first }}', {}, refresh)">hide</a></td>
       </tr>
     {% endfor %}
   </tbody>
 </table>
-
+{% endif %}
 {% endblock %}

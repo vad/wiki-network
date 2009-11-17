@@ -1,9 +1,8 @@
-{% load unslugify_tag %}
-<html>
-  <head>
-    <title>Start a run</title>
-    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
+{% extends "base.html" %}
 
+{% load unslugify_tag %}
+
+{% block content %}
     <script>
       function openTab(){
         var options = Array();
@@ -47,5 +46,5 @@
     </div>
     
     <p><a href="javascript:void(0)" onclick="openTab()">Run!</a></p>
-  </body>
-</html>
+
+{% endblock %}

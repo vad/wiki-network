@@ -243,10 +243,15 @@ def task_list(request):
     from celery.result import AsyncResult
     from celery.task import is_done
 
-    runs = CeleryRun.objects.all()
-    header = get_header(runs)
-    header.append('done')
-    header.append('created')
+    runs = CeleryRun.objects.filter(hide=False)
+    if runs:
+        header = get_header(runs)
+        header.append('started')
+        header.append('created')
+        header.remove('hide')
+    else:
+        header = []
+    
     #assert False, header
     druns = runs.values()
     
@@ -255,13 +260,19 @@ def task_list(request):
         name = drun['name']
         
         result = AsyncResult(name)
-        drun['done'] = is_done(name)    # Ready means execution has finished.
-        #assert False, result.ready()
+        drun['started'] = result.ready()
+        #assert False, 
         
         data.append([drun[h] for h in header])
     
-    return render_to_response('all.html', {
+    return render_to_response('celery_task_list.html', {
         'data': data,
         'header': header,
         'title': 'tasks',
     })
+
+
+def celery_hide(request, c_id):
+    runs = CeleryRun.objects.filter(name=c_id).update(hide=True)
+    
+    return HttpResponse("ok")

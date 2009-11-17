@@ -140,7 +140,7 @@ class BigWikiStat(Model):
 class CeleryRun(Model):
     #celery related
     name = CharField(max_length=36)
-    running = BooleanField(default=True)
+    hide = BooleanField(default=False)
     
     #wiki related
     lang = CharField(max_length=20, blank=False)

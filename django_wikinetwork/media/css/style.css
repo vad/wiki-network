@@ -9,7 +9,7 @@ table.tablesorter {
 }
 table.tablesorter thead tr th, table.tablesorter tfoot tr th {
 	background-color: #e6EEEE;
-	border: 1px solid #FFF;
+	border: 0px;
 	font-size: 10pt;
 	padding: 4px;
 }
@@ -24,6 +24,7 @@ table.tablesorter tbody td {
 	padding: 4px;
 	background-color: #FFF;
 	vertical-align: top;
+	border-collapse: collapse;
 }
 table.tablesorter tbody tr.odd td {
 	background-color:#F0F0F6;
