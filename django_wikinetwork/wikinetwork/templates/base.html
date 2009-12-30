@@ -49,6 +49,7 @@ function refresh() {
 </script>
 
 <body>
+{% comment %}
 <div id="toppanel">
 	<div id="panel">
 		<div class="content clearfix">
@@ -98,7 +99,9 @@ function refresh() {
 	</div> <!-- / top -->
 	
 </div> <!--panel -->
-<br/><br/><br/>
+<br/><br/>
+{% endcomment %}
+<br/>
 
 {% block content %}{% endblock %}
 

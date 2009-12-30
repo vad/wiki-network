@@ -273,22 +273,22 @@ if __name__ == '__main__':
         list_with_index = lambda degrees, idx: [(degree, idx) for degree in degrees if degree]
         all_list = []
 
-        nogrp_indegrees = g.g.vs.select(sysop_ne=True, bureaucrat_ne=True, steward_ne=True, founder_ne=True, bot_ne=True)['indegree']
+        nogrp_indegrees = g.g.vs.select(sysop_ne=True, bureaucrat_ne=True, steward_ne=True, founder_ne=True, bot_ne=True)['weighted_indegree']
         all_list += list_with_index(nogrp_indegrees, 1)
 
-        sysops_indegrees = g.classes['sysop']['indegree']
+        sysops_indegrees = g.classes['sysop']['weighted_indegree']
         all_list += list_with_index(sysops_indegrees, 2)
 
-        burs_indegrees = g.classes['bureaucrat']['indegree']
+        burs_indegrees = g.classes['bureaucrat']['weighted_indegree']
         all_list += list_with_index(burs_indegrees, 3)
 
-        stewards_indegrees = g.classes['steward']['indegree']
+        stewards_indegrees = g.classes['steward']['weighted_indegree']
         all_list += list_with_index(stewards_indegrees, 4)
 
-        founders_indegrees = g.classes['founder']['indegree']
+        founders_indegrees = g.classes['founder']['weighted_indegree']
         all_list += list_with_index(founders_indegrees, 5)
 
-        bots_indegrees = g.classes['bot']['indegree']
+        bots_indegrees = g.classes['bot']['weighted_indegree']
         all_list += list_with_index(bots_indegrees, 6)
 
         if options.gnuplot:
@@ -298,7 +298,7 @@ if __name__ == '__main__':
 
         all_list.sort(reverse=True)
 
-        for indegree, grp in sorted(sysops_list + nogrp_list + burs_list + stewards_list + founders_list + bots_list, reverse=True):
+        for indegree, grp in all_list:
             for i in range(grp - 1):
                 print >>f, 0,
             print >>f, indegree,
