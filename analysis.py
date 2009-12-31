@@ -114,56 +114,51 @@ if __name__ == '__main__':
     print " * date: %s" % (date,)
 
     if options.details:
-        timr.start('details')
-        print " * nodes number: %d" % (vn,)
-        print " * edges number: %d" % (en,)
-
-        nodes_with_outdegree = len(g.g.vs.select(_outdegree_ge=1))
-        nodes_with_indegree = len(g.g.vs.select(_indegree_ge=1))
-
-        print " * nodes with out edges number: %d (%6f%%)" % (nodes_with_outdegree, 100.*nodes_with_outdegree/vn)
-        print " * nodes with in edges number: %d (%6f%%)" % (nodes_with_indegree, 100.*nodes_with_indegree/vn)
-        print " * max weights on edges : %s" % top(g.g.es['weight'])
-        
-        #print " * diameter : %6f" % g.g.diameter(weights='length')
-
-        #print " * average weight : %6f" % numpy.average(g.g.es['weight'])
-        timr.stop('details')
+        with Timr("details"):
+            print " * nodes number: %d" % (vn,)
+            print " * edges number: %d" % (en,)
+    
+            nodes_with_outdegree = len(g.g.vs.select(_outdegree_ge=1))
+            nodes_with_indegree = len(g.g.vs.select(_indegree_ge=1))
+    
+            print " * nodes with out edges number: %d (%6f%%)" % (nodes_with_outdegree, 100.*nodes_with_outdegree/vn)
+            print " * nodes with in edges number: %d (%6f%%)" % (nodes_with_indegree, 100.*nodes_with_indegree/vn)
+            print " * max weights on edges : %s" % top(g.g.es['weight'])
+            
+            #print " * diameter : %6f" % g.g.diameter(weights='length')
+    
+            #print " * average weight : %6f" % numpy.average(g.g.es['weight'])
 
 
     if options.density or options.reciprocity:
-        timr.start('density&reciprocity')
-        
-        for cls, vs in g.classes.iteritems():
-            if not len(vs) > 1: continue
-            
-            subgraph = vs.subgraph()
-            
-            print " * %s : density : %.10f" % (cls, subgraph.density())
-            print " * %s : reciprocity : %.10f" % (cls, subgraph.reciprocity())
+        with Timr('density&reciprocity'):
+            for cls, vs in g.classes.iteritems():
+                if not len(vs) > 1: continue
+                
+                subgraph = vs.subgraph()
+                
+                print " * %s : density : %.10f" % (cls, subgraph.density())
+                print " * %s : reciprocity : %.10f" % (cls, subgraph.reciprocity())
 
-        timr.stop('density&reciprocity')
 
     if options.degree:
-        timr.start('degree')
-        g.g.vs['indegree'] = g.g.degree(type=ig.IN)
-        g.g.vs['outdegree'] = g.g.degree(type=ig.OUT)
-
-        for cls, vs in g.classes.iteritems():
-            if not vs: continue
-
-            ind = numpy.array(vs['indegree'])
-            outd = numpy.array(vs['outdegree'])
-
-            print " * %s : mean IN degree (no weights): %f" % (cls, numpy.average(ind))
-            print " * %s : mean OUT degree (no weights): %f" % (cls, numpy.average(outd))
-            print " * %s : max IN degrees (no weights): %s" % (cls, top(ind))
-            print " * %s : max OUT degrees (no weights): %s" % (cls, top(outd))
-
-            print " * %s : stddev IN degree (no weights): %f" % (cls, numpy.sqrt(numpy.var(ind)))
-            print " * %s : stddev OUT degree (no weights): %f" % (cls, numpy.sqrt(numpy.var(outd)))
-
-        timr.stop('degree')
+        with Timr('degree'):
+            g.g.vs['indegree'] = g.g.degree(type=ig.IN)
+            g.g.vs['outdegree'] = g.g.degree(type=ig.OUT)
+    
+            for cls, vs in g.classes.iteritems():
+                if not vs: continue
+    
+                ind = numpy.array(vs['indegree'])
+                outd = numpy.array(vs['outdegree'])
+    
+                print " * %s : mean IN degree (no weights): %f" % (cls, numpy.average(ind))
+                print " * %s : mean OUT degree (no weights): %f" % (cls, numpy.average(outd))
+                print " * %s : max IN degrees (no weights): %s" % (cls, top(ind))
+                print " * %s : max OUT degrees (no weights): %s" % (cls, top(outd))
+    
+                print " * %s : stddev IN degree (no weights): %f" % (cls, numpy.sqrt(numpy.var(ind)))
+                print " * %s : stddev OUT degree (no weights): %f" % (cls, numpy.sqrt(numpy.var(outd)))
 
     if options.transitivity:
         ##print " * transitivity: %f" % (nx.transitivity(g), )
@@ -174,41 +169,33 @@ if __name__ == '__main__':
         print " * summary: %s" % (g.g.summary(), )
 
     if options.distance:
-        timr.start('split clusters')
+        with Timr('split clusters'):
+            vc = g.g.clusters()
+            size_clusters = vc.sizes()
+            giant = vc.giant()
+    
+            print " * length of 5 max clusters: %s" % top(size_clusters)
+            #print " * #node in 5 max clusters/#all nodes: %s" % top([1.*cluster_len/vn for cluster_len in size_clusters])
 
-        vc = g.g.clusters()
-        size_clusters = vc.sizes()
-        giant = vc.giant()
-
-        print " * length of 5 max clusters: %s" % top(size_clusters)
-        #print " * #node in 5 max clusters/#all nodes: %s" % top([1.*cluster_len/vn for cluster_len in size_clusters])
-
-        timr.stop('split clusters')
 
     if options.distance:
-        timr.start('distance')
+        with Timr('distance'):
+            gg = sg.Graph(giant)
+            print " * average distance in the giant component: %f" % gg.averageDistance(weight='length')
+            print " * average hops in the giant component: %f" % gg.averageDistance()
+    
+            #print "Average distance 2: %f" % giant.average_path_length(True, False)
 
-        gg = sg.Graph(giant)
-        print " * average distance in the giant component: %f" % gg.averageDistance(weight='length')
-        print " * average hops in the giant component: %f" % gg.averageDistance()
-
-        #print "Average distance 2: %f" % giant.average_path_length(True, False)
-
-        timr.stop('distance')
 
     if options.efficiency:
-        timr.start('efficiency')
+        with Timr('efficiency'):
+            print " * efficiency: %f" % g.efficiency(weight='length')
 
-        print " * efficiency: %f" % g.efficiency(weight='length')
-
-        timr.stop('efficiency')
 
     if options.plot or options.histogram or options.power_law or options.centrality:
-        timr.start('set weighted indegree')
+        with Timr('set weighted indegree'):
+            g.set_weighted_degree()
 
-        g.set_weighted_degree()
-
-        timr.stop('set weighted indegree')
 
     if options.centrality:
         timr.start('centrality')
@@ -254,20 +241,18 @@ if __name__ == '__main__':
         timr.stop('centrality')
 
     if options.power_law:
-        timr.start('power law')
-        for cls, vs in g.classes.iteritems():
-            if not vs: continue
-            
-            indegrees = vs['weighted_indegree']
+        with Timr('power law'):
+            for cls, vs in g.classes.iteritems():
+                if not vs: continue
+                
+                indegrees = vs['weighted_indegree']
+    
+                try:
+                    alpha_exp = ig.statistics.power_law_fit(indegrees, xmin=6)
+                    print " * %s : alpha exp IN degree distribution : %10f " % (cls, alpha_exp)
+                except ValueError:
+                    print >> sys.stderr, " * %s : alpha exp IN degree distribution : ERROR" % (cls,)
 
-            try:
-                alpha_exp = ig.statistics.power_law_fit(indegrees, xmin=6)
-                print " * %s : alpha exp IN degree distribution : %10f " % (cls, alpha_exp)
-            except ValueError:
-                print >> sys.stderr, " * %s : alpha exp IN degree distribution : ERROR" % (cls,)
-
-            
-        timr.stop('power law')
 
     if options.histogram:
         list_with_index = lambda degrees, idx: [(degree, idx) for degree in degrees if degree]
