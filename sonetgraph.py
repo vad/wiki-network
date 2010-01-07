@@ -90,3 +90,34 @@ class Graph(object):
     def defineClass(self, cls, attr):
         # maybe it's better to store attr only (and not the whole VertexSet)
         self.classes[cls] = self.g.vs.select(**attr)
+        
+        
+    def writeAdjacency(self, fn, label, weight='weight'):
+        """
+        fn: name of the file to write
+        label: a node attribute to use as node label
+        """
+        isinstance(self.g, ig.Graph)
+        isinstance(self.g.es, ig.EdgeSeq)
+        
+        matrix = self.g.get_adjacency(ig.GET_ADJACENCY_BOTH, weight, 0)
+        vs = self.g.vs
+        with open(fn, 'w') as f:
+            accumulate = ["",]
+            for node in self.g.vs:
+                accumulate.append(node['username'])
+            print >>f, ','.join(accumulate)
+
+            for i in range(len(vs)):
+                accumulate = []
+                accumulate.append(vs[i]['username'])
+
+                accumulate += [str(e) for e in matrix[i]]
+                print >>f, ','.join(accumulate)
+
+                
+    def getTopIndegree(self, limit):
+        for v in self.g.vs:
+            if v['weighted_indegree'] > 15:
+                print v.index, v['weighted_indegree'], v['username']
+                

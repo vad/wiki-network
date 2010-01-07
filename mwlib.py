@@ -22,6 +22,12 @@ except ImportError:
 
 
 def isip(s):
+    """
+    >>> isip("192.168.1.1")
+    True
+    >>> isip("not-an-ip")
+    False
+    """
     try:
         return inet_ntoa(inet_aton(s)) == s
     except error:
@@ -29,6 +35,13 @@ def isip(s):
 
 
 def getCollaborators( rawWikiText, search, searchEn ):
+    """
+    >>> getCollaborators('d [[User:you|mee:-)ee]] d [[User:me]][[Utente:me]]', 'Utente', 'User')
+    {'me': 2, 'you': 1}
+    >>> getCollaborators('[[User:you', 'Utente', 'User')
+    {}
+
+    """
     rex = '\[\[(%s|%s)\:([^]\|/]*)[^]/]*\]\]' % (search, searchEn)
     matches = re.finditer(rex, rawWikiText)
 

@@ -16,13 +16,13 @@
 from bz2 import BZ2File
 import mwlib
 import os, sys
-import igraph as ig
 from time import time
+from edgecache import EdgeCache
 
 ## etree
 from lxml import etree
 
-tag_prefix = u'{http://www.mediawiki.org/xml/export-0.3/}'
+tag_prefix = u'{http://www.mediawiki.org/xml/export-0.4/}'
 
 page_tag = tag_prefix + u'page'
 title_tag = tag_prefix + u'title'
@@ -38,67 +38,6 @@ ecache = None
 g = None
 lang_user, lang_user_talk = None, None
 en_user, en_user_talk = u"User", u"User talk"
-
-class EdgeCache:
-    edges = []      # a list of tuples: [(sender_id, recipient_id, 20), ...]
-    temp_edges = {} # a dict of dicts : {'recipient': {'sender1': 20, 'sender2': 2}}
-    nodes = {}      # a dict of {'username': vertex_id}
-
-    def cumulate_edge(self, user, talks):
-        if not self.temp_edges.has_key(user):
-            self.temp_edges[user] = talks
-            return
-
-        d = self.temp_edges[user]
-        for speaker, msgs in talks.iteritems():
-            d[speaker] = d.get(speaker, 0) + msgs
-
-
-    def flush_cumulate(self):
-        """
-        This function assumes that all edges directed to the same node are present.
-
-        For example you can call cumulate_edge twice with the same user, but in
-        the meanwhile you can't call flush_cumulate()
-        """
-
-        for recipient, talk in self.temp_edges.iteritems():
-            # find node with username recipient in self nodes
-            # If not present add it; we give him the id rec_id
-            rec_id = self.nodes.setdefault(recipient, len(self.nodes))
-
-            for sender, msgs in talk.iteritems():
-                send_id = self.nodes.setdefault(sender, len(self.nodes))
-                self.edges.append((send_id, rec_id, msgs))
-
-        self.temp_edges.clear()
-
-
-    def get_network(self):
-        """
-        Get the resulting network and clean cached data
-        """
-
-        g = ig.Graph(n = 0, directed=True)
-        g.es['weight'] = []
-        g.vs['username'] = []
-
-        g.add_vertices(len(self.nodes))
-
-        for username, id in self.nodes.iteritems():
-            g.vs[id]['username'] = username.encode('utf-8')
-        self.nodes.clear()
-
-        clean_edges = ((e[0], e[1]) for e in self.edges)
-        g.add_edges(clean_edges)
-        del clean_edges
-
-        for e_from, e_to, weight in self.edges:
-            eid = g.get_eid(e_from, e_to, directed=True)
-            g.es[eid]['weight'] = weight
-        self.edges = []
-
-        return g
 
 
 def process_page(elem, ecache):
@@ -127,8 +66,6 @@ def process_page(elem, ecache):
                     count += 1
                     if not count % 500:
                         print count
-                    #if count > 10000:
-                    #    sys.exit(2)
                 except:
                     print "Warning: exception with user %s" % (user.encode('utf-8'),)
 

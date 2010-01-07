@@ -69,6 +69,8 @@ def create_option_parser():
     op.add_option('--histogram', action="store_true", dest="histogram")
     op.add_option('-g', '--gnuplot', action="store_true", dest="gnuplot")
     op.add_option('-w', '--power-law', action="store_true", dest="power_law")
+    op.add_option('-a', '--adjacency', action="store_true", dest="adjacency",
+        help="Write the adjacency matrix of the giant component to a file")
     
     return op
 
@@ -307,7 +309,7 @@ if __name__ == '__main__':
         bots = g.g.vs.select(bot=True)
         bots['color'] = ('purple',)*len(bots)
 
-        burs = g.g.vs.select(bureaucrat=True)
+        burs = g.g.vs.select(anonymous=True)
         burs['color'] = ('blue',)*len(burs)
 
         sysops = g.g.vs.select(sysop=True)
@@ -316,7 +318,7 @@ if __name__ == '__main__':
         bur_sysops = g.g.vs.select(bureaucrat=True, sysop=True)
         bur_sysops['color'] = ('orange',)*len(bur_sysops)
 
-        g.g.vs['size'] = [math.sqrt(v['indegree']+1)*10 for v in g.g.vs]
+        g.g.vs['size'] = [math.sqrt(v['weighted_indegree']+1)*10 for v in g.g.vs]
 
         ig.plot(g.g, target=lang+"_general.png", bbox=(0,0,4000,2400), edge_color='grey', layout='fr')
         weights = g.g.es['weight']
@@ -334,4 +336,10 @@ if __name__ == '__main__':
         #tablr.printHeader()
         #tablr.printData()
         tablr.saveInDjangoModel()
+        
 
+    if options.adjacency:
+        giant = g.g.clusters().giant()
+        dest = "%s/%swiki-%s.txt" % (os.path.split(fn)[0], lang, date)
+        sg.Graph(giant).writeAdjacency(dest, 'username')
+        
