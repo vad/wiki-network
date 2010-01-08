@@ -2,12 +2,7 @@
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 from django_wikinetwork.wikinetwork.models import WikiRunData, WikiRunGroupData, CeleryRun
-from django.db.models import Max
 import sys
-
-#for wing debugging
-#import wingdbstub
-
 
 it_wikis = sorted(("scn", "nap", "fur", "eml", "lmo", "co", "pms", "vec", "it"))
 
@@ -70,8 +65,7 @@ def all(request, cls=None):
         if not lang_all_run:
             continue
         
-        #assert False, lang_all_run.annotate(max_date=Max('date')).values_list('max_date')
-        newer_date = str(int(lang_all_run.annotate(max_date=Max('date')).values_list('max_date')[0][0]))
+        newer_date = str(int(max([e[0] for e in lang_all_run.values_list('date')])))
         
         # all wikipedia run on this lang and on the most recent date
         newer_run = lang_all_run.filter(date=newer_date).order_by('modified').values()
@@ -150,6 +144,8 @@ def group(request, cls=None):
     for lang in lang_list:
         lang_all_run = all_run.filter(lang=lang)
         
+        #assert False, lang_all_run
+        
         if not lang_all_run:
             continue
         
@@ -159,7 +155,7 @@ def group(request, cls=None):
             if not group_lang_all_run:
                 continue
             
-            newer_date = str(int(group_lang_all_run.annotate(max_date=Max('date')).values_list('max_date')[0][0]))
+            newer_date = str(int(max([e[0] for e in group_lang_all_run.values_list('date')])))
         
             # all wikipedia run on this lang and for this group and on the most recent date
             newer_run = group_lang_all_run.filter(date=newer_date).order_by('modified').values()

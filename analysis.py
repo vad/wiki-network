@@ -71,7 +71,9 @@ def create_option_parser():
     op.add_option('-w', '--power-law', action="store_true", dest="power_law")
     op.add_option('-a', '--adjacency', action="store_true", dest="adjacency",
         help="Write the adjacency matrix of the giant component to a file")
-    
+    op.add_option('--users-role', action="store_true", dest="users_role",
+        help="Write a list users-role to a file")
+        
     return op
 
 
@@ -340,6 +342,17 @@ if __name__ == '__main__':
 
     if options.adjacency:
         giant = g.g.clusters().giant()
-        dest = "%s/%swiki-%s.txt" % (os.path.split(fn)[0], lang, date)
-        sg.Graph(giant).writeAdjacency(dest, 'username')
+        destAdj = "%s/%swiki-%s-adj.csv" % (os.path.split(fn)[0], lang, date)
+        destRec = "%s/%swiki-%s-rec.csv" % (os.path.split(fn)[0], lang, date)
+        sg.Graph(giant).writeAdjacencyMatrix(destAdj, 'username')
+        sg.Graph(giant).writeReciprocityMatrix('username', destRec)
+        
+        
+    if options.users_role:
+        l = g.getUserClass('username', ('anonymous', 'bot', 'bureaucrat', 'sysop'))
+        
+        destUR = "%s/%swiki-%s-ur.csv" % (os.path.split(fn)[0], lang, date)
+        with open(destUR, 'w') as f:
+            for username, role in sorted(l):
+                print >>f, "%s,%s" % (username, role)
         

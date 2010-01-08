@@ -92,10 +92,18 @@ class Graph(object):
         self.classes[cls] = self.g.vs.select(**attr)
         
         
-    def writeAdjacency(self, fn, label, weight='weight'):
+    def writeAdjacencyMatrix(self, fn, label, weight='weight'):
         """
+        writes the matrix like:
+        
+        ,Bar,Foo,TOTAL
+        Bar,0,2,2
+        Foo,1,2,3
+        TOTAL,1,4,5
+         
         fn: name of the file to write
         label: a node attribute to use as node label
+        
         """
         isinstance(self.g, ig.Graph)
         isinstance(self.g.es, ig.EdgeSeq)
@@ -103,21 +111,118 @@ class Graph(object):
         matrix = self.g.get_adjacency(ig.GET_ADJACENCY_BOTH, weight, 0)
         vs = self.g.vs
         with open(fn, 'w') as f:
+            usernames = vs['username']
+            
             accumulate = ["",]
-            for node in self.g.vs:
-                accumulate.append(node['username'])
-            print >>f, ','.join(accumulate)
+            print >>f, ','.join(['',]+ usernames +['TOTAL',])
 
             for i in range(len(vs)):
-                accumulate = []
-                accumulate.append(vs[i]['username'])
+                accumulate = [usernames[i],]
 
-                accumulate += [str(e) for e in matrix[i]]
+                msgs = matrix[i]
+                accumulate += [str(e) for e in msgs]
+                accumulate.append(str(sum(msgs)))
                 print >>f, ','.join(accumulate)
+            
+            # write TOTAL line
+            accumulate = ['TOTAL',]
 
+            msgs = [sum([matrix[(j, i)] for j in range(len(vs))]) for i in range(len(vs))]
+            accumulate += [str(e) for e in msgs]
+            accumulate.append(str(sum(msgs)))
+            print >>f, ','.join(accumulate)
                 
+
+    def writeReciprocityMatrix(self, label, fn=None, weight='weight'):
+        """
+        writes the matrix like:
+        
+        ,Bar,Foo,TOTAL
+        Bar,1,1,2
+        Foo,1,0,1
+        TOTAL,2,1,3
+        
+        It's obviousbly a simmetric matrix. On the main diagonal are there self-edges.
+        
+        >>> g = ig.Graph(n=3, directed=True)
+        >>> g.vs['name'] = ['me', 'you', 'she']
+        >>> g = Graph(g.add_edges(((1,0),(0,1),(0,2))))
+        >>> g.writeReciprocityMatrix('name')
+        ,me,you,she,TOTAL
+        me,0,1,0,1
+        you,1,0,0,1
+        she,0,0,0,0
+        TOTAL,1,1,0,2
+
+         
+        fn: name of the file to write
+        label: a node attribute to use as node label
+        
+        """
+        isinstance(self.g, ig.Graph)
+        isinstance(self.g.es, ig.EdgeSeq)
+        isinstance(self.g.vs, ig.VertexSeq)
+        
+        matrix = self.g.get_adjacency(ig.GET_ADJACENCY_BOTH, default=0)
+        vs = self.g.vs
+        N = len(vs)
+        
+        # len(vs) x len(vs) matrix
+        rmatrix_data = [N*[0] for i in xrange(N)]
+        for i in xrange(N):
+            for j in xrange(i+1):
+                if matrix[(i,j)] and matrix[(j,i)]:
+                    rmatrix_data[i][j] = rmatrix_data[j][i] = 1
+        
+        if fn == None:
+            import sys
+            f = sys.stdout
+        else:
+            f = open(fn, 'w')
+        
+        labels = vs[label]
+                
+        accumulate = ["",]
+        print >>f, ','.join(['',]+ labels +['TOTAL',])
+    
+        rmatrix = ig.datatypes.Matrix(rmatrix_data)
+        for i in range(len(vs)):
+            accumulate = [labels[i],]
+
+            msgs = rmatrix[i]
+            accumulate += [str(e) for e in msgs]
+            accumulate.append(str(sum(msgs)))
+            print >>f, ','.join(accumulate)
+        
+        # write TOTAL line
+        accumulate = ['TOTAL',]
+
+        msgs = [sum([rmatrix[(j, i)] for j in range(len(vs))]) for i in range(len(vs))]
+        accumulate += [str(e) for e in msgs]
+        accumulate.append(str(sum(msgs)))
+        print >>f, ','.join(accumulate)
+    
+            
     def getTopIndegree(self, limit):
         for v in self.g.vs:
             if v['weighted_indegree'] > 15:
-                print v.index, v['weighted_indegree'], v['username']
+                print v.index, v['weighted_indegree'], v['username'], 
+                #TODO: aggiungere ruolo
+                
+                
+    def getUserClass(self, label, classes=None):
+        if not classes:
+            classes = self.classes.keys()
+            
+        vs = self.g.vs
+        for n in vs:
+            found = False
+            attrs = n.attributes()
+            for cls in classes:
+                if attrs[cls]:
+                    found = True
+                    yield (n[label], cls)
+                    break
+            if not found:
+                yield (n[label], 'normal user')
                 
