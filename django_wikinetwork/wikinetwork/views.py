@@ -104,7 +104,7 @@ def group(request, cls=None):
     values_to_be_referred = ("nodes_number", "mean_IN_degree_no_weights",
         "mean_OUT_degree_no_weights", "density", "reciprocity", "average_betweenness",
         "average_pagerank", "average_IN_degree_centrality_weighted",
-        "average_OUT_degree_centrality_weighted")
+        "average_OUT_degree_centrality_weighted", "total IN degree")
     
     # query
     all_run = WikiRunGroupData.objects.all()
@@ -112,6 +112,7 @@ def group(request, cls=None):
     # which headers?
     header = get_header(all_run)
     header.remove('wikirun')
+    #assert False, header
      
     # for which languages? groups
     if cls == "it":
@@ -166,6 +167,10 @@ def group(request, cls=None):
                 for h in header:
                     if run[h]:
                         complete_run[h] = run[h]
+            
+            complete_run['total IN degree'] = int(round(
+                complete_run.get("average_IN_degree_centrality_weighted",0)*complete_run.get("nodes_number",0)
+            ))
                     
             # create percentage referred to the ref_group
             #print lang, group
@@ -178,10 +183,11 @@ def group(request, cls=None):
                         complete_run[h] = format_percentage(complete_run[h], ref_group_values[h])
                     except KeyError:
                         pass
-                    
-            data.append([complete_run.get(h, 'NA') for h in header])
+            
+            calculated_header = header + ['total IN degree']
+            data.append([complete_run.get(h, 'NA') for h in calculated_header])
 
-        
+    header.append('total IN degree')
     #filter(private=False).order_by('-created')[:5]
     return render_to_response('all.html', {
         'data': data,

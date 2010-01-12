@@ -347,7 +347,7 @@ if __name__ == '__main__':
         sg.Graph(giant).writeAdjacencyMatrix(destAdj, 'username')
         sg.Graph(giant).writeReciprocityMatrix('username', destRec)
         
-        
+
     if options.users_role:
         l = g.getUserClass('username', ('anonymous', 'bot', 'bureaucrat', 'sysop'))
         
