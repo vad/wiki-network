@@ -67,7 +67,6 @@
                 var latestPosition = null;
 
                 function updateLegend() {
-                    console.log('ciccia');
                     updateLegendTimeout = null;
                     
                     var pos = latestPosition;
@@ -78,7 +77,6 @@
                         return;
 
                     var i, j, dataset = plot.getData();
-console.log(dataset);
                     for (i = 0; i < dataset.length; ++i) {
                         var series = dataset[i];
 
@@ -95,9 +93,7 @@ console.log(dataset);
                             y = p1[1];
                         else
                             y = p1[1] + (p2[1] - p1[1]) * (pos.x - p1[0]) / (p2[0] - p1[0]);
-                        console.log(series.label.replace(/=.*/, "= " + Math.round(y)));
                         legends.eq(i).text(series.label.replace(/=.*/, "= " + Math.round(y)));
-                        console.log(legends);
                     }
                 }
                 
