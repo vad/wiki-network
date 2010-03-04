@@ -99,6 +99,8 @@ def all(request, cls=None):
 
 
 def group(request, cls=None):
+    import math
+    
     # define
     ref_group = "all"
     values_to_be_referred = ("nodes_number", "mean_IN_degree_no_weights",
@@ -168,9 +170,13 @@ def group(request, cls=None):
                     if run[h]:
                         complete_run[h] = run[h]
             
-            complete_run['total IN degree'] = int(round(
-                complete_run.get("average_IN_degree_centrality_weighted",0)*complete_run.get("nodes_number",0)
-            ))
+
+            if math.isnan(complete_run.get("average_IN_degree_centrality_weighted",0)):
+                complete_run['total IN degree'] = float('nan')
+            else:
+                complete_run['total IN degree'] = int(round(
+                    complete_run.get("average_IN_degree_centrality_weighted",0)*complete_run.get("nodes_number",0)
+                ))
                     
             # create percentage referred to the ref_group
             #print lang, group
