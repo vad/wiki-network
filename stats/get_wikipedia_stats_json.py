@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 
-#Copyright Paolo Massa paolo@gnuband.org
+#Copyright Paolo Massa paolo@gnuband.org, Davide Setti NAME.SURNAME@gmail.com
 #GPLv3.0 licence - Free Software
 # the script
 # - gets statistics in json format from different wikipedias
@@ -30,12 +30,16 @@ def get_stats_wikipedia(wiki_id):
     return stats
 
 def get_all_stats(list_wiki_ids):
-    import os
+    import os, sys
     os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
     from django_wikinetwork.wikinetwork.models import WikiStat
     
     for wiki_id in list_wiki_ids:
-        stats = get_stats_wikipedia(wiki_id)
+        try:
+            stats = get_stats_wikipedia(wiki_id)
+        except:
+            print 'Exception on ', wiki_id
+            continue
         
         # convert unicode keywords to string
         stats = dict(zip(map(str, stats.keys()), stats.values()))

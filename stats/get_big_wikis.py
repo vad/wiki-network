@@ -13,7 +13,7 @@ def big_wikis():
         yield dict(zip(keys, l))
 
 def main():
-    import os
+    import os, sys
     os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
     from django_wikinetwork.wikinetwork.models import BigWikiStat
     
@@ -24,7 +24,9 @@ def main():
         
         wiki["_id"] = wiki["id"]
         del wiki["id"]
-        
+        if not wiki["activeusers"]:
+            wiki["activeusers"] = 0
+
         bws = BigWikiStat(**wiki)
         
         bws.save()

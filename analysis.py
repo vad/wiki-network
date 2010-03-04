@@ -355,4 +355,13 @@ if __name__ == '__main__':
         with open(destUR, 'w') as f:
             for username, role in sorted(l):
                 print >>f, "%s,%s" % (username, role)
+                
+        from random import shuffle
+        destCls = "%s/%swiki-%s-%%s.csv" % (os.path.split(fn)[0], lang, date)
+        for cls in ('anonymous', 'bot', 'bureaucrat', 'sysop', 'normal_user'):
+            users = g.classes[cls]['username']
+            shuffle(users)
+            with open(destCls % cls, 'w') as f:
+                for username in users:
+                    print >>f, "%s,http://vec.wikipedia.org/w/index.php?title=Discussion_utente:%s&action=history&offset=20100000000001" % (username, username)
         

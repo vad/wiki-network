@@ -128,6 +128,7 @@ class BigWikiStat(Model):
     views = IntegerField(blank=True, null=True)
     admins = IntegerField(blank=True, null=True)
     users = IntegerField(blank=True, null=True)
+    activeusers = IntegerField(blank=True, null=True)
     images = IntegerField(blank=True, null=True)
     ratio = FloatField(blank=True, null=True)
     type = CharField(max_length=50, blank=True, null=True)
