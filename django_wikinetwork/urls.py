@@ -6,7 +6,7 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
     # Example:
-    (r'^$', 'django.views.generic.simple.redirect_to', {'url': '/wikinetwork/'}),
+    (r'^$', 'django.views.generic.simple.redirect_to', {'url': 'wikinetwork/'}),
     
     (r'^wikinetwork/', include('django_wikinetwork.wikinetwork.urls')),
 

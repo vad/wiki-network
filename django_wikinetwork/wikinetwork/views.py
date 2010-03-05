@@ -29,10 +29,13 @@ def get_header(qs):
 def format_percentage(number, ref):
     import types
     
-    if type(number) in (types.IntType, ):
-        return '%d (%.1f%%)' % (number, 100.*number/ref)
-    else:
-        return '%.6f (%.1f%%)' % (number, 100.*number/ref)
+    try:
+        if type(number) in (types.IntType, ):
+            return '%d (%.1f%%)' % (number, 100.*number/ref)
+        else:
+            return '%.6f (%.1f%%)' % (number, 100.*number/ref)
+    except ZeroDivisionError:
+        return float('nan')
 
 
 
