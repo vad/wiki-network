@@ -99,7 +99,10 @@ def all(request, cls=None):
 
 
 def group(request, cls=None):
-    import math
+    try:
+        from math import isnan #python 2.6
+    except:
+        from numpy import isnan
     
     # define
     ref_group = "all"
@@ -171,7 +174,7 @@ def group(request, cls=None):
                         complete_run[h] = run[h]
             
 
-            if math.isnan(complete_run.get("average_IN_degree_centrality_weighted",0)):
+            if isnan(complete_run.get("average_IN_degree_centrality_weighted",0)):
                 complete_run['total IN degree'] = float('nan')
             else:
                 complete_run['total IN degree'] = int(round(
