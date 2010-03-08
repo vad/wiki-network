@@ -36,6 +36,24 @@ def isip(s):
 
 def getCollaborators( rawWikiText, search, searchEn ):
     """
+    Search for regular expression containing [[User:username|anchor text]] and count
+    a new message from username to the owner of the page. It also works on localized
+    versions of the wikipedia, for example in the Italian Wikipedia it searches for
+    [[Utente:username|anchor text]]
+
+    We choose to get [[User:username|anchor text]] and not the User_discussion:username
+    link for the following reason: signatures can be personalized.
+    
+    We rely on policies for signatures in the different Wikipedias.
+    In English Wikipedia, see http://en.wikipedia.org/wiki/Wikipedia:Signatures#Links
+    "Signatures must include at least one internal link to your user page, user talk
+    page, or contributions page; this allows other editors easy access to your talk
+    page and contributions log. The lack of such a link is widely viewed as
+    obstructive." In Italian wikipedia, see
+    http://it.wikipedia.org/wiki/Aiuto:Personalizzare_la_firma#Personalizzare_la_firma
+    "La firma deve sempre contenere un wikilink alla pagina utente e/o alla propria
+    pagina di discussione."
+    
     >>> getCollaborators('d [[User:you|mee:-)ee]] d [[User:me]][[Utente:me]]', 'Utente', 'User')
     {'me': 2, 'you': 1}
     >>> getCollaborators('[[User:you', 'Utente', 'User')
