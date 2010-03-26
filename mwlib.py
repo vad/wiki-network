@@ -166,3 +166,24 @@ def getTags(src):
         src.seek(0)
     
     return tag
+
+
+def getTranslations(src):
+    try:
+        counter = 0
+        
+        for line in src:
+            keys = re.findall(r'<namespace key="(\d+)">([^<]*)</namespace>', line)
+            for key, ns in keys:
+                if key == '2':
+                    lang_user = unicode(ns, 'utf-8')
+                elif key == '3':
+                    lang_user_talk = unicode(ns, 'utf-8')
+    
+            counter += 1
+            if counter > 50:
+                break
+    finally:
+        src.seek(0)
+        
+    return (lang_user, lang_user_talk)

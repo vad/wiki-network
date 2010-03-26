@@ -100,23 +100,11 @@ def main():
     
     tag = mwlib.getTags(src)
 
-    counter = 0
-    for line in src:
-        keys = re.findall(r'<namespace key="(\d+)">([^<]*)</namespace>', line)
-        for key, ns in keys:
-            if key == '2':
-                lang_user = unicode(ns, 'utf-8')
-            elif key == '3':
-                lang_user_talk = unicode(ns, 'utf-8')
-
-        counter += 1
-        if counter > 50:
-            break
-
+    lang_user, lang_user_talk = mwlib.getTranslations(src)
+    
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
 
-    src.seek(0)
     search = unicode(lang_user)
     searchEn = unicode(en_user)
 
