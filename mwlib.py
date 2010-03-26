@@ -71,6 +71,19 @@ def getCollaborators( rawWikiText, search, searchEn ):
     return weights
 
 
+def getTemplates(rawWikiText):
+    rex = '\{\{([^\}]*)'
+    matches = re.finditer(rex, rawWikiText)
+    
+    weights = {}
+    for tm in matches:
+        #print t
+        t = tm.group(1)
+        weights[t] = weights.get(t, 0) + 1
+
+    return weights    
+
+
 def addGroupAttribute(g, lang, group='bot'):
     url = 'http://%s.wikipedia.org/w/api.php?action=query&list=allusers&augroup=%s&aulimit=500&format=json' % ( lang, group)
 
@@ -136,3 +149,20 @@ def addBlockedAttribute(g, lang):
             break
 
     return
+
+
+def getTags(src):
+    # find namespace (eg: http://www.mediawiki.org/xml/export-0.3/)
+    try:
+        root = src.readline()
+        ns = unicode(re.findall(r'xmlns="([^"]*)', root)[0])
+        
+        tag_prefix = u'{%s}' % ns
+    
+        tag = {}
+        for t in 'page,title,revision,text'.split(','):
+            tag[t] = tag_prefix + unicode(t)
+    finally:
+        src.seek(0)
+    
+    return tag

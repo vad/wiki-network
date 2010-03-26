@@ -14,30 +14,34 @@
 ##########################################################################
 
 from bz2 import BZ2File
+import mwlib
 import os, sys
-from time import time
 import re
+from time import time
+
+## etree
 from lxml import etree
 
-## PROJECT LIBS
-from edgecache import EdgeCache
-import mwlib
-
 count = 0
-search = None
-searchEn = None
 lang = None
 old_user = None
-ecache = None
 g = None
 lang_user, lang_user_talk = None, None
-en_user, en_user_talk = u"User", u"User talk"
 tag = {}
+en_user, en_user_talk = u"User", u"User talk"
+templates = {}
 
 
-def process_page(elem, ecache):
+def merge_templates(big, small):
+    for k,v in small.iteritems():
+        big.setdefault(k, 0) #set big[k] if not already defined
+        big[k] += v
+
+
+def process_page(elem):
     user = None
-    global count
+    global count, templates
+    
     for child in elem:
         if child.tag == tag['title'] and child.text:
             a_title = child.text.split('/')[0].split(':')
@@ -56,23 +60,25 @@ def process_page(elem, ecache):
                     continue
 
                 try:
-                    talks = mwlib.getCollaborators(rc.text, search, searchEn)
-                    ecache.cumulate_edge(user, talks)
+                    page_templates = mwlib.getTemplates(rc.text)
+                    merge_templates(templates, page_templates)
                     count += 1
+                    
                     if not count % 500:
-                        print count
+                        print >>sys.stderr, count
                 except:
                     print "Warning: exception with user %s" % (user.encode('utf-8'),)
+                    raise
 
 
-def fast_iter(context, func, ecache):
+def fast_iter(context, func):
     for event, elem in context:
-        func(elem, ecache)
+        func(elem)
         elem.clear()
         while elem.getprevious() is not None:
             del elem.getparent()[0]
     del context
-
+    
 
 def main():
     import optparse
@@ -85,22 +91,15 @@ def main():
         p.error("Give me a file, please ;-)")
     xml = files[0]
 
-    global lang
-    global search, searchEn, lang_user, lang_user_talk
-    global g, ecache, tag
-    
-    s = os.path.split(xml)[1] #filename with extension
-    lang = s[:s.index('wiki')]
-    res = re.search('wiki-(\d{4})(\d{2})(\d{2})-',s)
-    date = ''.join([res.group(x) for x in xrange(1,4)])
-
-    ecache = EdgeCache()
+    global templates
+    global lang_user_talk, lang_user, tag
 
     src = BZ2File(xml)
-    
+
     tag = mwlib.getTags(src)
 
     counter = 0
+        
     for line in src:
         keys = re.findall(r'<namespace key="(\d+)">([^<]*)</namespace>', line)
         for key, ns in keys:
@@ -112,6 +111,7 @@ def main():
         counter += 1
         if counter > 50:
             break
+    print "namespace trovati"
 
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
@@ -120,16 +120,11 @@ def main():
     search = unicode(lang_user)
     searchEn = unicode(en_user)
 
-    fast_iter(etree.iterparse(src, tag=tag['page']), process_page, ecache)
+    print "iter"
+    fast_iter(etree.iterparse(src, tag=tag['page']), process_page)
 
-    ecache.flush_cumulate()
-    g = ecache.get_network()
-
-    print "Len:", len(g.vs)
-    print "Edges:", len(g.es)
-
-    g.write("%swiki-%s.pickle" % (lang, date), format="pickle")
-    #g.write("%swiki-%s.graphml" % (lang, date), format="graphml")
+    for k, v in sorted(templates.items(),cmp=lambda x,y: cmp(x[1], y[1]),reverse=True):
+        print v, k.encode('utf-8')
 
 
 if __name__ == "__main__":
