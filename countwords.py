@@ -22,6 +22,10 @@ from time import time
 ## etree
 from lxml import etree
 
+## nltk
+import nltk
+from nltk.corpus import stopwords
+
 count = 0
 lang = None
 old_user = None
@@ -29,27 +33,27 @@ g = None
 lang_user, lang_user_talk = None, None
 tag = {}
 en_user, en_user_talk = u"User", u"User talk"
-templates = {}
 
-
-def merge_templates(big, small):
-    for k,v in small.iteritems():
-        big.setdefault(k, 0) #set big[k] if not already defined
-        big[k] += v
+## frequency distribution
+fd = nltk.FreqDist()
+it_stopwords = stopwords.words('italian')
 
 
 def process_page(elem):
     user = None
-    global count, templates
+    global count, fd, it_stopwords
     
     for child in elem:
         if child.tag == tag['title'] and child.text:
             a_title = child.text.split('/')[0].split(':')
 
-            #if len(a_title) > 1 and a_title[0] in (en_user_talk, lang_user_talk):
-            if len(a_title) > 1 and a_title[0] == en_user:
-                user = a_title[1]
-            else:
+            try:
+                if a_title[0] in (en_user_talk, lang_user_talk):
+                #if len(a_title) > 1 and a_title[0] == lang_user_talk:
+                    user = a_title[1]
+                else:
+                    return
+            except KeyError:
                 return
         elif child.tag == tag['revision']:
             for rc in child:
@@ -61,8 +65,11 @@ def process_page(elem):
                     continue
 
                 try:
-                    page_templates = mwlib.getTemplates(rc.text)
-                    merge_templates(templates, page_templates)
+                    tokens = nltk.word_tokenize(nltk.clean_html(rc.text.encode('utf-8')))
+                    text = nltk.Text(t for t in tokens if len(t) > 2 and t not in it_stopwords)
+
+                    fd.update(text)
+                    
                     count += 1
                     
                     if not count % 500:
@@ -106,8 +113,8 @@ def main():
 
     fast_iter(etree.iterparse(src, tag=tag['page']), process_page)
 
-    for k, v in sorted(templates.items(),cmp=lambda x,y: cmp(x[1], y[1]),reverse=True):
-        print v, k.encode('utf-8')
+    for k, v in sorted(fd.items(),cmp=lambda x,y: cmp(x[1], y[1]),reverse=True):
+        print v, k
 
 
 if __name__ == "__main__":

@@ -60,7 +60,7 @@ def getCollaborators( rawWikiText, search, searchEn ):
     {}
 
     """
-    rex = '\[\[(%s|%s)\:([^]\|/]*)[^]/]*\]\]' % (search, searchEn)
+    rex = r'\[\[(%s|%s)\:([^]\|/]*)[^]/]*\]\]' % (search, searchEn)
     matches = re.finditer(rex, rawWikiText)
 
     weights = {}
@@ -72,17 +72,19 @@ def getCollaborators( rawWikiText, search, searchEn ):
 
 
 def getTemplates(rawWikiText):
-    rex = '\{\{([^\}]*)'
+    rex = '\{\{(\{?[^\}\|\{]*)'
     matches = re.finditer(rex, rawWikiText)
     
     weights = {}
     for tm in matches:
-        #print t
         t = tm.group(1)
         weights[t] = weights.get(t, 0) + 1
 
-    return weights    
+    return weights
 
+
+#def getWords(rawWikiText):
+#    import nltk
 
 def addGroupAttribute(g, lang, group='bot'):
     url = 'http://%s.wikipedia.org/w/api.php?action=query&list=allusers&augroup=%s&aulimit=500&format=json' % ( lang, group)
