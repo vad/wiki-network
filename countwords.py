@@ -56,7 +56,8 @@ def get_freq_dist(q, done_q, fd=None):
         s = q.get()
         
         try:
-            tokens = tokenizer.tokenize(nltk.clean_html(s.encode('utf-8').lower()))
+            tokens = tokenizer.tokenize(nltk.clean_html(s.encode('utf-8')
+                                                        .lower()))
         except AttributeError: ## end
             done_q.put(fd.items())
             
@@ -104,7 +105,8 @@ def process_page(elem, queue):
                     if not count % 500:
                         print >>sys.stderr, count
                 except:
-                    print "Warning: exception with user %s" % (user.encode('utf-8'),)
+                    print "Warning: exception with user %s" % (
+                        user.encode('utf-8'),)
                     raise
     
 
@@ -134,7 +136,8 @@ def main():
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
 
-    mwlib.fast_iter_queue(etree.iterparse(src, tag=tag['page']), process_page, queue)
+    mwlib.fast_iter_queue(etree.iterparse(src, tag=tag['page']),
+                          process_page, queue)
     
     queue.put(0) ## this STOPS the process
     

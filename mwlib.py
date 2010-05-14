@@ -15,6 +15,7 @@
 import re
 from socket import inet_ntoa, inet_aton, error
 from urllib import urlopen
+
 try:
     import json
 except ImportError:
@@ -206,3 +207,14 @@ def getTranslations(src):
         src.seek(0)
         
     return (lang_user, lang_user_talk)
+
+
+def explode_dump_filename(fn):
+    from os.path import split
+    
+    s = split(fn)[1] #filename with extension
+    lang = s[:s.index('wiki')]
+    res = re.search('wiki-(\d{4})(\d{2})(\d{2})-',s)
+    date = ''.join([res.group(x) for x in range(1,4)])
+    return (lang, date)
+    

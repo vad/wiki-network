@@ -14,9 +14,12 @@
 ##########################################################################
 
 from bz2 import BZ2File
-import os, sys
+import os
+import sys
 from time import time
 import re
+
+## LXML
 from lxml import etree
 
 ## PROJECT LIBS
@@ -89,10 +92,7 @@ def main():
     global search, searchEn, lang_user, lang_user_talk
     global g, ecache, tag
     
-    s = os.path.split(xml)[1] #filename with extension
-    lang = s[:s.index('wiki')]
-    res = re.search('wiki-(\d{4})(\d{2})(\d{2})-',s)
-    date = ''.join([res.group(x) for x in xrange(1,4)])
+    lang, date = mwlib.explode_dump_filename(xml)
 
     ecache = EdgeCache()
 
