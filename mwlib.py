@@ -39,6 +39,7 @@ def fast_iter(context, func):
         #    del elem.getparent()[0]
     del context
     
+    
 def isip(s):
     """
     >>> isip("192.168.1.1")

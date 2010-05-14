@@ -9,6 +9,7 @@ import gc
 import numpy
 import sonetgraph as sg
 import igraph as ig
+import mwlib
 
 # project
 from tablr import Tablr
@@ -88,10 +89,7 @@ if __name__ == '__main__':
         sys.exit(2)
 
     fn = args[0]
-    s = os.path.split(fn)[1]
-    lang = s[:s.index('wiki')]
-    res = re.search('wiki-(\d{4})(\d{2})(\d{2})',s)
-    date = ''.join([res.group(x) for x in xrange(1,4)])
+    lang, date = mwlib.explode_dump_filename(fn)
 
     g = sg.load(fn)
     ##print 'loaded'
