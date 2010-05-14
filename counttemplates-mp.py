@@ -22,6 +22,10 @@ from time import time
 ## etree
 from lxml import etree
 
+## multiprocessing
+from multiprocessing.dummy import Queue, Process
+
+
 count = 0
 lang = None
 old_user = None
@@ -30,15 +34,44 @@ lang_user, lang_user_talk = None, None
 tag = {}
 en_user, en_user_talk = u"User", u"User talk"
 templates = {}
+queue, done_queue = Queue(), Queue()
 
 
+
+### CHILD PROCESS
 def merge_templates(big, small):
     for k,v in small.iteritems():
         big.setdefault(k, 0) #set big[k] if not already defined
         big[k] += v
 
-
-def process_page(elem):
+        
+def get_freq_dist(q, done_q, templates=None):
+    if not templates:
+        templates = {}
+    
+    while 1:
+        s = q.get()
+        
+        try:
+            page_templates = mwlib.getTemplates(s)
+            merge_templates(templates, page_templates)
+        except TypeError: ## end
+            done_q.put(templates)
+            
+            return
+        
+### CHILD PROCESS: XML READER
+def xml_to_queue(src, queue, lu, lut):
+    global lang_user, lang_user_talk
+    
+    lang_user = lu
+    lang_user_talk = lut
+    
+    mwlib.fast_iter_queue(etree.iterparse(src, tag=tag['page'], huge_tree=True), process_page, queue)
+        
+    
+### MAIN PROCESS
+def process_page(elem, q):
     user = None
     global count, templates
     
@@ -61,8 +94,7 @@ def process_page(elem):
                     continue
 
                 try:
-                    page_templates = mwlib.getTemplates(rc.text)
-                    merge_templates(templates, page_templates)
+                    q.put(rc.text)
                     count += 1
                     
                     if not count % 500:
@@ -91,9 +123,21 @@ def main():
     lang_user, lang_user_talk = mwlib.getTranslations(src)
 
     assert lang_user, "User namespace not found"
-    assert lang_user_talk, "User Talk namespace not found"
-
-    mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], huge_tree=True), process_page)
+    assert lang_user_talk, "User Talk namespace not found"    
+    
+    ## XML Reader Process
+    rp = Process(target=xml_to_queue, args=(src, queue, lang_user, lang_user_talk))
+    rp.start()
+    
+    p = Process(target=get_freq_dist, args=(queue, done_queue))
+    p.start()
+    
+    rp.join()
+    print >>sys.stderr, "end of XML processing"
+    
+    queue.put(None) ## this STOPS the process
+    templates = done_queue.get()
+    p.join()
 
     for k, v in sorted(templates.items(),cmp=lambda x,y: cmp(x[1], y[1]),reverse=True):
         print v, k.encode('utf-8')

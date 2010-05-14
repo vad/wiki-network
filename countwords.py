@@ -18,13 +18,18 @@ import mwlib
 import os, sys
 import re
 from time import time
+from itertools import ifilter
+import cProfile as profile
 
 ## etree
 from lxml import etree
 
+
 ## nltk
 import nltk
-from nltk.corpus import stopwords
+
+## multiprocessing
+from multiprocessing import Queue, Process
 
 count = 0
 lang = None
@@ -33,15 +38,43 @@ g = None
 lang_user, lang_user_talk = None, None
 tag = {}
 en_user, en_user_talk = u"User", u"User talk"
+queue, done_queue = Queue(), Queue()
 
 ## frequency distribution
-fd = nltk.FreqDist()
-it_stopwords = stopwords.words('italian')
+stopwords = nltk.corpus.stopwords.words('italian')
+
+### CHILD PROCESS
+def get_freq_dist(q, done_q, fd=None):
+    global stopwords
+    dstpw = dict(zip(stopwords, [0]*len(stopwords)))
+    tokenizer = nltk.PunktWordTokenizer()
+
+    if not fd:
+        fd = nltk.FreqDist()
+    
+    while 1:
+        s = q.get()
+        
+        try:
+            tokens = tokenizer.tokenize(nltk.clean_html(s.encode('utf-8').lower()))
+        except AttributeError: ## end
+            done_q.put(fd.items())
+            
+            return
+            
+        text = nltk.Text(t for t in tokens if len(t) > 2 and t not in dstpw)
+        fd.update(text)
+        
+
+def get_freq_dist_wrapper(q, done_q, fd=None):
+    profile.runctx("get_freq_dist(q, done_q, fd)",
+        globals(), locals(), 'profile')
 
 
-def process_page(elem):
+### MAIN PROCESS
+def process_page(elem, queue):
     user = None
-    global count, fd, it_stopwords
+    global count, it_stopwords
     
     for child in elem:
         if child.tag == tag['title'] and child.text:
@@ -49,7 +82,6 @@ def process_page(elem):
 
             try:
                 if a_title[0] in (en_user_talk, lang_user_talk):
-                #if len(a_title) > 1 and a_title[0] == lang_user_talk:
                     user = a_title[1]
                 else:
                     return
@@ -65,10 +97,7 @@ def process_page(elem):
                     continue
 
                 try:
-                    tokens = nltk.word_tokenize(nltk.clean_html(rc.text.encode('utf-8')))
-                    text = nltk.Text(t for t in tokens if len(t) > 2 and t not in it_stopwords)
-
-                    fd.update(text)
+                    queue.put(rc.text)
                     
                     count += 1
                     
@@ -77,15 +106,6 @@ def process_page(elem):
                 except:
                     print "Warning: exception with user %s" % (user.encode('utf-8'),)
                     raise
-
-
-def fast_iter(context, func):
-    for event, elem in context:
-        func(elem)
-        elem.clear()
-        while elem.getprevious() is not None:
-            del elem.getparent()[0]
-    del context
     
 
 def main():
@@ -105,15 +125,27 @@ def main():
     src = BZ2File(xml)
 
     tag = mwlib.getTags(src)
+    
+    p = Process(target=get_freq_dist, args=(queue, done_queue))
+    p.start()
 
     lang_user, lang_user_talk = mwlib.getTranslations(src)
 
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
 
-    fast_iter(etree.iterparse(src, tag=tag['page']), process_page)
-
-    for k, v in sorted(fd.items(),cmp=lambda x,y: cmp(x[1], y[1]),reverse=True):
+    mwlib.fast_iter_queue(etree.iterparse(src, tag=tag['page']), process_page, queue)
+    
+    queue.put(0) ## this STOPS the process
+    
+    print >>sys.stderr, "end of parsing"
+    
+    fd = done_queue.get()
+    p.join()
+    
+    print >>sys.stderr, "end of FreqDist"
+    
+    for k, v in sorted(fd,cmp=lambda x,y: cmp(x[1], y[1]), reverse=True):
         print v, k
 
 

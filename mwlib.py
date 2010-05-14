@@ -20,7 +20,24 @@ try:
 except ImportError:
     import simplejson as json
 
+    
+def fast_iter_queue(context, func, q):
+    for event, elem in context:
+        func(elem, q)
+        elem.clear()
+        #while elem.getprevious() is not None:
+        #    del elem.getparent()[0]
+    del context
 
+    
+def fast_iter(context, func):
+    for event, elem in context:
+        func(elem)
+        elem.clear()
+        #while elem.getprevious() is not None:
+        #    del elem.getparent()[0]
+    del context
+    
 def isip(s):
     """
     >>> isip("192.168.1.1")
