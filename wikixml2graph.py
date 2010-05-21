@@ -25,6 +25,7 @@ from lxml import etree
 ## PROJECT LIBS
 from edgecache import EdgeCache
 import mwlib
+import lib
 
 count = 0
 search = None
@@ -107,8 +108,14 @@ def main():
 
     search = unicode(lang_user)
     searchEn = unicode(en_user)
-
-    fast_iter(etree.iterparse(src, tag=tag['page']), process_page, ecache)
+    
+    _fast = True
+    if _fast:
+        src.close()
+        src = lib.BZ2FileExt(xml)
+    
+    fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
+              process_page, ecache)
 
     ecache.flush_cumulate()
     g = ecache.get_network()

@@ -15,6 +15,7 @@
 import re
 from socket import inet_ntoa, inet_aton, error
 from urllib import urlopen
+from collections import defaultdict
 
 try:
     import json
@@ -53,6 +54,7 @@ def isip(s):
         return False
 
 
+re_cache = {}
 def getCollaborators( rawWikiText, search, searchEn ):
     """
     Search for regular expression containing [[User:username|anchor text]] and count
@@ -80,12 +82,16 @@ def getCollaborators( rawWikiText, search, searchEn ):
 
     """
     rex = r'\[\[(%s|%s)\:([^]\|/]*)[^]/]*\]\]' % (search, searchEn)
-    matches = re.finditer(rex, rawWikiText)
+    try:
+        matches = re_cache[rex].finditer(rawWikiText)
+    except KeyError:
+        re_cache[rex] = re.compile(rex)
+        matches = re_cache[rex].finditer(rawWikiText)
 
-    weights = {}
+    weights = defaultdict(int)
     for u in matches:
         un = u.group(2)
-        weights[un] = weights.get(un, 0) + 1
+        weights[un] += 1
 
     return weights
 
@@ -94,10 +100,10 @@ def getTemplates(rawWikiText):
     rex = '\{\{(\{?[^\}\|\{]*)'
     matches = re.finditer(rex, rawWikiText)
     
-    weights = {}
+    weights = defaultdict(int)
     for tm in matches:
         t = tm.group(1)
-        weights[t] = weights.get(t, 0) + 1
+        weights[t] += 1
 
     return weights
 
@@ -106,7 +112,7 @@ def getTemplates(rawWikiText):
 #    import nltk
 
 def addGroupAttribute(g, lang, group='bot'):
-    url = 'http://%s.wikipedia.org/w/api.php?action=query&list=allusers&augroup=%s&aulimit=500&format=json' % ( lang, group)
+    url = 'http://%s.wikipedia.org/w/api.php?action=query&list=allusers&augroup=%s&aulimit=500&format=json' % (lang, group)
 
     start = None
     while True:
