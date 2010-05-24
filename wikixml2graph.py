@@ -61,7 +61,7 @@ def process_page(elem, ecache):
 
                 try:
                     talks = mwlib.getCollaborators(rc.text, search, searchEn)
-                    ecache.cumulate_edge(user, talks)
+                    ecache.add(user, talks)
                     count += 1
                     if not count % 500:
                         print count
@@ -117,7 +117,7 @@ def main():
     fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
               process_page, ecache)
 
-    ecache.flush_cumulate()
+    ecache.flush()
     g = ecache.get_network()
 
     print "Len:", len(g.vs)

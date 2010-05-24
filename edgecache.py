@@ -4,20 +4,30 @@ class EdgeCache:
     """
 
     >>> ec = EdgeCache()
-    >>> ec.cumulate_edge('me', {'him': 1, 'her': 3})
-    >>> ec.cumulate_edge('you', {'him': 3})
-    >>> ec.flush_cumulate()
+    >>> ec.add('me', {'him': 1, 'her': 3})
+    >>> ec.add('you', {'him': 3})
+    >>> ec.flush()
     >>> ec.nodes
     {'me': 0, 'you': 3, 'him': 1, 'her': 2}
     >>> sorted(ec.edges)
     [(1, 0, 1), (1, 3, 3), (2, 0, 3)]
 
     """
-    edges = []      # a list of tuples: [(sender_id, recipient_id, 20), ...]
-    temp_edges = {} # a dict of dicts : {'recipient': {'sender1': 20, 'sender2': 2}}
-    nodes = {}      # a dict of {'username': vertex_id}
+    edges = None      # a list of tuples: [(sender_id, recipient_id, 20), ...]
+    temp_edges = None # a dict of dicts : {'recipient': {'sender1': 20, 'sender2': 2}}
+    nodes = None      # a dict of {'username': vertex_id}
+    
+    def __init__(self):
+        self.edges = []
+        self.temp_edges = {}
+        self.nodes = {}
 
-    def cumulate_edge(self, user, talks):
+        
+    def add(self, user, talks):
+        """
+        user: string
+        talks: dict
+        """
         if not self.temp_edges.has_key(user):
             self.temp_edges[user] = talks
             return
@@ -27,12 +37,12 @@ class EdgeCache:
             d[speaker] = d.get(speaker, 0) + msgs
 
 
-    def flush_cumulate(self):
+    def flush(self):
         """
         This function assumes that all edges directed to the same node are present.
 
         For example you can call cumulate_edge twice with the same user, but in
-        the meanwhile you can't call flush_cumulate()
+        the meanwhile you can't call flush()
         """
 
         for recipient, talk in self.temp_edges.iteritems():
