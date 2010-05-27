@@ -23,7 +23,7 @@ except ImportError:
 
     
 def fast_iter(context, func):
-    for event, elem in context:
+    for _, elem in context:
         func(elem)
         elem.clear()
         while elem.getprevious() is not None:
@@ -47,25 +47,29 @@ def isip(s):
 re_cache = {}
 def getCollaborators(rawWikiText, search):
     """
-    Search for regular expression containing [[User:username|anchor text]] and count
-    a new message from username to the owner of the page. It also works on localized
-    versions of the wikipedia, for example in the Italian Wikipedia it searches for
+    Search for regular expression containing [[User:username|anchor text]] and
+    count a new message from username to the owner of the page. It also works
+    on localized versions of the wikipedia, for example in the Italian
+    Wikipedia it searches for
     [[Utente:username|anchor text]]
 
-    We choose to get [[User:username|anchor text]] and not the User_discussion:username
-    link for the following reason: signatures can be personalized.
+    We choose to get [[User:username|anchor text]] and not the
+    User_discussion:username link for the following reason: signatures can be
+    personalized.
     
     We rely on policies for signatures in the different Wikipedias.
-    In English Wikipedia, see http://en.wikipedia.org/wiki/Wikipedia:Signatures#Links
-    "Signatures must include at least one internal link to your user page, user talk
-    page, or contributions page; this allows other editors easy access to your talk
+    In English Wikipedia, see
+    http://en.wikipedia.org/wiki/Wikipedia:Signatures#Links "Signatures must
+    include at least one internal link to your user page, user talk page, or
+    contributions page; this allows other editors easy access to your talk
     page and contributions log. The lack of such a link is widely viewed as
     obstructive." In Italian wikipedia, see
     http://it.wikipedia.org/wiki/Aiuto:Personalizzare_la_firma#Personalizzare_la_firma
-    "La firma deve sempre contenere un wikilink alla pagina utente e/o alla propria
-    pagina di discussione."
+    "La firma deve sempre contenere un wikilink alla pagina utente e/o alla
+    propria pagina di discussione."
     
-    >>> getCollaborators('d [[User:you|mee:-)ee]] d [[User:me]][[Utente:me]]', 'Utente', 'User')
+    >>> getCollaborators('d [[User:you|mee:-)ee]] d [[User:me]][[Utente:me]]',
+                         'Utente', 'User')
     {'me': 2, 'you': 1}
     >>> getCollaborators('[[User:you', 'Utente', 'User')
     {}
@@ -102,7 +106,8 @@ def getTemplates(rawWikiText):
 #    import nltk
 
 def addGroupAttribute(g, lang, group='bot'):
-    url = 'http://%s.wikipedia.org/w/api.php?action=query&list=allusers&augroup=%s&aulimit=500&format=json' % (lang, group)
+    url = ('http://%s.wikipedia.org/w/api.php?action=query&list=allusers'+
+           '&augroup=%s&aulimit=500&format=json') % (lang, group)
 
     start = None
     while True:
@@ -119,7 +124,8 @@ def addGroupAttribute(g, lang, group='bot'):
         for user in res['query']['allusers']:
             print user['name'].encode('utf-8')
             try:
-                g.vs.select(username=user['name'].encode('utf-8'))[0][group] = True
+                g.vs.select(username=user['name'].encode('utf-8')
+                            )[0][group] = True
             except IndexError:
                 pass
 
@@ -133,7 +139,8 @@ def addGroupAttribute(g, lang, group='bot'):
 
 def addBlockedAttribute(g, lang):
     g.vs['blocked'] = [None,]*len(g.vs)
-    url = base_url = 'http://%s.wikipedia.org/w/api.php?action=query&list=blocks&bklimit=500&format=json' % ( lang, )
+    url = base_url = ('http://%s.wikipedia.org/w/api.php?action=query&list='+
+                      'blocks&bklimit=500&format=json') % ( lang, )
 
     start = None
     while True:
@@ -190,7 +197,8 @@ def getTranslations(src):
         counter = 0
         
         for line in src:
-            keys = re.findall(r'<namespace key="(\d+)">([^<]*)</namespace>', line)
+            keys = re.findall(r'<namespace key="(\d+)">([^<]*)</namespace>',
+                              line)
             for key, ns in keys:
                 if key == '2':
                     lang_user = unicode(ns, 'utf-8')
@@ -211,7 +219,7 @@ def explode_dump_filename(fn):
     
     s = split(fn)[1] #filename with extension
     lang = s[:s.index('wiki')]
-    res = re.search('wiki-(\d{4})(\d{2})(\d{2})-',s)
-    date = ''.join([res.group(x) for x in range(1,4)])
+    res = re.search('wiki-(\d{4})(\d{2})(\d{2})-', s)
+    date = ''.join([res.group(x) for x in range(1, 4)])
     return (lang, date)
     

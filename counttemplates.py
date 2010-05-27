@@ -33,7 +33,7 @@ templates = {}
 
 
 def merge_templates(big, small):
-    for k,v in small.iteritems():
+    for k, v in small.iteritems():
         big.setdefault(k, 0) #set big[k] if not already defined
         big[k] += v
 
@@ -66,7 +66,7 @@ def process_page(elem):
                     count += 1
                     
                     if not count % 500:
-                        print >>sys.stderr, count
+                        print >> sys.stderr, count
                 except:
                     print "Warning: exception with user %s" % (user.encode('utf-8'),)
                     raise
@@ -74,15 +74,16 @@ def process_page(elem):
 
 def main():
     import optparse
+    from operator import itemgetter
 
     p = optparse.OptionParser(usage="usage: %prog [options] file")
-    opts, files = p.parse_args()
+    _, files = p.parse_args()
 
     if not files:
         p.error("Give me a file, please ;-)")
     xml_filename = files[0]
 
-    global lang_user_talk, lang_user, tag, templates
+    global lang_user_talk, lang_user, tag
 
     src = BZ2File(xml_filename)
 
@@ -93,9 +94,10 @@ def main():
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
 
-    mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], huge_tree=True), process_page)
+    mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], huge_tree=True),
+                    process_page)
 
-    for k, v in sorted(templates.items(),cmp=lambda x,y: cmp(x[1], y[1]),reverse=True):
+    for k, v in sorted(templates.items(), key=itemgetter(1), reverse=True):
         print v, k.encode('utf-8')
 
 
