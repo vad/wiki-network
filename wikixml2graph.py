@@ -14,10 +14,6 @@
 ##########################################################################
 
 from bz2 import BZ2File
-import os
-import sys
-from time import time
-import re
 
 ## LXML
 from lxml import etree
@@ -27,71 +23,63 @@ from edgecache import EdgeCache
 import mwlib
 import lib
 
-count = 0
-search = None
-searchEn = None
-lang = None
-old_user = None
-ecache = None
-g = None
-lang_user, lang_user_talk = None, None
-en_user, en_user_talk = u"User", u"User talk"
-tag = {}
-
-
-def process_page(elem, ecache):
-    user = None
-    global count
-    for child in elem:
-        if child.tag == tag['title'] and child.text:
-            a_title = child.text.split('/')[0].split(':')
-
-            if len(a_title) > 1 and a_title[0] in (en_user_talk, lang_user_talk):
-                user = a_title[1]
-            else:
-                return
-        elif child.tag == tag['revision']:
-            for rc in child:
-                if rc.tag != tag['text']:
-                    continue
-
-                #assert user, "User still not defined"
-                if not (rc.text and user):
-                    continue
-
-                try:
-                    talks = mwlib.getCollaborators(rc.text, search, searchEn)
-                    ecache.add(user, talks)
-                    count += 1
-                    if not count % 500:
-                        print count
-                except:
-                    print "Warning: exception with user %s" % (user.encode('utf-8'),)
-
-
-def fast_iter(context, func, ecache):
-    for event, elem in context:
-        func(elem, ecache)
-        elem.clear()
-        while elem.getprevious() is not None:
-            del elem.getparent()[0]
-    del context
+class PageProcessor(object):
+    count = 0
+    ecache = None
+    tag = None
+    user_talk_names = None
+    search = None
+    
+    def __init__(self, ecache=None, tag=None, user_talk_names=None,
+                 search=None):
+        self.ecache = ecache
+        self.tag = tag
+        self.user_talk_names = user_talk_names
+        self.search = search
+    
+    def process(self, elem):
+        tag = self.tag
+        user = None
+        for child in elem:
+            if child.tag == tag['title'] and child.text:
+                a_title = child.text.split('/')[0].split(':')
+    
+                if len(a_title) > 1 and a_title[0] in self.user_talk_names:
+                    user = a_title[1]
+                else:
+                    return
+            elif child.tag == tag['revision']:
+                for rc in child:
+                    if rc.tag != tag['text']:
+                        continue
+    
+                    assert user, "User still not defined"
+                    if not (rc.text and user):
+                        continue
+    
+                    #try:
+                    talks = mwlib.getCollaborators(rc.text, self.search)
+                    #except:
+                    #    print "Warning: exception with user %s" % (
+                    #        user.encode('utf-8'),)
+                        
+                    self.ecache.add(user, talks)
+                    self.count += 1
+                    if not self.count % 500:
+                        print self.count
 
 
 def main():
     import optparse
 
     p = optparse.OptionParser(usage="usage: %prog [options] file")
-
     opts, files = p.parse_args()
 
     if not files:
         p.error("Give me a file, please ;-)")
     xml = files[0]
 
-    global lang
-    global search, searchEn, lang_user, lang_user_talk
-    global g, ecache, tag
+    en_user, en_user_talk = u"User", u"User talk"
     
     lang, date = mwlib.explode_dump_filename(xml)
 
@@ -106,17 +94,26 @@ def main():
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
 
-    search = unicode(lang_user)
-    searchEn = unicode(en_user)
+    lang_user = unicode(lang_user)
+    en_user = unicode(en_user)
     
     _fast = True
     if _fast:
         src.close()
         src = lib.BZ2FileExt(xml)
     
-    fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
-              process_page, ecache)
+    processor = PageProcessor(ecache=ecache, tag=tag,
+                              user_talk_names=(lang_user_talk, en_user_talk),
+                              search=(lang_user, en_user))
+    mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
+                    processor.process)
 
+    #import cPickle as pickle
+    
+    #with open('/hardmnt/sakamoto0/sra/setti/datasets/'+
+    #          'wikipedia/itwiki-20100218-ec.pickle', 'wb') as f:
+    #    pickle.dump(ecache.temp_edges, f)
+        
     ecache.flush()
     g = ecache.get_network()
 
@@ -124,7 +121,7 @@ def main():
     print "Edges:", len(g.es)
 
     g.write("%swiki-%s.pickle" % (lang, date), format="pickle")
-    #g.write("%swiki-%s.graphml" % (lang, date), format="graphml")
+    
 
 
 if __name__ == "__main__":

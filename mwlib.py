@@ -15,7 +15,6 @@
 import re
 from socket import inet_ntoa, inet_aton, error
 from urllib import urlopen
-from collections import defaultdict
 
 try:
     import json
@@ -23,21 +22,12 @@ except ImportError:
     import simplejson as json
 
     
-def fast_iter_queue(context, func, q):
-    for event, elem in context:
-        func(elem, q)
-        elem.clear()
-        #while elem.getprevious() is not None:
-        #    del elem.getparent()[0]
-    del context
-
-    
 def fast_iter(context, func):
     for event, elem in context:
         func(elem)
         elem.clear()
-        #while elem.getprevious() is not None:
-        #    del elem.getparent()[0]
+        while elem.getprevious() is not None:
+            del elem.getparent()[0]
     del context
     
     
@@ -55,7 +45,7 @@ def isip(s):
 
 
 re_cache = {}
-def getCollaborators( rawWikiText, search, searchEn ):
+def getCollaborators(rawWikiText, search):
     """
     Search for regular expression containing [[User:username|anchor text]] and count
     a new message from username to the owner of the page. It also works on localized
@@ -81,17 +71,17 @@ def getCollaborators( rawWikiText, search, searchEn ):
     {}
 
     """
-    rex = r'\[\[(%s|%s)\:([^]\|/]*)[^]/]*\]\]' % (search, searchEn)
+    rex = r'\[\[(%s|%s)\:([^]\|/]*)[^]/]*\]\]' % search
     try:
         matches = re_cache[rex].finditer(rawWikiText)
     except KeyError:
         re_cache[rex] = re.compile(rex)
         matches = re_cache[rex].finditer(rawWikiText)
 
-    weights = defaultdict(int)
+    weights = dict()
     for u in matches:
-        un = u.group(2)
-        weights[un] += 1
+        un = unicode(u.group(2))
+        weights[un] = weights.get(un, 0) + 1
 
     return weights
 
@@ -100,10 +90,10 @@ def getTemplates(rawWikiText):
     rex = '\{\{(\{?[^\}\|\{]*)'
     matches = re.finditer(rex, rawWikiText)
     
-    weights = defaultdict(int)
+    weights = dict()
     for tm in matches:
         t = tm.group(1)
-        weights[t] += 1
+        weights[t] = weights.get(t, 0) + 1
 
     return weights
 

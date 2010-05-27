@@ -20,7 +20,9 @@ import re
 from time import time
 from itertools import ifilter
 import cProfile as profile
+from functools import partial
 from sonetgraph import load as sg_load
+import lib
 
 ## etree
 from lxml import etree
@@ -154,9 +156,15 @@ def main():
 
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
+    
+    _fast = True
+    if _fast:
+        src.close()
+        src = lib.BZ2FileExt(xml)
 
-    mwlib.fast_iter_queue(etree.iterparse(src, tag=tag['page']),
-                          process_page, queue)
+    partial_process_page = partial(process_page, queue=queue)
+    mwlib.fast_iter(etree.iterparse(src, tag=tag['page']),
+                    partial_process_page)
     
     queue.put(0) ## this STOPS the process
     

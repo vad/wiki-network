@@ -61,18 +61,19 @@ class EdgeCache:
         """
         Get the resulting network and clean cached data
         """
+        from operator import itemgetter
 
-        g = ig.Graph(n = 0, directed=True)
+        g = ig.Graph(n = len(self.nodes), directed=True)
         g.es['weight'] = []
-        g.vs['username'] = []
+        #g.vs['username'] = []
 
-        g.add_vertices(len(self.nodes))
+        #g.add_vertices(len(self.nodes))
 
-        for username, id in self.nodes.iteritems():
-            g.vs[id]['username'] = username.encode('utf-8')
-        self.nodes.clear()
+        g.vs['username'] = [n.encode('utf-8') for n, id in sorted(
+            self.nodes.items(), key=itemgetter(1))]
+        self.nodes = []
 
-        clean_edges = ((e[0], e[1]) for e in self.edges)
+        clean_edges = map(itemgetter(0,1), self.edges)
         g.add_edges(clean_edges)
         del clean_edges
 

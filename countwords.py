@@ -19,6 +19,7 @@ import os, sys
 import re
 from time import time
 from itertools import ifilter
+from functools import partial
 import cProfile as profile
 
 ## etree
@@ -73,7 +74,7 @@ def get_freq_dist_wrapper(q, done_q, fd=None):
 
 
 ### MAIN PROCESS
-def process_page(elem, queue):
+def process_page(elem, queue=None):
     user = None
     global count, it_stopwords
     
@@ -136,8 +137,9 @@ def main():
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
 
-    mwlib.fast_iter_queue(etree.iterparse(src, tag=tag['page']),
-                          process_page, queue)
+    partial_process_page = partial(process_page, queue=queue)
+    mwlib.fast_iter(etree.iterparse(src, tag=tag['page']),
+                    partial_process_page)
     
     queue.put(0) ## this STOPS the process
     
