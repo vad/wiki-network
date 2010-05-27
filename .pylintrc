@@ -43,7 +43,9 @@ load-plugins=
 #  Used when class has too few public methods, so be sure it's really worth it.
 #:R0914: *Too many local variables (%s/%s)*
 #  Used when a function or method has too many local variables.
-disable=W0141,C0103,R0903,R0914
+#:E1101: *%s %r has no %r member*
+#  Used when a variable is accessed for an unexistent member.
+disable=W0141,C0103,R0903,R0914,E1101
 
 
 [REPORTS]

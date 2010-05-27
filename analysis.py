@@ -80,7 +80,7 @@ def create_option_parser():
     return op
 
 
-if __name__ == '__main__':
+def main():
     op = create_option_parser()
 
     (options, args) = op.parse_args()
@@ -140,7 +140,8 @@ if __name__ == '__main__':
     if options.density or options.reciprocity:
         with Timr('density&reciprocity'):
             for cls, vs in g.classes.iteritems():
-                if not len(vs) > 1: continue
+                if not len(vs) > 1:
+                    continue
                 
                 subgraph = vs.subgraph()
                 
@@ -155,7 +156,8 @@ if __name__ == '__main__':
             g.g.vs['outdegree'] = g.g.degree(type=ig.OUT)
     
             for cls, vs in g.classes.iteritems():
-                if not vs: continue
+                if not vs:
+                    continue
     
                 ind = numpy.array(vs['indegree'])
                 outd = numpy.array(vs['outdegree'])
@@ -232,7 +234,8 @@ if __name__ == '__main__':
         max_edges = vn*(vn-1)
 
         for cls, vs in g.classes.iteritems():
-            if not vs: continue
+            if not vs:
+                continue
             
             norm_betweenness = numpy.array(g.classes[cls]['bw'])/max_edges
             print " * %s : average betweenness : %.10f" % (
@@ -264,7 +267,7 @@ if __name__ == '__main__':
             wo = g.classes[cls]['weighted_outdegree']
             print " * %s : average OUT degree centrality (weighted) : %.10f" %\
                   (cls, numpy.average(wo))
-            print " * %s : stddev OUT degree centrality (weighted) : %.10f" %\
+            print " * %s : stddev OUT degree centrality (weighted) : %.10f" % \
                   (cls, numpy.sqrt(numpy.var(wo)))
             print " * %s : max OUT degrees centrality (weighted): %s" % (
                 cls, top(wo))
@@ -275,7 +278,8 @@ if __name__ == '__main__':
     if options.power_law:
         with Timr('power law'):
             for cls, vs in g.classes.iteritems():
-                if not vs: continue
+                if not vs:
+                    continue
                 
                 indegrees = vs['weighted_indegree']
     
@@ -287,7 +291,6 @@ if __name__ == '__main__':
                     print >> sys.stderr,\
                           " * %s : alpha exp IN degree distribution : ERROR" %\
                           (cls,)
-
 
     if options.histogram:
         list_with_index = lambda degrees, idx: [(degree, idx) for degree
@@ -322,10 +325,10 @@ if __name__ == '__main__':
         all_list.sort(reverse=True)
 
         for indegree, grp in all_list:
-            for i in range(grp - 1):
+            for _ in range(grp - 1):
                 print >> f, 0,
             print >> f, indegree,
-            for i in range(grp, 6):
+            for _ in range(grp, 6):
                 print >> f, 0,
             print >> f, ""
         f.close()
@@ -357,7 +360,7 @@ if __name__ == '__main__':
         g.g.vs['size'] = [math.sqrt(v['weighted_indegree']+1)*10 for v
                           in g.g.vs]
 
-        ig.plot(g.g, target=lang+"_general.png", bbox=(0,0,4000,2400),
+        ig.plot(g.g, target=lang+"_general.png", bbox=(0, 0, 4000, 2400),
                 edge_color='grey', layout='fr')
         weights = g.g.es['weight']
         max_weight = max(weights)
@@ -366,7 +369,8 @@ if __name__ == '__main__':
                            in g.g.es]
         g.g.es['width'] = weights
 
-        ig.plot(g.g, target=lang+"_weighted_edges.png", bbox=(0,0,4000,2400),
+        ig.plot(g.g, target=lang+"_weighted_edges.png", bbox=(0, 0, 4000, 
+                                                              2400),
                 layout='fr', vertex_label=' ')
 
 
@@ -402,8 +406,12 @@ if __name__ == '__main__':
             shuffle(users)
             with open(destCls % cls, 'w') as f:
                 for username in users:
-                    print >> f,\
-                          "%s,http://vec.wikipedia.org/w/index.php?title="+\
+                    print >> f, \
+                          ("%s,http://vec.wikipedia.org/w/index.php?title="+\
                           "Discussion_utente:%s&action=history&offset="+\
-                          "20100000000001" % (username, username)
+                          "20100000000001") % (username, username)
         
+
+
+if __name__ == '__main__':
+    main()
