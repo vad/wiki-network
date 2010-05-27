@@ -168,7 +168,7 @@ def main():
     
     queue.put(0) ## this STOPS the process
     
-    print >>sys.stderr, "end of parsing"
+    print >> sys.stderr, "end of parsing"
     
     while 1:
         try:
@@ -185,7 +185,7 @@ def main():
         
     p.join()
     
-    print >>sys.stderr, "end of FreqDist"
+    print >> sys.stderr, "end of FreqDist"
 
 
 if __name__ == "__main__":

@@ -1,19 +1,17 @@
 #!/usr/bin/env python
 
-# system
-
-from time import ctime
+## SYSTEM
 from optparse import OptionParser
-import os, sys, re
-import gc
+import os
+import sys
 import numpy
-import sonetgraph as sg
 import igraph as ig
-import mwlib
 
-# project
+## PROJECT
 from tablr import Tablr
 from timr import Timr
+import mwlib
+import sonetgraph as sg
 
 ## GLOBAL VARIABLES
 
@@ -21,12 +19,15 @@ groups = {
     'all': {},
     'bot': {'bot': True},
     'not_bot': {'bot_ne': True},
-    'sysop': {'sysop': True, 'bureaucrat_ne': True, 'steward_ne': True, 'founder_ne': True},
+    'sysop': {'sysop': True, 'bureaucrat_ne': True, 'steward_ne': True,
+              'founder_ne': True},
     'bureaucrat': {'bureaucrat': True, 'steward_ne': True, 'founder_ne': True},
     'steward': {'steward': True, 'founder_ne': True},
     'founder': {'founder': True},
     'su': {'sysop': True},
-    'normal_user': {'sysop_ne': True, 'bureaucrat_ne': True, 'steward_ne': True, 'founder_ne': True, 'bot_ne': True, 'anonymous_ne': True},
+    'normal_user': {'sysop_ne': True, 'bureaucrat_ne': True,
+                    'steward_ne': True, 'founder_ne': True, 'bot_ne': True,
+                    'anonymous_ne': True},
     'blocked': {'blocked': True},
     'not_blocked': {'blocked_ne': True},
     'anonymous': {'anonymous': True},
@@ -61,7 +62,8 @@ def create_option_parser():
         help="Print the density of the groups (requires --groups)")
     op.add_option('--reciprocity', action="store_true", dest="reciprocity",
         help="Print the reciprocity of the groups  (requires --groups)")
-    op.add_option('-t', '--transitivity', action="store_true", dest="transitivity")
+    op.add_option('-t', '--transitivity', action="store_true",
+                  dest="transitivity")
     op.add_option('-i', '--distance', action="store_true", dest="distance")
     op.add_option('-f', '--efficiency', action="store_true", dest="efficiency")
     op.add_option('-s', '--summary', action="store_true", dest="summary")
@@ -108,7 +110,8 @@ if __name__ == '__main__':
     if options.group:
         for group_name, group_attr in groups.iteritems():
             g.defineClass(group_name, group_attr)
-            print ' * %s : nodes number : %d' % (group_name, len(g.classes[group_name]))
+            print ' * %s : nodes number : %d' % (group_name,
+                                                 len(g.classes[group_name]))
     else:
         g.defineClass('all', {})
         
@@ -123,8 +126,10 @@ if __name__ == '__main__':
             nodes_with_outdegree = len(g.g.vs.select(_outdegree_ge=1))
             nodes_with_indegree = len(g.g.vs.select(_indegree_ge=1))
     
-            print " * nodes with out edges number: %d (%6f%%)" % (nodes_with_outdegree, 100.*nodes_with_outdegree/vn)
-            print " * nodes with in edges number: %d (%6f%%)" % (nodes_with_indegree, 100.*nodes_with_indegree/vn)
+            print " * nodes with out edges number: %d (%6f%%)" % (
+                nodes_with_outdegree, 100.*nodes_with_outdegree/vn)
+            print " * nodes with in edges number: %d (%6f%%)" % (
+                nodes_with_indegree, 100.*nodes_with_indegree/vn)
             print " * max weights on edges : %s" % top(g.g.es['weight'])
             
             #print " * diameter : %6f" % g.g.diameter(weights='length')
@@ -140,7 +145,8 @@ if __name__ == '__main__':
                 subgraph = vs.subgraph()
                 
                 print " * %s : density : %.10f" % (cls, subgraph.density())
-                print " * %s : reciprocity : %.10f" % (cls, subgraph.reciprocity())
+                print " * %s : reciprocity : %.10f" % (cls,
+                                                       subgraph.reciprocity())
 
 
     if options.degree:
@@ -154,13 +160,19 @@ if __name__ == '__main__':
                 ind = numpy.array(vs['indegree'])
                 outd = numpy.array(vs['outdegree'])
     
-                print " * %s : mean IN degree (no weights): %f" % (cls, numpy.average(ind))
-                print " * %s : mean OUT degree (no weights): %f" % (cls, numpy.average(outd))
-                print " * %s : max IN degrees (no weights): %s" % (cls, top(ind))
-                print " * %s : max OUT degrees (no weights): %s" % (cls, top(outd))
+                print " * %s : mean IN degree (no weights): %f" % (
+                    cls, numpy.average(ind))
+                print " * %s : mean OUT degree (no weights): %f" % (
+                    cls, numpy.average(outd))
+                print " * %s : max IN degrees (no weights): %s" % (cls,
+                                                                   top(ind))
+                print " * %s : max OUT degrees (no weights): %s" % (cls,
+                                                                    top(outd))
     
-                print " * %s : stddev IN degree (no weights): %f" % (cls, numpy.sqrt(numpy.var(ind)))
-                print " * %s : stddev OUT degree (no weights): %f" % (cls, numpy.sqrt(numpy.var(outd)))
+                print " * %s : stddev IN degree (no weights): %f" % (
+                    cls, numpy.sqrt(numpy.var(ind)))
+                print " * %s : stddev OUT degree (no weights): %f" % (
+                    cls, numpy.sqrt(numpy.var(outd)))
 
     if options.transitivity:
         ##print " * transitivity: %f" % (nx.transitivity(g), )
@@ -177,16 +189,20 @@ if __name__ == '__main__':
             giant = vc.giant()
     
             print " * length of 5 max clusters: %s" % top(size_clusters)
-            #print " * #node in 5 max clusters/#all nodes: %s" % top([1.*cluster_len/vn for cluster_len in size_clusters])
+            #print " * #node in 5 max clusters/#all nodes: %s" % top(
+            #    [1.*cluster_len/vn for cluster_len in size_clusters])
 
 
     if options.distance:
         with Timr('distance'):
             gg = sg.Graph(giant)
-            print " * average distance in the giant component: %f" % gg.averageDistance(weight='length')
-            print " * average hops in the giant component: %f" % gg.averageDistance()
+            print " * average distance in the giant component: %f" % \
+                  gg.averageDistance(weight='length')
+            print " * average hops in the giant component: %f" % \
+                  gg.averageDistance()
     
-            #print "Average distance 2: %f" % giant.average_path_length(True, False)
+            #print "Average distance 2: %f" % giant.average_path_length(True,
+            #                                                           False)
 
 
     if options.efficiency:
@@ -194,7 +210,8 @@ if __name__ == '__main__':
             print " * efficiency: %f" % g.efficiency(weight='length')
 
 
-    if options.plot or options.histogram or options.power_law or options.centrality:
+    if (options.plot or options.histogram or options.power_law or 
+        options.centrality):
         with Timr('set weighted indegree'):
             g.set_weighted_degree()
 
@@ -218,26 +235,39 @@ if __name__ == '__main__':
             if not vs: continue
             
             norm_betweenness = numpy.array(g.classes[cls]['bw'])/max_edges
-            print " * %s : average betweenness : %.10f" % (cls, numpy.average(norm_betweenness))
-            print " * %s : stddev betweenness : %.10f" % (cls, numpy.sqrt(numpy.var(norm_betweenness)))
-            print " * %s : max betweenness: %s" % (cls, top(numpy.array(g.classes[cls]['bw'])/max_edges))
+            print " * %s : average betweenness : %.10f" % (
+                cls, numpy.average(norm_betweenness))
+            print " * %s : stddev betweenness : %.10f" % (
+                cls, numpy.sqrt(numpy.var(norm_betweenness)))
+            print " * %s : max betweenness: %s" % (
+                cls, top(numpy.array(g.classes[cls]['bw'])/max_edges))
             
-            #print " * Average eigenvector centrality : %6f" % numpy.average(g.vs['ev'])
+            #print " * Average eigenvector centrality : %6f" % numpy.average(
+            #    g.vs['ev'])
             
-            print " * %s : average pagerank : %.10f" % (cls, numpy.average(g.classes[cls]['pr']))
-            print " * %s : stddev pagerank : %.10f" % (cls, numpy.sqrt(numpy.var(g.classes[cls]['pr'])))
-            print " * %s : max pagerank: %s" % (cls, top(g.classes[cls]['pr']))
+            print " * %s : average pagerank : %.10f" % (
+                cls, numpy.average(g.classes[cls]['pr']))
+            print " * %s : stddev pagerank : %.10f" % (
+                cls, numpy.sqrt(numpy.var(g.classes[cls]['pr'])))
+            print " * %s : max pagerank: %s" % (
+                cls, top(g.classes[cls]['pr']))
             
             wi = g.classes[cls]['weighted_indegree']
-            print " * %s : average IN degree centrality (weighted): %.10f" % (cls, numpy.average(wi))
-            print " * %s : stddev IN degree centrality (weighted): %.10f" % (cls, numpy.sqrt(numpy.var(wi)))
-            print " * %s : max IN degrees centrality (weighted): %s" % (cls, top(wi))
+            print " * %s : average IN degree centrality (weighted): %.10f" % (
+                cls, numpy.average(wi))
+            print " * %s : stddev IN degree centrality (weighted): %.10f" % (
+                cls, numpy.sqrt(numpy.var(wi)))
+            print " * %s : max IN degrees centrality (weighted): %s" % (
+                cls, top(wi))
             del wi
                   
             wo = g.classes[cls]['weighted_outdegree']
-            print " * %s : average OUT degree centrality (weighted) : %.10f" % (cls, numpy.average(wo))
-            print " * %s : stddev OUT degree centrality (weighted) : %.10f" % (cls, numpy.sqrt(numpy.var(wo)))
-            print " * %s : max OUT degrees centrality (weighted): %s" % (cls, top(wo))
+            print " * %s : average OUT degree centrality (weighted) : %.10f" %\
+                  (cls, numpy.average(wo))
+            print " * %s : stddev OUT degree centrality (weighted) : %.10f" %\
+                  (cls, numpy.sqrt(numpy.var(wo)))
+            print " * %s : max OUT degrees centrality (weighted): %s" % (
+                cls, top(wo))
             del wo
             
         timr.stop('centrality')
@@ -251,16 +281,22 @@ if __name__ == '__main__':
     
                 try:
                     alpha_exp = ig.statistics.power_law_fit(indegrees, xmin=6)
-                    print " * %s : alpha exp IN degree distribution : %10f " % (cls, alpha_exp)
+                    print " * %s : alpha exp IN degree distribution : %10f " %\
+                          (cls, alpha_exp)
                 except ValueError:
-                    print >> sys.stderr, " * %s : alpha exp IN degree distribution : ERROR" % (cls,)
+                    print >> sys.stderr,\
+                          " * %s : alpha exp IN degree distribution : ERROR" %\
+                          (cls,)
 
 
     if options.histogram:
-        list_with_index = lambda degrees, idx: [(degree, idx) for degree in degrees if degree]
+        list_with_index = lambda degrees, idx: [(degree, idx) for degree
+                                                in degrees if degree]
         all_list = []
 
-        nogrp_indegrees = g.g.vs.select(sysop_ne=True, bureaucrat_ne=True, steward_ne=True, founder_ne=True, bot_ne=True)['weighted_indegree']
+        nogrp_indegrees = g.g.vs.select(sysop_ne=True, bureaucrat_ne=True,
+                                        steward_ne=True, founder_ne=True,
+                                        bot_ne=True)['weighted_indegree']
         all_list += list_with_index(nogrp_indegrees, 1)
 
         sysops_indegrees = g.classes['sysop']['weighted_indegree']
@@ -287,11 +323,11 @@ if __name__ == '__main__':
 
         for indegree, grp in all_list:
             for i in range(grp - 1):
-                print >>f, 0,
-            print >>f, indegree,
+                print >> f, 0,
+            print >> f, indegree,
             for i in range(grp, 6):
-                print >>f, 0,
-            print >>f, ""
+                print >> f, 0,
+            print >> f, ""
         f.close()
 
     if options.gnuplot:
@@ -318,16 +354,20 @@ if __name__ == '__main__':
         bur_sysops = g.g.vs.select(bureaucrat=True, sysop=True)
         bur_sysops['color'] = ('orange',)*len(bur_sysops)
 
-        g.g.vs['size'] = [math.sqrt(v['weighted_indegree']+1)*10 for v in g.g.vs]
+        g.g.vs['size'] = [math.sqrt(v['weighted_indegree']+1)*10 for v
+                          in g.g.vs]
 
-        ig.plot(g.g, target=lang+"_general.png", bbox=(0,0,4000,2400), edge_color='grey', layout='fr')
+        ig.plot(g.g, target=lang+"_general.png", bbox=(0,0,4000,2400),
+                edge_color='grey', layout='fr')
         weights = g.g.es['weight']
         max_weight = max(weights)
 
-        g.g.es['color'] = [(255.*e['weight']/max_weight, 0., 0.) for e in g.g.es]
+        g.g.es['color'] = [(255.*e['weight']/max_weight, 0., 0.) for e
+                           in g.g.es]
         g.g.es['width'] = weights
 
-        ig.plot(g.g, target=lang+"_weighted_edges.png", bbox=(0,0,4000,2400), layout='fr', vertex_label=' ')
+        ig.plot(g.g, target=lang+"_weighted_edges.png", bbox=(0,0,4000,2400),
+                layout='fr', vertex_label=' ')
 
 
     if options.as_table:
@@ -347,12 +387,13 @@ if __name__ == '__main__':
         
 
     if options.users_role:
-        l = g.getUserClass('username', ('anonymous', 'bot', 'bureaucrat', 'sysop'))
+        l = g.getUserClass('username', ('anonymous', 'bot', 'bureaucrat',
+                                        'sysop'))
         
         destUR = "%s/%swiki-%s-ur.csv" % (os.path.split(fn)[0], lang, date)
         with open(destUR, 'w') as f:
             for username, role in sorted(l):
-                print >>f, "%s,%s" % (username, role)
+                print >> f, "%s,%s" % (username, role)
                 
         from random import shuffle
         destCls = "%s/%swiki-%s-%%s.csv" % (os.path.split(fn)[0], lang, date)
@@ -361,5 +402,8 @@ if __name__ == '__main__':
             shuffle(users)
             with open(destCls % cls, 'w') as f:
                 for username in users:
-                    print >>f, "%s,http://vec.wikipedia.org/w/index.php?title=Discussion_utente:%s&action=history&offset=20100000000001" % (username, username)
+                    print >> f,\
+                          "%s,http://vec.wikipedia.org/w/index.php?title="+\
+                          "Discussion_utente:%s&action=history&offset="+\
+                          "20100000000001" % (username, username)
         

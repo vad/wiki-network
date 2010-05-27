@@ -73,7 +73,7 @@ def main():
     import optparse
 
     p = optparse.OptionParser(usage="usage: %prog [options] file")
-    opts, files = p.parse_args()
+    _, files = p.parse_args()
 
     if not files:
         p.error("Give me a file, please ;-)")

@@ -14,7 +14,8 @@ class EdgeCache:
 
     """
     edges = None      # a list of tuples: [(sender_id, recipient_id, 20), ...]
-    temp_edges = None # a dict of dicts : {'recipient': {'sender1': 20, 'sender2': 2}}
+    temp_edges = None # a dict of dicts : {'recipient': {'sender1': 20,
+                      #                    'sender2': 2}}
     nodes = None      # a dict of {'username': vertex_id}
     
     def __init__(self):
@@ -39,7 +40,8 @@ class EdgeCache:
 
     def flush(self):
         """
-        This function assumes that all edges directed to the same node are present.
+        This function assumes that all edges directed to the same node are
+        present.
 
         For example you can call cumulate_edge twice with the same user, but in
         the meanwhile you can't call flush()
@@ -69,11 +71,11 @@ class EdgeCache:
 
         #g.add_vertices(len(self.nodes))
 
-        g.vs['username'] = [n.encode('utf-8') for n, id in sorted(
+        g.vs['username'] = [n.encode('utf-8') for n, _ in sorted(
             self.nodes.items(), key=itemgetter(1))]
         self.nodes = []
 
-        clean_edges = map(itemgetter(0,1), self.edges)
+        clean_edges = map(itemgetter(0, 1), self.edges)
         g.add_edges(clean_edges)
         del clean_edges
 
