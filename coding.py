@@ -23,6 +23,8 @@ vec_cal = {
     ,'Dec': ['disenbre', 'dis', 'dicembre', 'dic', 'december', 'dec', 'diç', 'di\xc3\xa7']
 }
 
+header_list = ["Coder (Vad=1,  Marco = 2)","Owner","Owner's role","Writer","Clean writer","Writer's role","Signature yes=1, no=0","Signature findable by script 1=yes; 0=no","wiki content (0=no / 1=yes)","wiki rules (0=no / 1=yes)","Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5=not wiki but personal, 6=not wiki and not personal","Welcome message 1=yes; 0=no","Thanks 1=yes; 0=no","template: warning/vandalism/test 1=yes; 0=no","template: welcome 1=yes; 0=no","Information msg (0=no / 1=yes)","Redirect (0=no / 1=yes)","datetime","year","month","day","time","# of words","# of characters","# of characters without whitespace","Variazioni del “thanks”","Comments (language issues, signature missing or other)","original message"]
+
 
 def print_csv(d, filename, header = None):
 
@@ -38,7 +40,10 @@ def print_csv(d, filename, header = None):
                 ls = []
                 if header is not None:
                     for h in header:
-                        ls.append(v[h])
+                        if h in v.keys():
+                            ls.append(v[h])
+                        else:
+                            ls.append(None)
                     wr.writerow(ls)
                 else:
                     wr.writerow(v.values())
@@ -94,35 +99,42 @@ def enrich(v):
         })
     elif v['Information msg (0=no / 1=yes)']:
         v.update({
-            'template: welcome 1=yes; 0=no': 0
-            #,'wiki content (0=no / 1=yes)': 0
-            #,'wiki rules (0=no / 1=yes)': 0
-            #,'Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5=not wiki but personal, 6=not wiki and not personal': 0
-            #,'Welcome message 1=yes; 0=no': 0
-            #,'Thanks 1=yes; 0=no': 0
-            #,'template: warning/vandalism/test 1=yes; 0=no': 0
-            #,'Redirect (0=no / 1=yes)': 0
+            'template: welcome 1=yes; 0=no': -999999
+            ,'wiki content (0=no / 1=yes)': -999999
+            ,'wiki rules (0=no / 1=yes)': -999999
+            ,'Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5=not wiki but personal, 6=not wiki and not personal': -999999
+            ,'Welcome message 1=yes; 0=no': -999999
+            ,'Thanks 1=yes; 0=no': -999999
+            ,'template: warning/vandalism/test 1=yes; 0=no': -999999
+            ,'Redirect (0=no / 1=yes)': -999999
         })
     elif v['Redirect (0=no / 1=yes)']:
         v.update({
-            'wiki content (0=no / 1=yes)': 0
-            ,'wiki rules (0=no / 1=yes)': 0
-            ,'Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5=not wiki but personal, 6=not wiki and not personal': 0
-            ,'Welcome message 1=yes; 0=no': 0
-            ,'Thanks 1=yes; 0=no': 0
-            ,'template: warning/vandalism/test 1=yes; 0=no': 0
-            ,'Information msg (0=no / 1=yes)': 0
-            ,'template: welcome 1=yes; 0=no': 0
+            'wiki content (0=no / 1=yes)': -999999
+            ,'wiki rules (0=no / 1=yes)': -999999
+            ,'Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5=not wiki but personal, 6=not wiki and not personal': -999999
+            ,'Welcome message 1=yes; 0=no': -999999
+            ,'Thanks 1=yes; 0=no': -999999
+            ,'template: warning/vandalism/test 1=yes; 0=no': -999999
+            ,'Information msg (0=no / 1=yes)': -999999
+            ,'template: welcome 1=yes; 0=no': -999999
         })
 
     om = v['original message']
     
     try:
         # Writer's role
-        u = ul.unquote(re.search(r'((?<=Utente[/:])|(?<=Discussion_utente[/:]))([^&]*)',v['Writer'], re.IGNORECASE).group().replace('_', ' '))
-        wrt_role = user_roles[u]
+        us = re.search(r'((?<=Utente[/:])|(?<=Discussion_utente[/:]))([^&]*)',v['Writer'], re.IGNORECASE)
+
+        if us is not None:
+            user = us.group()
+        else:
+            user = v['Writer']
+
+        wrt_role = user_roles[ul.unquote(user.replace('_', ' '))]
+
     except (KeyError, AttributeError), e:
-        print e, v['Writer']
+        user = None
         wrt_role = None
 
     try:
@@ -134,13 +146,18 @@ def enrich(v):
         u_role = None
 
     v.update({
-        'date of message': getdatetime(om)
-        ,'# of words': len(om.split())
+        '# of words': len(om.split())
         ,'# of characters': len(om)
         ,'# of characters without whitespace': len(om.replace(' ',''))
         ,'Owner\'s role': u_role
         ,'Writer\'s role': wrt_role
-    })
+        ,'Clean writer': user
+        })
+
+    dt = getdatetime(om)
+    
+    if dt is not None:
+        v.update(dt)
 
     return v
 
@@ -186,8 +203,16 @@ def getdatetime(message):
 
     try:
         # returning time converted in GMT time
-        return time.strftime(f,time.gmtime(time.mktime(time.strptime(d[0]+getmonth(d[1])+d[2], s))))
-    except:
+        t = time.gmtime(time.mktime(time.strptime(d[0]+getmonth(d[1])+d[2], s)))
+        return {
+            'datetime': time.strftime(f,t)
+            ,'year': t.tm_year
+            ,'month': t.tm_mon
+            ,'day': t.tm_mday
+            ,'time': '%d:%d' % (t.tm_hour,t.tm_min,)
+        }
+    except Exception as e:
+        print e
         return None
 
 
@@ -210,7 +235,11 @@ def pickdate(list):
         print i, l
         i += 1
 
-    return list[int(raw_input('Choose the correct date by typing the corresponding number: ')) - 1]
+    try:
+        return list[int(raw_input('Choose the correct date by typing the corresponding number: ')) - 1]
+    except IndexError, e:
+        print e
+        return None
 
 
 def main():
@@ -237,7 +266,7 @@ def main():
     for i, v in enumerate(iter_csv(src, True)):
         r[i] = enrich(v)
 
-    print_csv(r, dest, r[0].keys())
+    print_csv(r, dest, header_list)
 
     return r
 
