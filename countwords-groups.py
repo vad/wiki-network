@@ -16,9 +16,9 @@
 from bz2 import BZ2File
 import mwlib
 import os, sys
-import re
-from time import time
-from itertools import ifilter
+#import re
+#from time import time
+#from itertools import ifilter
 import cProfile as profile
 from functools import partial
 from sonetgraph import load as sg_load
@@ -49,7 +49,6 @@ stopwords = nltk.corpus.stopwords.words('italian')
 
 ### CHILD PROCESS
 def get_freq_dist(q, done_q, fd=None, classes=None):
-    global stopwords
     dstpw = dict(zip(stopwords, [0]*len(stopwords)))
     tokenizer = nltk.PunktWordTokenizer()
     
@@ -59,7 +58,7 @@ def get_freq_dist(q, done_q, fd=None, classes=None):
     # prepare a dict of empty FreqDist, one for every class
     if not fd:
         fd = dict(zip(classes,
-                      [nltk.FreqDist() for i in range(len(classes))]))
+                      [nltk.FreqDist() for _ in range(len(classes))]))
     
     while 1:
         try:
@@ -86,8 +85,7 @@ def get_freq_dist_wrapper(q, done_q, fd=None):
 ### MAIN PROCESS
 def process_page(elem, queue):
     user = None
-    global count, it_stopwords, user_classes
-    #print user_classes
+    global count
     
     for child in elem:
         if child.tag == tag['title'] and child.text:
@@ -115,7 +113,7 @@ def process_page(elem, queue):
                     count += 1
                     
                     if not count % 500:
-                        print >>sys.stderr, count
+                        print >> sys.stderr, count
                 except:
                     print "Warning: exception with user %s" % (
                         user.encode('utf-8'),)
@@ -124,17 +122,16 @@ def process_page(elem, queue):
 
 def main():
     import optparse
+    from operator import attrgetter
 
     p = optparse.OptionParser(usage="usage: %prog [options] file")
 
-    opts, files = p.parse_args()
+    _, files = p.parse_args()
 
     if not files:
         p.error("Give me a file, please ;-)")
     xml = files[0]
-    os.path
 
-    global templates
     global lang_user_talk, lang_user, tag, user_classes
 
     src = BZ2File(xml)
@@ -179,9 +176,8 @@ def main():
         with open("%swiki-%s-words-%s.dat" %
                   (lang, date,
                    cls.replace(' ', '_')), 'w') as out:
-            for k, v in sorted(fd,cmp=lambda x,y: cmp(x[1], y[1]),
-                               reverse=True):
-                print >>out, v, k
+            for k, v in sorted(fd, key=attrgetter(1), reverse=True):
+                print >> out, v, k
         
     p.join()
     
