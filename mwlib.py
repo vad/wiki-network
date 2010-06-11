@@ -68,10 +68,10 @@ def getCollaborators(rawWikiText, search):
     "La firma deve sempre contenere un wikilink alla pagina utente e/o alla
     propria pagina di discussione."
     
-    >>> getCollaborators('d [[User:you|mee:-)ee]] d [[User:me]][[Utente:me]]',
+    >>> getCollaborators('d [[User:you|mee:-)ee]] d [[User:me]][[utente:me]]',
                          'Utente', 'User')
     {'me': 2, 'you': 1}
-    >>> getCollaborators('[[User:you', 'Utente', 'User')
+    >>> getCollaborators('[[User:you', ('Utente', 'User'))
     {}
 
     """
