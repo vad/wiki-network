@@ -122,7 +122,7 @@ def process_page(elem, queue):
 
 def main():
     import optparse
-    from operator import attrgetter
+    from operator import itemgetter
 
     p = optparse.OptionParser(usage="usage: %prog [options] file")
 
@@ -176,7 +176,7 @@ def main():
         with open("%swiki-%s-words-%s.dat" %
                   (lang, date,
                    cls.replace(' ', '_')), 'w') as out:
-            for k, v in sorted(fd, key=attrgetter(1), reverse=True):
+            for k, v in sorted(fd, key=itemgetter(1), reverse=True):
                 print >> out, v, k
         
     p.join()
