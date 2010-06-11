@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 #coding=utf-8
 
-import os, sys
-import csv
-import re
-import igraph
+import csv, re
 
 import sonetgraph as sg
 
+# Global vars
 user_roles = None
 
 vec_cal = {
@@ -26,36 +24,39 @@ vec_cal = {
 }
 
 
-def print_csv(dict, filename, header = None):
+def print_csv(d, filename, header = None):
 
     print "Writing filename %s" % (filename,)
-    f = open(filename, 'wb')
-    wr = csv.writer(f)
 
-    if header is not None:
-        wr.writerow(header)
-    for k, v in dict.iteritems():
-        ls = []
-        if header is not None:
-            for h in header:
-                ls.append(v[h])
-            wr.writerow(ls)
-        else:
-            wr.writerow(v.values())
+    try:
+        with open(filename, 'w') as f:
+            wr = csv.writer(f)
 
-    f.close()
+            if header is not None:
+                wr.writerow(header)
+            for k, v in d.iteritems():
+                ls = []
+                if header is not None:
+                    for h in header:
+                        ls.append(v[h])
+                    wr.writerow(ls)
+                else:
+                    wr.writerow(v.values())
+    except IOError, e:
+        print e
+
     print "File %s saved" % (filename,)
 
 
 def parse_csv(filename, _hasHeader = False):
 
-    list = []
+    _list = []
     fieldNames = []
 
     print 'Reading from %s' % (filename,)
 
     try:
-        cf = open(filename, 'rb')
+        cf = open(filename, 'r')
     except IOError, e:
         print e
 
@@ -69,22 +70,23 @@ def parse_csv(filename, _hasHeader = False):
             _hasHeader = False
             fieldNames = row
         else:
-            list.append({})
+            _list.append({})
             for i, f in enumerate(row):
                 if fieldNames:
-                    list[-1][fieldNames[i]] = f
+                    _list[-1][fieldNames[i]] = f
                 else:
-                     list[-1][i] = f
+                    _list[-1][i] = f
 
-    return list
+    return _list
 
 def enrich(v):
+    import urllib as ul
 
     if v['template: welcome 1=yes; 0=no']:
         v.update({
             'wiki content (0=no / 1=yes)': 0
-            ,'wiki rules (0=no / 1=yes)': 0
-            ,'Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5=not wiki but personal, 6=not wiki and not personal': 0
+            ,'wiki rules (0=no / 1=yes)': 1
+            ,'Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5=not wiki but personal, 6=not wiki and not personal': 3
             ,'Welcome message 1=yes; 0=no': 1
             ,'Thanks 1=yes; 0=no': 0
             ,'template: warning/vandalism/test 1=yes; 0=no': 0
@@ -118,18 +120,18 @@ def enrich(v):
     
     try:
         # Writer's role
-        p = re.compile(r'((?<=Utente[/:])|(?<=Discussion_utente[/:]))([^&]*)', re.IGNORECASE)
-        m = p.search(v['Writer'])
-        wrt = m.group().replace('_', ' ')
-        wrt_role = user_roles[wrt]
-    except:
+        u = ul.unquote(re.search(r'((?<=Utente[/:])|(?<=Discussion_utente[/:]))([^&]*)',v['Writer'], re.IGNORECASE).group().replace('_', ' '))
+        wrt_role = user_roles[u]
+    except (KeyError, AttributeError), e:
+        print e, v['Writer']
         wrt_role = None
 
     try:
         # UTP owner's role
-        u_role = user_roles[v['Owner']].replace('_', ' ')
+        u_role = user_roles[ul.unquote(v['Owner']).replace('_', ' ')]
 
-    except:
+    except KeyError, e:
+        print e
         u_role = None
 
     v.update({
@@ -228,7 +230,7 @@ def main():
     dest = args[1] # dest file name
     pickle = args[2] # pickle file name
         
-    l = parse_csv(src, True) # reading value from csv file
+    values = parse_csv(src, True) # reading value from csv file
     g = sg.load(pickle) #pickle loading
     
     # Saving users' roles in a dictionary with "username, role" as "key, value"
@@ -237,8 +239,8 @@ def main():
 
     # copy inside a dictionary and enrich!
     r = {}
-    for i in range(0,len(l)):
-        r[i] = enrich(l[i])
+    for i, v in enumerate(values):
+        r[i] = enrich(v)
 
     print_csv(r, dest, r[0].keys())
 
