@@ -48,36 +48,35 @@ def print_csv(d, filename, header = None):
     print "File %s saved" % (filename,)
 
 
-def parse_csv(filename, _hasHeader = False):
-
-    _list = []
-    fieldNames = []
+def iter_csv(filename, _hasHeader = False):
+    from csv import reader
+    fieldNames = None
 
     print 'Reading from %s' % (filename,)
 
     try:
-        cf = open(filename, 'r')
+        cf = open(filename, 'rb')
     except IOError, e:
         print e
 
     try:
-        rows = csv.reader(cf)
+        lines = reader(cf)
     except IOError, e:
         print e[0], e[1]
 
-    for row in rows:
-        if _hasHeader:
-            _hasHeader = False
-            fieldNames = row
-        else:
-            _list.append({})
-            for i, f in enumerate(row):
-                if fieldNames:
-                    _list[-1][fieldNames[i]] = f
-                else:
-                    _list[-1][i] = f
-
-    return _list
+    if _hasHeader:
+        fieldNames = lines.next()
+        
+    for row in lines:
+        d = {}
+        for i, f in enumerate(row):
+            if fieldNames:
+                d[fieldNames[i]] = f
+            else:
+                d[i] = f
+        yield d
+    
+    cf.close()
 
 def enrich(v):
     import urllib as ul
@@ -223,23 +222,19 @@ def main():
     opts, args = p.parse_args()
 
     if not args:
-        p.error("file needed!")
+        p.error("files needed!")
 
-    
     src = args[0] # source file name
     dest = args[1] # dest file name
     pickle = args[2] # pickle file name
-        
-    values = parse_csv(src, True) # reading value from csv file
     g = sg.load(pickle) #pickle loading
     
     # Saving users' roles in a dictionary with "username, role" as "key, value"
     user_roles = dict([e for e in g.getUserClass('username', ('anonymous', 'bot', 'bureaucrat', 'sysop'))])
 
-
     # copy inside a dictionary and enrich!
     r = {}
-    for i, v in enumerate(values):
+    for i, v in enumerate(iter_csv(src, True)):
         r[i] = enrich(v)
 
     print_csv(r, dest, r[0].keys())
