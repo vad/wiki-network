@@ -118,6 +118,8 @@ def enrich(v):
             ,'template: warning/vandalism/test 1=yes; 0=no': -999999
             ,'Information msg (0=no / 1=yes)': -999999
             ,'template: welcome 1=yes; 0=no': -999999
+            ,'Signature yes=1, no=0': -99999
+            ,'Signature findable by script 1=yes; 0=no': -99999
         })
 
     om = v['original message']
@@ -181,8 +183,9 @@ def getdatetime(message):
         return None
     
     if len(dates) > 1:
-        print "\nWARNING: double date\n\n%s\n" % (message,)
-        d = pickdate(dates)
+        #print "\nWARNING: double date\n\n%s\n" % (message,)
+        #d = pickdate(dates)
+        d = dates[-1]
     else:
         d = dates[0]
 
@@ -242,8 +245,35 @@ def pickdate(list):
         return None
 
 
+def matrix(_list):
+    from collections import defaultdict
+    m = defaultdict({
+        None: 0
+        ,'normal user': 0
+        ,'bot': 0
+        ,'bureaucrat':0
+        ,'sysop': 0
+        ,'anonymous':0
+    }.copy)
+
+    for writer, owner in _list:
+        m[writer][owner] = m[writer].get(owner, 0) + 1
+
+    print ','+','.join([str(k) for k in m])
+    
+    for k in m:
+        #print k,
+        #for j in m:
+        #    print m[k][j],
+        l = [k]
+        l.extend([m[k][j] for j in m])
+        print ','.join([str(k) for k in l])
+
+
 def main():
     from optparse import OptionParser
+    from itertools import imap
+    from operator import itemgetter
 
     global user_roles
 
@@ -267,6 +297,7 @@ def main():
         r[i] = enrich(v)
 
     print_csv(r, dest, header_list)
+    m = matrix(imap(itemgetter("Writer's role", "Owner's role"), r.itervalues()))
 
     return r
 
