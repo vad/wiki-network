@@ -2,7 +2,7 @@
 #coding=utf-8
 
 import csv, re
-
+import urllib as ul
 import sonetgraph as sg
 
 # Global vars
@@ -20,10 +20,12 @@ vec_cal = {
     ,'Sep': ['setenbre', 'set', 'settembre', 'september', 'sep']
     ,'Oct': ['otobre', 'ottobre', 'oto', 'ott', 'october', 'oct']
     ,'Nov': ['novenbre', 'novembre', 'nov', 'november']
-    ,'Dec': ['disenbre', 'dis', 'dicembre', 'dic', 'december', 'dec', 'diç', 'di\xc3\xa7']
+    ,'Dec': ['disenbre', 'dis', 'dicembre', 'dic', 'december', 'dec', 'diç', ul.unquote('diç')]
 }
 
-header_list = ["Coder (Vad=1,  Marco = 2)","Owner","Owner's role","Writer","Clean writer","Writer's role","Signature yes=1, no=0","Signature findable by script 1=yes; 0=no","wiki content (0=no / 1=yes)","wiki rules (0=no / 1=yes)","Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5=not wiki but personal, 6=not wiki and not personal","Welcome message 1=yes; 0=no","Thanks 1=yes; 0=no","template: warning/vandalism/test 1=yes; 0=no","template: welcome 1=yes; 0=no","Information msg (0=no / 1=yes)","Redirect (0=no / 1=yes)","datetime","year","month","day","time","# of words","# of characters","# of characters without whitespace","Variazioni del “thanks”","Comments (language issues, signature missing or other)","original message"]
+languages = {'it':'Italian','en':'English','de':'German','vec':'Venetian','es':'Spanish','eo':'Esperanto','fr':'French','fur':'Friulano','pt':'Portuguese','ro':'Romanian','la':'Latin','grc':'Ancient Greek','el':'Greek'}
+
+header_list = ["Coder (Vad=1,  Marco = 2)","Owner","Owner's role","Writer","Clean writer","Writer's role","Signature yes=1, no=0","Signature findable by script 1=yes; 0=no","wiki content (0=no / 1=yes)","wiki rules (0=no / 1=yes)","Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5= personal, 6=other","Welcome message 1=yes; 0=no","Thanks 1=yes; 0=no","template: warning/vandalism/test 1=yes; 0=no","template: welcome 1=yes; 0=no","Information msg (0=no / 1=yes)","Redirect (0=no / 1=yes)","datetime","year","month","day","time","# of words","# of characters","# of characters without whitespace","Variazioni del “thanks”","Comments (language issues, signature missing or other)","original message"] + languages.values()
 
 
 def print_csv(d, filename, header = None):
@@ -84,35 +86,36 @@ def iter_csv(filename, _hasHeader = False):
     cf.close()
 
 def enrich(v):
-    import urllib as ul
 
-    if v['template: welcome 1=yes; 0=no']:
+    global language
+
+    if v['template: welcome 1=yes; 0=no'] == '1':
         v.update({
             'wiki content (0=no / 1=yes)': 0
             ,'wiki rules (0=no / 1=yes)': 1
-            ,'Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5=not wiki but personal, 6=not wiki and not personal': 3
+            ,'Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5= personal, 6=other': 3
             ,'Welcome message 1=yes; 0=no': 1
             ,'Thanks 1=yes; 0=no': 0
             ,'template: warning/vandalism/test 1=yes; 0=no': 0
             ,'Information msg (0=no / 1=yes)': 0
             ,'Redirect (0=no / 1=yes)': 0
         })
-    elif v['Information msg (0=no / 1=yes)']:
+    elif v['Information msg (0=no / 1=yes)'] == '1':
         v.update({
             'template: welcome 1=yes; 0=no': -999999
             ,'wiki content (0=no / 1=yes)': -999999
             ,'wiki rules (0=no / 1=yes)': -999999
-            ,'Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5=not wiki but personal, 6=not wiki and not personal': -999999
+            ,'Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5= personal, 6=other': -999999
             ,'Welcome message 1=yes; 0=no': -999999
             ,'Thanks 1=yes; 0=no': -999999
             ,'template: warning/vandalism/test 1=yes; 0=no': -999999
             ,'Redirect (0=no / 1=yes)': -999999
         })
-    elif v['Redirect (0=no / 1=yes)']:
+    elif v['Redirect (0=no / 1=yes)'] == '1':
         v.update({
             'wiki content (0=no / 1=yes)': -999999
             ,'wiki rules (0=no / 1=yes)': -999999
-            ,'Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5=not wiki but personal, 6=not wiki and not personal': -999999
+            ,'Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5= personal, 6=other': -999999
             ,'Welcome message 1=yes; 0=no': -999999
             ,'Thanks 1=yes; 0=no': -999999
             ,'template: warning/vandalism/test 1=yes; 0=no': -999999
@@ -121,8 +124,25 @@ def enrich(v):
             ,'Signature yes=1, no=0': -99999
             ,'Signature findable by script 1=yes; 0=no': -99999
         })
+    else:
+        v.update({
+            'Information msg (0=no / 1=yes)': 0
+            ,'Redirect (0=no / 1=yes)': 0
+        })
 
     om = v['original message']
+    cm = v['Comments (language issues, signature missing or other)']
+
+    try:
+        lang = re.search('lang:((\w+[/,]?)*)', cm, re.IGNORECASE).groups()[0].split(',')
+        for l in lang:
+            if l not in languages and l != '':
+                print "Why don\'t you consider me? I am a language too!", l
+    except:
+        lang = ['vec']
+
+    for l,d in languages.iteritems():
+        v[d] = int(l in lang)
     
     try:
         # Writer's role
@@ -136,8 +156,11 @@ def enrich(v):
         wrt_role = user_roles[ul.unquote(user.replace('_', ' '))]
 
     except (KeyError, AttributeError), e:
-        user = None
-        wrt_role = None
+        if not v['Writer'] or v['Writer'] == '':
+            user = 'NONE'
+        else:
+            user = v['Writer']
+        wrt_role = 'NONE'
 
     try:
         # UTP owner's role
@@ -145,7 +168,12 @@ def enrich(v):
 
     except KeyError, e:
         print e
-        u_role = None
+        u_role = 'NONE'
+
+    if not v['Owner'] or v['Owner'] == '':
+        v['Owner']  = 'NONE'
+    if not v['Writer'] or v['Writer'] == '':
+        v['Writer']  = 'NONE'
 
     v.update({
         '# of words': len(om.split())
@@ -245,7 +273,7 @@ def pickdate(list):
         return None
 
 
-def matrix(_list):
+def talk_matrix(_list, _print = False):
     from collections import defaultdict
     m = defaultdict({
         None: 0
@@ -259,15 +287,13 @@ def matrix(_list):
     for writer, owner in _list:
         m[writer][owner] = m[writer].get(owner, 0) + 1
 
-    print ','+','.join([str(k) for k in m])
-    
-    for k in m:
-        #print k,
-        #for j in m:
-        #    print m[k][j],
-        l = [k]
-        l.extend([m[k][j] for j in m])
-        print ','.join([str(k) for k in l])
+    if _print:
+        print ','+','.join([str(k) for k in m])
+        
+        for k in m:
+            l = [k]
+            l.extend([m[k][j] for j in m])
+            print ','.join([str(k) for k in l])
 
 
 def main():
@@ -277,11 +303,14 @@ def main():
 
     global user_roles
 
-    p = OptionParser(usage="usage: %prog [options] src_file dest_file pickle")
-    opts, args = p.parse_args()
+    op = OptionParser(usage="usage: %prog [options] src_file dest_file pickle")
+
+    op.add_option('-t', '--template-free', action="store_true", dest="temp_free",help="Template & company skipped")
+
+    opts, args = op.parse_args()
 
     if not args:
-        p.error("files needed!")
+        op.error("files needed!")
 
     src = args[0] # source file name
     dest = args[1] # dest file name
@@ -294,15 +323,17 @@ def main():
     # copy inside a dictionary and enrich!
     r = {}
     for i, v in enumerate(iter_csv(src, True)):
+        if opts.temp_free:
+            if v['template: welcome 1=yes; 0=no'] == '1' or v['template: warning/vandalism/test 1=yes; 0=no'] == '1' or v['Information msg (0=no / 1=yes)'] == '1' or v['Redirect (0=no / 1=yes)'] == '1':
+                continue
+
         r[i] = enrich(v)
 
     print_csv(r, dest, header_list)
-    m = matrix(imap(itemgetter("Writer's role", "Owner's role"), r.itervalues()))
+    talk_matrix(imap(itemgetter("Writer's role", "Owner's role"), r.itervalues()))
 
     return r
 
 
 if __name__ == "__main__":
-    #import cProfile as profile
-    #profile.run('main()', 'mainprof')
     d = main()
