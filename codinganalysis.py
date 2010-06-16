@@ -1,10 +1,39 @@
 #!/usr/bin/env python
 #coding=utf-8
 
+import igraph
 
 #Global vars
 YEARS = ['2005', '2006', '2007', '2008', '2009']
 ROLES = ['bureaucrat', 'normal user', 'bot', 'anonymous', 'sysop']
+
+def network_from_edges(edges):
+
+    def check_or_add(user):
+        if user not in g.vs['user']:
+            g.add_vertices(1)
+            g.vs[len(g.vs)-1]['user'] = user
+
+    g = igraph.Graph(n=0, directed=True)
+    g.vs['user'] = []
+    #g.es['weight'] = []
+
+    for writer, owner in edges:
+    
+        if (writer is None or writer == 'NONE') or (owner is None or owner == 'NONE'):
+            continue
+
+        check_or_add(writer)
+        check_or_add(owner)
+
+        e_from = g.vs['user'].index(writer)
+        e_to = g.vs['user'].index(owner)
+
+        g.add_edges((e_from, e_to))
+        #eid = g.get_eid(e_from, e_to, directed=True)
+        #g.es[eid]['weight'] = edge[2]
+
+    return g
 
 
 def print_csv(d, filename, header = None, delimiter = ","):
@@ -103,7 +132,7 @@ def role_msg_matrix(_list, _dir):
 
             users_received[year][owner_role] = (users_received[year]).get(owner_role, 0) + 1
 
-    print_matrix(users, _dir+'users_msg_count_per_year_and_role.csv', users['2008'].keys(), sorted(users.keys()))
+    print_matrix(users, _dir+'writer_count_per_year_and_role.csv', users['2008'].keys(), sorted(users.keys()))
     print_matrix(users_msg, _dir+'written_msg_count_per_year_and_role.csv', users_msg['2008'].keys(), sorted(users_msg.keys()))
     print_matrix(users_received, _dir+'received_msg_count_per_year_and_role.csv', users_received['2008'].keys(), sorted(users_received.keys()))
 
@@ -183,6 +212,10 @@ def main():
         talk_matrix(imap(itemgetter("Writer's role", "Owner's role", "year"), r.itervalues()), _dir+'talk_matrix_'+y+'.csv', y)
 
     role_msg_matrix(imap(itemgetter("Writer", "Owner", "Writer's role", "Owner's role", "year"), r.itervalues()), _dir)
+
+    sg = network_from_edges(imap(itemgetter("Clean writer", "Owner"), r.itervalues()))
+
+    sg.write_pajek(_dir+'network.net')
 
     return r
 
