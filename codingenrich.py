@@ -28,7 +28,7 @@ languages = {'it':'Italian','en':'English','de':'German','vec':'Venetian','es':'
 header_list = ["Coder (Vad=1,  Marco = 2)","Owner","Owner's role","Writer","Clean writer","Writer's role","Signature yes=1, no=0","Signature findable by script 1=yes; 0=no","wiki content (0=no / 1=yes)","wiki rules (0=no / 1=yes)","Intention: 1=Request info, 2=ask authorization, 3=coordination, 4=warnings, 5= personal, 6=other","Welcome message 1=yes; 0=no","Thanks 1=yes; 0=no","template: warning/vandalism/test 1=yes; 0=no","template: welcome 1=yes; 0=no","Information msg (0=no / 1=yes)","Redirect (0=no / 1=yes)","datetime","year","month","day","time","# of words","# of characters","# of characters without whitespace","Variazioni del “thanks”","Comments (language issues, signature missing or other)","original message"] + languages.values()
 
 
-def print_csv(d, filename, header = None):
+def print_csv(d, filename, header = None, delimiter = ","):
 
     print "Writing filename %s" % (filename,)
 
@@ -273,29 +273,6 @@ def pickdate(list):
         return None
 
 
-def talk_matrix(_list, _print = False):
-    from collections import defaultdict
-    m = defaultdict({
-        None: 0
-        ,'normal user': 0
-        ,'bot': 0
-        ,'bureaucrat':0
-        ,'sysop': 0
-        ,'anonymous':0
-    }.copy)
-
-    for writer, owner in _list:
-        m[writer][owner] = m[writer].get(owner, 0) + 1
-
-    if _print:
-        print ','+','.join([str(k) for k in m])
-        
-        for k in m:
-            l = [k]
-            l.extend([m[k][j] for j in m])
-            print ','.join([str(k) for k in l])
-
-
 def main():
     from optparse import OptionParser
     from itertools import imap
@@ -303,17 +280,17 @@ def main():
 
     global user_roles
 
-    op = OptionParser(usage="usage: %prog [options] src_file dest_file pickle")
+    op = OptionParser(usage="usage: %prog [options] src_file dest_dir pickle")
 
     op.add_option('-t', '--template-free', action="store_true", dest="temp_free",help="Template & company skipped")
 
     opts, args = op.parse_args()
 
     if not args:
-        op.error("files needed!")
+        op.error("files & dir needed!")
 
     src = args[0] # source file name
-    dest = args[1] # dest file name
+    dest_dir = args[1] # dest dir name
     pickle = args[2] # pickle file name
     g = sg.load(pickle) #pickle loading
     
@@ -329,8 +306,12 @@ def main():
 
         r[i] = enrich(v)
 
-    print_csv(r, dest, header_list)
-    talk_matrix(imap(itemgetter("Writer's role", "Owner's role"), r.itervalues()))
+    if opts.temp_free:
+        dest = dest_dir + '/template_free_coding/'
+    else:
+        dest = dest_dir + '/complete_coding/'
+
+    print_csv(r, dest+'coding_enriched.csv', header_list)
 
     return r
 
