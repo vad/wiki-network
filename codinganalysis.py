@@ -102,10 +102,10 @@ def role_msg_matrix(_list, _dir):
                 check_writer[year].append(owner)
 
             users_received[year][owner_role] = (users_received[year]).get(owner_role, 0) + 1
-    
-    #print_matrix(users, _dir+'users_msg_count_per_year_and_role.csv')
-    #print_matrix(users_msg, _dir+'written_msg_count_per_year_and_role.csv')
-    #print_matrix(users_received, _dir+'received_msg_count_per_year_and_role.csv')
+
+    print_matrix(users, _dir+'users_msg_count_per_year_and_role.csv', users['2008'].keys(), sorted(users.keys()))
+    print_matrix(users_msg, _dir+'written_msg_count_per_year_and_role.csv', users_msg['2008'].keys(), sorted(users_msg.keys()))
+    print_matrix(users_received, _dir+'received_msg_count_per_year_and_role.csv', users_received['2008'].keys(), sorted(users_received.keys()))
 
 
 def talk_matrix(_list, _file, _year = None):
@@ -126,24 +126,36 @@ def talk_matrix(_list, _file, _year = None):
             if writer in ROLES and owner in ROLES:
                 m[writer][owner] = m[writer].get(owner, 0) + 1
 
-    print_matrix(m, _file)
+    print_matrix(_dict=m, _file=_file, _percentage=True)
 
 
-def print_matrix(d, _file):
+def print_matrix(_dict, _file, _cols=None, _rows=None, _percentage=None):
 
     with open(_file, 'w') as f:
-        sk = sorted(d.keys())
-        print >>f, ','+','.join([k for k in sk])+',total'
+
+        if not _cols:
+            _cols = _dict.keys()
+        if not _rows:
+            _rows = _dict.keys()
+
+        print >>f, ','+','.join([k for k in _cols])+',total'
         
-        for k in sk:
-            print k
-            l =  [d[k][j] for j in d[k]]
+        for k in _rows:
+            l = _dict[k].values()
             t = sum(l)
-            if t:
-                p = [float(e)/t*100 for e in l]
+        
+            if _percentage:
+                if t:
+                    p = [float(e)/t*100 for e in l]
+                else:
+                    p = [0] * len(l)
+                tot = str(t)+ ' | 100%'
+                list = ['%d | %.2f' % (x[0],x[1],) for x in zip(l,p)]
             else:
-                p = [0] * len(l)
-            print >>f, k+','+','.join(['%d | %.2f' % (x[0],x[1],) for x in zip(l,p)])+','+str(t)+ ' | 100%'
+                list = [str(x) for x in l]
+                tot = str(t)
+
+            print >>f, k+','+','.join(list)+','+tot
 
 
 def main():
