@@ -96,6 +96,27 @@ def role_msg_matrix(_list, _dir):
     print_matrix(users_received_normalized, _dir+'msg_received_per_year_and_role_normalized.csv', users_received_normalized['2008'].keys(), sorted(users_received_normalized.keys()))
 
 
+def talker_matrix(_list, _file, _year = None):
+    d = {'normal user':0,'bot':0,'bureaucrat':0,'sysop':0,'anonymous':0}
+    l = {'normal user':[],'bot':[],'bureaucrat':[],'sysop':[],'anonymous':[]}
+    check_writer = {}
+    m = {}
+
+    for k in d.keys():
+        m[k] = d.copy()
+        check_writer[k] = l.copy()
+
+    for writer, owner, role_w, role_o in _list:
+        if role_w in ROLES and role_o in ROLES:
+            if writer in check_writer[role_w][role_o]:
+                continue
+            check_writer[role_w][role_o].append(writer)
+            m[role_w][role_o] = m[role_w].get(role_o, 0) + 1
+
+    print_matrix(_dict=m, _file=_file)
+
+
+
 def talk_matrix(_list, _file, _year = None):
     d = {'normal user':0,'bot':0,'bureaucrat':0,'sysop':0,'anonymous':0}
     m = {}
@@ -152,32 +173,39 @@ def main():
     from operator import itemgetter
     from os import path
 
-    global user_roles
-
-    op = OptionParser(usage="usage: %prog [options] file")
+    op = OptionParser(usage="usage: %prog [options] file1 [file2 ...]")
 
     opts, args = op.parse_args()
 
     if not args:
         op.error("Need a file to run analysis")
-        
-    _dir = path.dirname(args[0]) + "/"
 
-    r = {}
-    for i, v in enumerate(iter_csv(args[0], True)):
-        r[i] = v
+    results = {}
 
-    talk_matrix(imap(itemgetter("Writer's role", "Owner's role"), r.itervalues()), _dir+'msg_written_per_role.csv')
-    for y in YEARS:
-        talk_matrix(imap(itemgetter("Writer's role", "Owner's role", "year"), r.itervalues()), _dir+'msg_written_per_role_'+y+'.csv', y)
+    for x, file in enumerate(args):
+        _dir = path.dirname(file)
+        dest = _dir + "/" + _dir.split("/")[-1] + "_"
 
-    role_msg_matrix(imap(itemgetter("Clean writer", "Owner", "Writer's role", "Owner's role", "year"), r.itervalues()), _dir)
+        r = {}
+        for i, v in enumerate(iter_csv(file, True)):
+            r[i] = v
 
-    # Loading and printing network
-    sg = get_network(imap(itemgetter("Clean writer", "Owner", "year"), r.itervalues()))
-    sg.write_pajek(_dir+'network.net')
+        talker_matrix(imap(itemgetter("Clean writer", "Owner", "Writer's role", "Owner's role"), r.itervalues()), dest+'user_writer_per_role.csv')
+        talk_matrix(imap(itemgetter("Writer's role", "Owner's role"), r.itervalues()), dest+'msg_written_per_role.csv')
+        for y in YEARS:
+            talk_matrix(imap(itemgetter("Writer's role", "Owner's role", "year"), r.itervalues()), dest+'msg_written_per_role_'+y+'.csv', y)
 
-    return r
+        role_msg_matrix(imap(itemgetter("Clean writer", "Owner", "Writer's role", "Owner's role", "year"), r.itervalues()), dest)
+
+        # Loading and printing network
+        sg = get_network(imap(itemgetter("Clean writer", "Owner", "year"), r.itervalues()))
+        sg.write_pajek(_dir+'network.net')
+
+        print "Analysis for %s completed. File saved in directory %s" % (file, _dir,)
+
+        results[x] = r
+
+    return results
 
 
 if __name__ == "__main__":
