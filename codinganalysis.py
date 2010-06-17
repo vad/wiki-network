@@ -2,7 +2,7 @@
 #coding=utf-8
 
 import igraph
-from codingenrich import iter_csv, print_csv
+from utils import iter_csv, print_csv
 
 #Global vars
 YEARS = ['2005', '2006', '2007', '2008', '2009']
