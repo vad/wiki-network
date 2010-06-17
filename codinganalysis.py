@@ -2,12 +2,14 @@
 #coding=utf-8
 
 import igraph
+from codingenrich import iter_csv, print_csv
 
 #Global vars
 YEARS = ['2005', '2006', '2007', '2008', '2009']
 ROLES = ['bureaucrat', 'normal user', 'bot', 'anonymous', 'sysop']
 
-def network_from_edges(edges):
+
+def get_network(edges):
 
     def check_or_add(user):
         if user not in g.vs['user']:
@@ -16,13 +18,9 @@ def network_from_edges(edges):
 
     g = igraph.Graph(n=0, directed=True)
     g.vs['user'] = []
-    #g.es['weight'] = []
+    g.es['weight'] = []
 
-    for writer, owner in edges:
-    
-        if (writer is None or writer == 'NONE') or (owner is None or owner == 'NONE'):
-            continue
-
+    for writer, owner, weight in edges:
         check_or_add(writer)
         check_or_add(owner)
 
@@ -30,111 +28,72 @@ def network_from_edges(edges):
         e_to = g.vs['user'].index(owner)
 
         g.add_edges((e_from, e_to))
-        #eid = g.get_eid(e_from, e_to, directed=True)
-        #g.es[eid]['weight'] = edge[2]
+        eid = g.get_eid(e_from, e_to, directed=True)
+        g.es[eid]['weight'] = weight
 
     return g
 
-
-def print_csv(d, filename, header = None, delimiter = ","):
-
-    print "Writing filename %s" % (filename,)
-
-    try:
-        with open(filename, 'w') as f:
-            wr = csv.writer(f)
-
-            if header is not None:
-                wr.writerow(header)
-            for k, v in d.iteritems():
-                ls = []
-                if header is not None:
-                    for h in header:
-                        if h in v.keys():
-                            ls.append(v[h])
-                        else:
-                            ls.append(None)
-                    wr.writerow(ls)
-                else:
-                    wr.writerow(v.values())
-    except IOError, e:
-        print e
-
-    print "File %s saved" % (filename,)
-
-
-def iter_csv(filename, _hasHeader = False):
-    from csv import reader
-    fieldNames = None
-
-    print 'Reading from %s' % (filename,)
-
-    try:
-        cf = open(filename, 'rb')
-    except IOError, e:
-        print e
-
-    try:
-        lines = reader(cf)
-    except IOError, e:
-        print e[0], e[1]
-
-    if _hasHeader:
-        fieldNames = lines.next()
-        
-    for row in lines:
-        d = {}
-        for i, f in enumerate(row):
-            if fieldNames:
-                d[fieldNames[i]] = f
-            else:
-                d[i] = f
-        yield d
-    
-    cf.close()
 
 def role_msg_matrix(_list, _dir):
 
     check_writer = {}
     check_owner = {}
-    users = {}
     users_msg = {}
     users_received = {}
+    users_msg_normalized = {}
+    users_received_normalized = {}
+    writers = {}
 
     for y in YEARS:
-        check_writer[y] = []
-        check_owner[y] = []
-        users[y] = {}
+        check_writer[y] = {}
+        check_owner[y] = {}
+        writers[y] = {}
         users_msg[y] = {}
         users_received[y] = {}
+        users_msg_normalized[y] = {}
+        users_received_normalized[y] = {}
         for r in ROLES:
-            users[y][r] = 0 
+            check_writer[y][r] = []
+            check_owner[y][r] = []
+            writers[y][r] = 0
             users_msg[y][r] = 0
             users_received[y][r] = 0
+            users_msg_normalized[y][r] = 0
+            users_received_normalized[y][r] = 0
 
     for writer, owner, writer_role,owner_role, year in _list:
-        
         if year not in YEARS:
             continue
 
         if writer_role in ROLES:
-
-            if writer not in check_writer[year]:
-                check_writer[year].append(writer)
-                users[year][writer_role] = (users[year]).get(writer_role, 0) + 1
-
+            if writer not in check_writer[year][writer_role]:
+                check_writer[year][writer_role].append(writer)
             users_msg[year][writer_role] = (users_msg[year]).get(writer_role, 0) + 1
 
         if owner_role in ROLES:
-
-            if owner not in check_owner[year]:
-                check_writer[year].append(owner)
-
+            if owner not in check_owner[year][owner_role]:
+                check_owner[year][owner_role].append(owner)
             users_received[year][owner_role] = (users_received[year]).get(owner_role, 0) + 1
 
-    print_matrix(users, _dir+'writer_count_per_year_and_role.csv', users['2008'].keys(), sorted(users.keys()))
-    print_matrix(users_msg, _dir+'written_msg_count_per_year_and_role.csv', users_msg['2008'].keys(), sorted(users_msg.keys()))
-    print_matrix(users_received, _dir+'received_msg_count_per_year_and_role.csv', users_received['2008'].keys(), sorted(users_received.keys()))
+    for y in YEARS:
+        for r in ROLES:
+            nw = len(check_writer[y][r])
+            ow = len(check_owner[y][r])
+            writers[y][r] = nw
+            if nw:
+                users_msg_normalized[y][r] = float(users_msg[y][r]) / nw
+            else:
+                users_msg_normalized[y][r] = 0
+            if ow:
+                users_received_normalized[y][r] = float(users_received[y][r]) / ow
+            else:
+                users_received_normalized[y][r] = 0
+
+    print_matrix(writers, _dir+'user_writer_per_year_and_role.csv', writers['2008'].keys(), sorted(writers.keys()))
+    print_matrix(users_msg, _dir+'msg_written_per_year_and_role.csv', users_msg['2008'].keys(), sorted(users_msg.keys()))
+    print_matrix(users_msg_normalized, _dir+'msg_written_per_year_and_role_normalized.csv', users_msg_normalized['2008'].keys(), sorted(users_msg_normalized.keys()))
+    print_matrix(users_received, _dir+'msg_received_per_year_and_role.csv', users_received['2008'].keys(), sorted(users_received.keys()))
+    print_matrix(users_received_normalized, _dir+'msg_received_per_year_and_role_normalized.csv', users_received_normalized['2008'].keys(), sorted(users_received_normalized.keys()))
 
 
 def talk_matrix(_list, _file, _year = None):
@@ -155,7 +114,7 @@ def talk_matrix(_list, _file, _year = None):
             if writer in ROLES and owner in ROLES:
                 m[writer][owner] = m[writer].get(owner, 0) + 1
 
-    print_matrix(_dict=m, _file=_file, _percentage=True)
+    print_matrix(_dict=m, _file=_file)
 
 
 def print_matrix(_dict, _file, _cols=None, _rows=None, _percentage=None):
@@ -179,7 +138,7 @@ def print_matrix(_dict, _file, _cols=None, _rows=None, _percentage=None):
                 else:
                     p = [0] * len(l)
                 tot = str(t)+ ' | 100%'
-                list = ['%d | %.2f' % (x[0],x[1],) for x in zip(l,p)]
+                list = ['%d | %.2f%%' % (x[0],x[1],) for x in zip(l,p)]
             else:
                 list = [str(x) for x in l]
                 tot = str(t)
@@ -191,6 +150,7 @@ def main():
     from optparse import OptionParser
     from itertools import imap
     from operator import itemgetter
+    from os import path
 
     global user_roles
 
@@ -201,20 +161,20 @@ def main():
     if not args:
         op.error("Need a file to run analysis")
         
-    _dir = args[0][0:-10]
+    _dir = path.dirname(args[0]) + "/"
 
     r = {}
     for i, v in enumerate(iter_csv(args[0], True)):
         r[i] = v
 
-    talk_matrix(imap(itemgetter("Writer's role", "Owner's role"), r.itervalues()), _dir+'talk_matrix_complete.csv')
+    talk_matrix(imap(itemgetter("Writer's role", "Owner's role"), r.itervalues()), _dir+'msg_written_per_role.csv')
     for y in YEARS:
-        talk_matrix(imap(itemgetter("Writer's role", "Owner's role", "year"), r.itervalues()), _dir+'talk_matrix_'+y+'.csv', y)
+        talk_matrix(imap(itemgetter("Writer's role", "Owner's role", "year"), r.itervalues()), _dir+'msg_written_per_role_'+y+'.csv', y)
 
-    role_msg_matrix(imap(itemgetter("Writer", "Owner", "Writer's role", "Owner's role", "year"), r.itervalues()), _dir)
+    role_msg_matrix(imap(itemgetter("Clean writer", "Owner", "Writer's role", "Owner's role", "year"), r.itervalues()), _dir)
 
-    sg = network_from_edges(imap(itemgetter("Clean writer", "Owner"), r.itervalues()))
-
+    # Loading and printing network
+    sg = get_network(imap(itemgetter("Clean writer", "Owner", "year"), r.itervalues()))
     sg.write_pajek(_dir+'network.net')
 
     return r
