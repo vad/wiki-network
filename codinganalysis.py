@@ -165,6 +165,47 @@ def print_matrix(_dict, _file, _cols=None, _rows=None, _percentage=None):
             print >>f, k+','+','.join(list)+','+tot
 
 
+def fill_user_roles(_list):
+
+    d = {}
+
+    for writer, owner, wr, owr in _list:
+        if wr not in d:
+            d[wr] = []
+        if owr not in d:
+            d[owr] = []
+
+        w = writer.decode('utf-8')
+        o = owner.decode('utf-8')
+
+        if w not in d[wr]:
+            d[wr].append(w)
+
+        if o not in d[owr]:
+            d[owr].append(o)
+
+    return d
+
+
+def get_user_role(user, d):
+
+    if user is None or user == '' or user == 'NONE':
+        return None
+
+    for k, v in d.iteritems():
+        if user in v:
+            return k
+
+    return None
+
+
+def print_stats(d, file):
+
+    with open(file, 'w') as f:
+        for k, v in d.iteritems():
+            print >>f, k+','+str(len(v))
+
+
 def main():
     from optparse import OptionParser
     from itertools import imap
@@ -188,6 +229,11 @@ def main():
         for i, v in enumerate(iter_csv(file, True)):
             r[i] = v
 
+        user_roles = fill_user_roles(imap(itemgetter("Clean writer", "Owner", "Writer's role", "Owner's role"), r.itervalues()))
+
+        #print stats
+        print_stats(user_roles, dest+'user_stats.csv')
+
         talker_matrix(imap(itemgetter("Clean writer", "Owner", "Writer's role", "Owner's role"), r.itervalues()), dest+'user_writer_per_role.csv')
         talk_matrix(imap(itemgetter("Writer's role", "Owner's role"), r.itervalues()), dest+'msg_written_per_role.csv')
         for y in YEARS:
@@ -196,14 +242,15 @@ def main():
         role_msg_matrix(imap(itemgetter("Clean writer", "Owner", "Writer's role", "Owner's role", "year"), r.itervalues()), dest)
 
         # Loading and printing network
-        #sg = get_network(imap(itemgetter("Clean writer", "Owner", "year"), r.itervalues()))
-        #sg.write_pajek(dest+'network.net')
         ec = EdgeCache()
         for r,d in getedges(imap(itemgetter("Clean writer", "Owner"), r.itervalues())):
             ec.add(r, d)
         ec.flush()
 
         g = ec.get_network("Label")
+        # Adding 'role' attribute to each vertex in the graph
+        g.vs.set_attribute_values('role', map(lambda x: get_user_role(x.decode('utf-8'), user_roles), g.vs['Label']))
+        # 
         g.write(dest+'network.net', format="pajek")
         g.write(dest+'network.graphml', format="graphml")
         g.write(dest+'network.graphmlz', format="graphmlz")
@@ -212,6 +259,7 @@ def main():
 
         results[x] = r
 
+    return g
     return results
 
 
