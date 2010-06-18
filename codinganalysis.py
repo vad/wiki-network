@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #coding=utf-8
 
-import igraph
+from edgecache import *
 from utils import iter_csv, print_csv
 
 #Global vars
@@ -9,29 +9,27 @@ YEARS = ['2005', '2006', '2007', '2008', '2009']
 ROLES = ['bureaucrat', 'normal user', 'bot', 'anonymous', 'sysop']
 
 
-def get_network(edges):
+def getedges(_list, _selfedge=True):
 
-    def check_or_add(user):
-        if user not in g.vs['user']:
-            g.add_vertices(1)
-            g.vs[len(g.vs)-1]['user'] = user
+    d = {}
 
-    g = igraph.Graph(n=0, directed=True)
-    g.vs['user'] = []
-    g.es['weight'] = []
+    for writer, owner in _list:
+        if writer == 'NONE' or owner == 'NONE':
+            continue
 
-    for writer, owner, weight in edges:
-        check_or_add(writer)
-        check_or_add(owner)
+        if not _selfedge and writer == owner:
+            continue
 
-        e_from = g.vs['user'].index(writer)
-        e_to = g.vs['user'].index(owner)
+        o = owner.decode('utf-8')
+        w = writer.decode('utf-8')
 
-        g.add_edges((e_from, e_to))
-        eid = g.get_eid(e_from, e_to, directed=True)
-        g.es[eid]['weight'] = weight
+        if o not in d:
+            d[o] = {}
 
-    return g
+        d[o][w] = (d[o]).get(w,0) + 1
+
+    for k, v in d.iteritems():
+        yield k, v
 
 
 def role_msg_matrix(_list, _dir):
@@ -198,8 +196,17 @@ def main():
         role_msg_matrix(imap(itemgetter("Clean writer", "Owner", "Writer's role", "Owner's role", "year"), r.itervalues()), dest)
 
         # Loading and printing network
-        sg = get_network(imap(itemgetter("Clean writer", "Owner", "year"), r.itervalues()))
-        sg.write_pajek(_dir+'network.net')
+        #sg = get_network(imap(itemgetter("Clean writer", "Owner", "year"), r.itervalues()))
+        #sg.write_pajek(dest+'network.net')
+        ec = EdgeCache()
+        for r,d in getedges(imap(itemgetter("Clean writer", "Owner"), r.itervalues())):
+            ec.add(r, d)
+        ec.flush()
+
+        g = ec.get_network("Label")
+        g.write(dest+'network.net', format="pajek")
+        g.write(dest+'network.graphml', format="graphml")
+        g.write(dest+'network.graphmlz', format="graphmlz")
 
         print "Analysis for %s completed. File saved in directory %s" % (file, _dir,)
 
