@@ -59,7 +59,7 @@ class EdgeCache:
         self.temp_edges.clear()
 
 
-    def get_network(self):
+    def get_network(self, label='username'):
         """
         Get the resulting network and clean cached data
         """
@@ -71,7 +71,7 @@ class EdgeCache:
 
         #g.add_vertices(len(self.nodes))
 
-        g.vs['username'] = [n.encode('utf-8') for n, _ in sorted(
+        g.vs[label] = [n.encode('utf-8') for n, _ in sorted(
             self.nodes.items(), key=itemgetter(1))]
         self.nodes = []
 
