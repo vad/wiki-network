@@ -3,6 +3,7 @@
 
 from edgecache import *
 from utils import iter_csv, print_csv
+import urllib as ul
 
 #Global vars
 YEARS = ['2005', '2006', '2007', '2008', '2009']
@@ -20,8 +21,8 @@ def getedges(_list, _selfedge=True):
         if not _selfedge and writer == owner:
             continue
 
-        o = owner.decode('utf-8')
-        w = writer.decode('utf-8')
+        o = ul.unquote(owner.decode('utf-8'))
+        w = ul.unquote(writer.decode('utf-8'))
 
         if o not in d:
             d[o] = {}
@@ -175,8 +176,8 @@ def fill_user_roles(_list):
         if owr not in d:
             d[owr] = [] 
 
-        w = writer.decode('utf-8')
-        o = owner.decode('utf-8')
+        w = ul.unquote(writer.decode('utf-8'))
+        o = ul.unquote(owner.decode('utf-8'))
 
         if [w,'sender'] not in d[wr]:
             d[wr].append([w, 'sender']) 
@@ -204,14 +205,26 @@ def print_stats(d, file):
     with open(file, 'w') as f:
 
         print >>f, 'SENDERS BY TYPE'
+        i = 0
         for k, v in d.iteritems():
-            print >>f, '\t',k,str(len([e for e in v if e[1] == 'sender']))
+            t = len([e for e in v if e[1] == 'sender'])
+            i += t
+            print >>f, '\t',k,str(t)
+        print >>f, 'Total:', str(i)
         print >>f, '\nRECEIVERS BY TYPE'
+        i = 0
         for k, v in d.iteritems():
-            print >>f, '\t',k,str(len([e for e in v if e[1] == 'receiver']))
-        print >>f, '\nTOTAL'
+            t = len([e for e in v if e[1] == 'receiver'])
+            print >>f, '\t',k,str(t)
+            i+= t
+        print >>f, 'Total:', str(i)
+        print >>f, '\nSENDERS + RECEIVERS'
+        i = 0
         for k, v in d.iteritems():
-            print >>f, '\t',k,str(len(list(set([e[0] for e in v]))))
+            t = len(list(set([e[0] for e in v])))
+            i += t
+            print >>f, '\t',k,str(t)
+        print >>f, 'Total:', str(i)
 
 
 def main():
@@ -261,6 +274,10 @@ def main():
         g.write(dest+'network.net', format="pajek")
         g.write(dest+'network.graphml', format="graphml")
         g.write(dest+'network.graphmlz', format="graphmlz")
+
+        with open(dest+'network_summary.txt', 'w') as f:
+            print >>f, g.summary()
+            
 
         print "Analysis for %s completed. File saved in directory %s" % (file, _dir,)
 
