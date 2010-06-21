@@ -173,16 +173,16 @@ def fill_user_roles(_list):
         if wr not in d:
             d[wr] = []
         if owr not in d:
-            d[owr] = []
+            d[owr] = [] 
 
         w = writer.decode('utf-8')
         o = owner.decode('utf-8')
 
-        if w not in d[wr]:
-            d[wr].append(w)
+        if [w,'sender'] not in d[wr]:
+            d[wr].append([w, 'sender']) 
 
-        if o not in d[owr]:
-            d[owr].append(o)
+        if [o,'receiver'] not in d[owr]:
+            d[owr].append([o,'receiver'])
 
     return d
 
@@ -193,7 +193,7 @@ def get_user_role(user, d):
         return None
 
     for k, v in d.iteritems():
-        if user in v:
+        if user in [e[0] for e in v]:
             return k
 
     return None
@@ -202,8 +202,16 @@ def get_user_role(user, d):
 def print_stats(d, file):
 
     with open(file, 'w') as f:
+
+        print >>f, 'SENDERS BY TYPE'
         for k, v in d.iteritems():
-            print >>f, k+','+str(len(v))
+            print >>f, '\t',k,str(len([e for e in v if e[1] == 'sender']))
+        print >>f, '\nRECEIVERS BY TYPE'
+        for k, v in d.iteritems():
+            print >>f, '\t',k,str(len([e for e in v if e[1] == 'receiver']))
+        print >>f, '\nTOTAL'
+        for k, v in d.iteritems():
+            print >>f, '\t',k,str(len(list(set([e[0] for e in v]))))
 
 
 def main():
@@ -231,8 +239,7 @@ def main():
 
         user_roles = fill_user_roles(imap(itemgetter("Clean writer", "Owner", "Writer's role", "Owner's role"), r.itervalues()))
 
-        #print stats
-        print_stats(user_roles, dest+'user_stats.csv')
+        print_stats(user_roles, dest+'user_stats.txt')
 
         talker_matrix(imap(itemgetter("Clean writer", "Owner", "Writer's role", "Owner's role"), r.itervalues()), dest+'user_writer_per_role.csv')
         talk_matrix(imap(itemgetter("Writer's role", "Owner's role"), r.itervalues()), dest+'msg_written_per_role.csv')
@@ -243,8 +250,8 @@ def main():
 
         # Loading and printing network
         ec = EdgeCache()
-        for r,d in getedges(imap(itemgetter("Clean writer", "Owner"), r.itervalues())):
-            ec.add(r, d)
+        for cw,o in getedges(imap(itemgetter("Clean writer", "Owner"), r.itervalues())):
+            ec.add(cw, o)
         ec.flush()
 
         g = ec.get_network("Label")
@@ -259,7 +266,6 @@ def main():
 
         results[x] = r
 
-    return g
     return results
 
 
