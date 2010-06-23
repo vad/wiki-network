@@ -10,11 +10,14 @@ YEARS = ['2005', '2006', '2007', '2008', '2009']
 ROLES = ['bureaucrat', 'normal user', 'bot', 'anonymous', 'sysop']
 
 
-def getedges(_list, _selfedge=True):
+def getedges(_list, _selfedge=True, _year=None):
 
     d = {}
 
-    for writer, owner in _list:
+    for writer, owner, year in _list:
+        if _year and _year != year:
+            continue
+
         if writer == 'NONE' or owner == 'NONE':
             continue
 
@@ -263,7 +266,7 @@ def main():
 
         # Loading and printing network
         ec = EdgeCache()
-        for cw,o in getedges(imap(itemgetter("Clean writer", "Owner"), r.itervalues())):
+        for cw,o in getedges(imap(itemgetter("Clean writer", "Owner", "year"), r.itervalues())):
             ec.add(cw, o)
         ec.flush()
 
@@ -277,6 +280,23 @@ def main():
 
         with open(dest+'network_summary.txt', 'w') as f:
             print >>f, g.summary()
+
+        for y in YEARS:
+            # Loading and printing network
+            ec = EdgeCache()
+            for cw,o in getedges(imap(itemgetter("Clean writer", "Owner", "year"), r.itervalues()), _year=y):
+                ec.add(cw, o)
+            ec.flush()
+            g = ec.get_network("Label")
+            # Adding 'role' attribute to each vertex in the graph
+            g.vs.set_attribute_values('role', map(lambda x: get_user_role(x.decode('utf-8'), user_roles), g.vs['Label']))
+            # 
+            g.write(dest+'network_'+y+'.net', format="pajek")
+            g.write(dest+'network_'+y+'.graphml', format="graphml")
+            g.write(dest+'network_'+y+'.graphmlz', format="graphmlz")
+
+            with open(dest+'network_'+y+'_summary.txt', 'w') as f:
+                print >>f, g.summary()
             
 
         print "Analysis for %s completed. File saved in directory %s" % (file, _dir,)
