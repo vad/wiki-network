@@ -66,8 +66,8 @@ def enrich(v):
             ,'template: warning/vandalism/test 1=yes; 0=no': -999999
             ,'Information msg (0=no / 1=yes)': -999999
             ,'template: welcome 1=yes; 0=no': -999999
-            ,'Signature yes=1, no=0': -99999
-            ,'Signature findable by script 1=yes; 0=no': -99999
+            ,'Signature yes=1, no=0': -999999
+            ,'Signature findable by script 1=yes; 0=no': -999999
         })
     else:
         v.update({
