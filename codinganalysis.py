@@ -5,6 +5,8 @@ from edgecache import *
 from utils import iter_csv, print_csv
 import sonetgraph as sg
 import urllib as ul
+import numpy
+
 
 #Global vars
 YEARS = ['2005', '2006', '2007', '2008', '2009']
@@ -265,26 +267,11 @@ def main():
 
         role_msg_matrix(imap(itemgetter("Clean writer", "Owner", "Writer's role", "Owner's role", "year"), r.itervalues()), dest)
 
-        # Loading and printing network
-        ec = EdgeCache()
-        for cw,o in getedges(imap(itemgetter("Clean writer", "Owner", "year"), r.itervalues())):
-            ec.add(cw, o)
-        ec.flush()
+        # Networks!
+        for y in [None]+YEARS:
 
-        g = sg.Graph(ec.get_network("Label"))
-        # Adding 'role' attribute to each vertex in the graph
-        g.g.vs.set_attribute_values('role', map(lambda x: get_user_role(x.decode('utf-8'), user_roles), g.g.vs['Label']))
-        # 
-        g.g.write(dest+'network.net', format="pajek")
-        g.g.write(dest+'network.graphml', format="graphml")
-        g.g.write(dest+'network.graphmlz', format="graphmlz")
+            suff = (y is not None) and '_'+y or ''
 
-        g.set_weighted_degree()
-
-        with open(dest+'network_summary.txt', 'w') as f:
-            print >>f, g.g.summary()
-    
-        for y in YEARS:
             # Loading and printing network
             ec = EdgeCache()
             for cw,o in getedges(imap(itemgetter("Clean writer", "Owner", "year"), r.itervalues()), _year=y):
@@ -294,17 +281,23 @@ def main():
             # Adding 'role' attribute to each vertex in the graph
             g.g.vs.set_attribute_values('role', map(lambda x: get_user_role(x.decode('utf-8'), user_roles), g.g.vs['Label']))
             # 
-            g.g.write(dest+'network_'+y+'.net', format="pajek")
-            g.g.write(dest+'network_'+y+'.graphml', format="graphml")
-            g.g.write(dest+'network_'+y+'.graphmlz', format="graphmlz")
+            g.g.write(dest+'network'+suff+'.graphml', format="graphml")
+            #g.g.write(dest+'network'+suff+'.net', format="pajek")
 
-            with open(dest+'network_'+y+'_summary.txt', 'w') as f:
+            g.set_weighted_degree() # set weighted indegree
+            w_dg = numpy.average(numpy.array(g.g.vs.degree(type="in"))) # average indegree
+            w_adg = numpy.average(numpy.array(g.g.vs['weighted_indegree'])) # average weighted indegree
+
+            with open(dest+'network'+suff+'_summary.txt', 'w') as f:
                 print >>f, g.g.summary()
+                print >>f, 'Average indegree: %f' % (w_dg,)
+                print >>f, 'Average weighted indegree: %f' % (w_adg,)
 
-            with open(dest+'writers_per_year_'+y+'.csv', 'w') as f:
-                print >>f, "Writer, Number of recipients"
-                for n in sorted([(v[0], v[1]) for v in zip(g.g.vs["Label"], g.g.outdegree()) if v[1]]):
-                    print >>f, "%s, %d" % (n[0], n[1],)
+            if y:
+                with open(dest+'writers_per_year'+suff+'.csv', 'w') as f:
+                    print >>f, "Writer, Number of recipients"
+                    for n in sorted([(v[0], v[1]) for v in zip(g.g.vs["Label"], g.g.outdegree()) if v[1]]):
+                        print >>f, "%s, %d" % (n[0], n[1],)
             
         print "Analysis for %s completed. File saved in directory %s" % (file, _dir,)
 
