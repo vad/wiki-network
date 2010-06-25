@@ -3,6 +3,7 @@
 
 from edgecache import *
 from utils import iter_csv, print_csv
+import sonetgraph as sg
 import urllib as ul
 
 #Global vars
@@ -270,35 +271,41 @@ def main():
             ec.add(cw, o)
         ec.flush()
 
-        g = ec.get_network("Label")
+        g = sg.Graph(ec.get_network("Label"))
         # Adding 'role' attribute to each vertex in the graph
-        g.vs.set_attribute_values('role', map(lambda x: get_user_role(x.decode('utf-8'), user_roles), g.vs['Label']))
+        g.g.vs.set_attribute_values('role', map(lambda x: get_user_role(x.decode('utf-8'), user_roles), g.g.vs['Label']))
         # 
-        g.write(dest+'network.net', format="pajek")
-        g.write(dest+'network.graphml', format="graphml")
-        g.write(dest+'network.graphmlz', format="graphmlz")
+        g.g.write(dest+'network.net', format="pajek")
+        g.g.write(dest+'network.graphml', format="graphml")
+        g.g.write(dest+'network.graphmlz', format="graphmlz")
+
+        g.set_weighted_degree()
 
         with open(dest+'network_summary.txt', 'w') as f:
-            print >>f, g.summary()
-
+            print >>f, g.g.summary()
+    
         for y in YEARS:
             # Loading and printing network
             ec = EdgeCache()
             for cw,o in getedges(imap(itemgetter("Clean writer", "Owner", "year"), r.itervalues()), _year=y):
                 ec.add(cw, o)
             ec.flush()
-            g = ec.get_network("Label")
+            g = sg.Graph(ec.get_network("Label"))
             # Adding 'role' attribute to each vertex in the graph
-            g.vs.set_attribute_values('role', map(lambda x: get_user_role(x.decode('utf-8'), user_roles), g.vs['Label']))
+            g.g.vs.set_attribute_values('role', map(lambda x: get_user_role(x.decode('utf-8'), user_roles), g.g.vs['Label']))
             # 
-            g.write(dest+'network_'+y+'.net', format="pajek")
-            g.write(dest+'network_'+y+'.graphml', format="graphml")
-            g.write(dest+'network_'+y+'.graphmlz', format="graphmlz")
+            g.g.write(dest+'network_'+y+'.net', format="pajek")
+            g.g.write(dest+'network_'+y+'.graphml', format="graphml")
+            g.g.write(dest+'network_'+y+'.graphmlz', format="graphmlz")
 
             with open(dest+'network_'+y+'_summary.txt', 'w') as f:
-                print >>f, g.summary()
-            
+                print >>f, g.g.summary()
 
+            with open(dest+'writers_per_year_'+y+'.csv', 'w') as f:
+                print >>f, "Writer, Number of recipients"
+                for n in sorted([(v[0], v[1]) for v in zip(g.g.vs["Label"], g.g.outdegree()) if v[1]]):
+                    print >>f, "%s, %d" % (n[0], n[1],)
+            
         print "Analysis for %s completed. File saved in directory %s" % (file, _dir,)
 
         results[x] = r
