@@ -247,6 +247,7 @@ def main():
         op.error("Need a file to run analysis")
 
     results = {}
+    wpy = {} # writers per year
 
     for x, file in enumerate(args):
         _dir = path.dirname(file)
@@ -270,7 +271,7 @@ def main():
         # Networks!
         for y in [None]+YEARS:
 
-            suff = (y is not None) and '_'+y or ''
+            suff = '_'+y if y else '' # filename suffix
 
             # Loading and printing network
             ec = EdgeCache()
@@ -293,11 +294,18 @@ def main():
                 print >>f, 'Average indegree: %f' % (w_dg,)
                 print >>f, 'Average weighted indegree: %f' % (w_adg,)
 
-            if y:
-                with open(dest+'writers_per_year'+suff+'.csv', 'w') as f:
-                    print >>f, "Writer, Number of recipients"
-                    for n in sorted([(v[0], v[1]) for v in zip(g.g.vs["Label"], g.g.outdegree()) if v[1]]):
-                        print >>f, "%s, %d" % (n[0], n[1],)
+            if y is None: # complete network!
+                wrts = [v[0] for v in zip(g.g.vs["Label"], g.g.outdegree()) if v[1]]
+            else: # Analysing one particular year -> y
+                wpy[y] = [v[0] for v in zip(g.g.vs["Label"], g.g.outdegree()) if v[1]]
+
+        with open(dest+'writers_per_year.csv', 'w') as f:
+            print >>f, ',%s, total' % (','.join(YEARS))
+            for w in sorted(wrts):
+                l = [int(w in wpy[y]) for y in YEARS]
+                t = sum(l)
+                if t:
+                    print >>f, '%s,%s,%d' % (w, ','.join([str(e) for e in l]),t,)
             
         print "Analysis for %s completed. File saved in directory %s" % (file, _dir,)
 
