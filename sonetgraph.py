@@ -203,9 +203,9 @@ class Graph(object):
         print >>f, ','.join(accumulate)
     
             
-    def getTopIndegree(self, limit=15):
-        for v in [v in self.g.vs(weighted_indegree_gt=limit)]:
-            print v.index, v['weighted_indegree'], v['username'],
+    def getTopIndegree(self, limit=15, label='username'):
+        for v in [e for e in self.g.vs(weighted_indegree_gt=limit)]:
+            print v.index, v['weighted_indegree'], v[label],
                 #TODO: aggiungere ruolo
                 
     def getUserClass(self, label, classes=None):
