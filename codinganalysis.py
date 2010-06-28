@@ -2,7 +2,7 @@
 #coding=utf-8
 
 from edgecache import *
-from utils import iter_csv, print_csv
+from utils import iter_csv, print_csv, ensure_dir
 import sonetgraph as sg
 import urllib as ul
 import numpy
@@ -269,6 +269,8 @@ def main():
         role_msg_matrix(imap(itemgetter("Clean writer", "Owner", "Writer's role", "Owner's role", "year"), r.itervalues()), dest)
 
         # Networks!
+        dest_net = dest + 'networks/'
+        ensure_dir(dest_net)
         for y in [None]+YEARS:
 
             suff = '_'+y if y else '' # filename suffix
@@ -282,17 +284,24 @@ def main():
             # Adding 'role' attribute to each vertex in the graph
             g.g.vs.set_attribute_values('role', map(lambda x: get_user_role(x.decode('utf-8'), user_roles), g.g.vs['Label']))
             # 
-            g.g.write(dest+'network'+suff+'.graphml', format="graphml")
-            #g.g.write(dest+'network'+suff+'.net', format="pajek")
+            g.g.write(dest_net+'network'+suff+'.graphml', format="graphml")
+            #g.g.write(dest_net+'network'+suff+'.net', format="pajek")
 
             g.set_weighted_degree() # set weighted indegree
+            g.g.vs['bw'] = g.g.betweenness(directed=True) # betweenness centrality for each vertex
+
             w_dg = numpy.average(numpy.array(g.g.vs.degree(type="in"))) # average indegree
             w_adg = numpy.average(numpy.array(g.g.vs['weighted_indegree'])) # average weighted indegree
 
-            with open(dest+'network'+suff+'_summary.txt', 'w') as f:
+            # print network stats
+            with open(dest_net+'network'+suff+'_summary.txt', 'w') as f:
                 print >>f, g.g.summary()
-                print >>f, 'Average indegree: %f' % (w_dg,)
+                print >>f, '\nAverage indegree: %f' % (w_dg,)
                 print >>f, 'Average weighted indegree: %f' % (w_adg,)
+                print >>f, '\nList of users (max 10) with higher betweenness centrality:'
+                for vx in sorted([v for v in g.g.vs(bw_gt=0.0)], key=lambda v: v['bw'], reverse=True)[0:10]:
+                    print >>f, '\t', vx['Label'], vx['role'], vx['bw']
+
 
             if y is None: # complete network!
                 wrts = [v[0] for v in zip(g.g.vs["Label"], g.g.outdegree()) if v[1]]
