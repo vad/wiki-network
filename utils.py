@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 
 import csv
+import os
+
+
+def ensure_dir(f):
+    d = os.path.dirname(f)
+    if not os.path.exists(d):
+        print 'creating dir: %s' % (d,)
+        os.makedirs(d)
 
 
 def print_csv(d, filename, header=None, delimiter=","):
