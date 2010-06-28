@@ -203,12 +203,10 @@ class Graph(object):
         print >>f, ','.join(accumulate)
     
             
-    def getTopIndegree(self, limit):
-        for v in self.g.vs:
-            if v['weighted_indegree'] > 15:
-                print v.index, v['weighted_indegree'], v['username'], 
+    def getTopIndegree(self, limit=15):
+        for v in [v in self.g.vs(weighted_indegree_gt=limit)]:
+            print v.index, v['weighted_indegree'], v['username'],
                 #TODO: aggiungere ruolo
-                
                 
     def getUserClass(self, label, classes=None):
         if not classes:
