@@ -288,7 +288,8 @@ def main():
             #g.g.write(dest_net+'network'+suff+'.net', format="pajek")
 
             g.set_weighted_degree() # set weighted indegree
-            g.g.vs['bw'] = g.g.betweenness(directed=True) # betweenness centrality for each vertex
+            g.invert_edge_attr('weight', 'length') # length = 1./weight
+            g.g.vs['bw'] = g.g.betweenness(weights='length', directed=True) # betweenness centrality for each vertex
 
             w_dg = numpy.average(numpy.array(g.g.vs.degree(type="in"))) # average indegree
             w_adg = numpy.average(numpy.array(g.g.vs['weighted_indegree'])) # average weighted indegree
