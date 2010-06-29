@@ -17,26 +17,40 @@ ROLES = ['bureaucrat', 'normal user', 'bot', 'anonymous', 'sysop']
 
 
 def getedges(_list, _selfedge=True, _year=None):
+    """
+    Prepare a dictionary of owner and writers, to be used to populate
+    the network.
 
+    Example: user A wrote 3 messages to user B,
+    user C wrote 1 message to user B, user A wrote
+    4 message to user C
+
+    Returns:
+    {
+        'B': {
+            'A': 3
+            ,'C': 1
+        }
+        ,'C': {
+            'A':4
+        }
+    }
+    """
     d = {}
 
     for writer, owner, year in _list:
         if _year and _year != year:
             continue
-
         if not _selfedge and writer == owner:
             continue
         
-        o = ul.unquote(owner.decode('utf-8')).replace(' ', '_')
-        w = ul.unquote(writer.decode('utf-8')).replace(' ', '_')
+        o = ul.unquote(owner).decode('utf-8').replace(' ', '_')
+        w = ul.unquote(writer).decode('utf-8').replace(' ', '_')
 
         if o not in d:
             d[o] = {}
-
-        if writer == 'NONE':
-            continue
-
-        d[o][w] = (d[o]).get(w,0) + 1
+        if writer != 'NONE': # skip nodes with no clean writer
+            d[o][w] = (d[o]).get(w,0) + 1
 
     for k, v in d.iteritems():
         yield k, v
@@ -52,6 +66,7 @@ def role_msg_matrix(_list, _dir):
     users_received_normalized = {}
     writers = {}
 
+    # populate dictionaries
     for y in YEARS:
         check_writer[y] = {}
         check_owner[y] = {}
@@ -69,6 +84,7 @@ def role_msg_matrix(_list, _dir):
             users_msg_normalized[y][r] = 0
             users_received_normalized[y][r] = 0
 
+    # loop through messages
     for writer, owner, writer_role,owner_role, year in _list:
         if year not in YEARS:
             continue
@@ -97,6 +113,7 @@ def role_msg_matrix(_list, _dir):
             else:
                 users_received_normalized[y][r] = 0
 
+    # print stats on file
     print_matrix(writers, _dir+'user_writer_per_year_and_role.csv', writers['2008'].keys(), sorted(writers.keys()))
     print_matrix(users_msg, _dir+'msg_written_per_year_and_role.csv', users_msg['2008'].keys(), sorted(users_msg.keys()))
     print_matrix(users_msg_normalized, _dir+'msg_written_per_year_and_role_normalized.csv', users_msg_normalized['2008'].keys(), sorted(users_msg_normalized.keys()))
@@ -147,6 +164,20 @@ def talk_matrix(_list, _file, _year = None):
 
 
 def print_matrix(_dict, _file, _cols=None, _rows=None, _percentage=None):
+    """
+    used to print a matrix on a file
+    Rows and cols can be customized, they are simple lists
+
+    Prints a matrix like:
+
+    ,col 1,col 2,total
+    row1,1,2,3
+    row2,4,5,9
+
+    _dict: dictionary containing values
+    _file: file name
+    _precentage: whether print 
+    """
 
     with open(_file, 'w') as f:
 
@@ -310,9 +341,9 @@ def main():
                     print >>f, vx['Label'], vx['role'], vx['bw']
                 sys.stdout = f # redirecting stdout to a file
                 print '\nList of users with higher outdegree'
-                g.getTopDegree(type=ig.OUT,label='Label')
+                g.getTopDegree(type=ig.OUT,label='Label',limit=10)
                 print '\nList of users with higher indegree'
-                g.getTopDegree(type=ig.IN,label='Label')
+                g.getTopDegree(type=ig.IN,label='Label',limit=10)
                 sys.stdout = sys.__stdout__  # restore stdout back to normal
 
             if y is None: # complete network!
