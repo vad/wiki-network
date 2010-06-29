@@ -24,17 +24,17 @@ def getedges(_list, _selfedge=True, _year=None):
         if _year and _year != year:
             continue
 
-        if writer == 'NONE' or owner == 'NONE':
-            continue
-
         if not _selfedge and writer == owner:
             continue
-
+        
         o = ul.unquote(owner.decode('utf-8')).replace(' ', '_')
         w = ul.unquote(writer.decode('utf-8')).replace(' ', '_')
 
         if o not in d:
             d[o] = {}
+
+        if writer == 'NONE':
+            continue
 
         d[o][w] = (d[o]).get(w,0) + 1
 
