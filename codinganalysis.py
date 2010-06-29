@@ -30,8 +30,8 @@ def getedges(_list, _selfedge=True, _year=None):
         if not _selfedge and writer == owner:
             continue
 
-        o = ul.unquote(owner.decode('utf-8'))
-        w = ul.unquote(writer.decode('utf-8'))
+        o = ul.unquote(owner.decode('utf-8')).replace(' ', '_')
+        w = ul.unquote(writer.decode('utf-8')).replace(' ', '_')
 
         if o not in d:
             d[o] = {}
