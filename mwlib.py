@@ -223,3 +223,12 @@ def explode_dump_filename(fn):
     date = ''.join([res.group(x) for x in range(1, 4)])
     return (lang, date)
     
+
+def capfirst(str):
+    """
+    Given a string, it returns the same string with the first letter capitlized
+
+    >>> capfirst("test")
+    Test
+    """
+    return str[0].upper() + str[1:]
