@@ -2,7 +2,7 @@
 #coding=utf-8
 
 from edgecache import *
-from utils import iter_csv, print_csv, ensure_dir
+from lib import iter_csv, print_csv, ensure_dir
 
 import sys
 import igraph as ig
