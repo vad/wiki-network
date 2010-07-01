@@ -4,8 +4,7 @@
 import re
 import urllib as ul
 import sonetgraph as sg
-
-from utils import iter_csv, print_csv
+from lib import iter_csv, print_csv
 
 # Global vars
 user_roles = None

@@ -2,7 +2,7 @@
 #coding=utf-8
 
 from edgecache import *
-from utils import iter_csv, print_csv, ensure_dir
+from lib import iter_csv, print_csv, ensure_dir
 
 import re
 import sonetgraph as sg
@@ -56,7 +56,7 @@ def getedges(_list, _selfedge=True, _year=None, cwiki=None):
             continue
 
         # Add owner
-        o = ul.unquote(owner).decode('utf-8').replace('_', ' ')
+        o = ul.unquote(owner).decode('utf-8').replace('_', ' ').capitalize()
         if o not in d:
             d[o] = {}
 
@@ -75,7 +75,7 @@ def getedges(_list, _selfedge=True, _year=None, cwiki=None):
             print e
             continue
 
-        w = ul.unquote(user).decode('utf-8').replace('_', ' ')
+        w = ul.unquote(user).decode('utf-8').replace('_', ' ').capitalize()
         d[o][w] = (d[o]).get(w,0) + 1
 
     for k, v in d.iteritems():
@@ -129,8 +129,24 @@ def main():
     g.g.write_graphml(dest+'vec_only.graphml')
     g.g.write_pickle(dest+'vec_only.pickle')
     #g.g.write_pajek(dest_net+'network'+suff+'.net')
+    
+    # complete coding
+    ec = EdgeCache()
+
+    for writer,owner in getedges(_list=iter_csv(_file, True)):
+        ec.add(writer, owner)
+
+    ec.flush()
+
+    g = sg.Graph(ec.get_network())
+    # Adding 'role' attribute to each vertex in the graph
+    g.g.vs.set_attribute_values('role', map(lambda x: getuserrole(x), g.g.vs['username']))
+    # 
+    g.g.write_graphml(dest+'coding.graphml')
+    g.g.write_pickle(dest+'coding.pickle')
+    #g.g.write_pajek(dest_net+'network'+suff+'.net')
     return g
 
 
 if __name__ == "__main__":
-    d = main()
+    g = main()
