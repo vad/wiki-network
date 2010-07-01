@@ -15,7 +15,7 @@ YEARS = ['2005', '2006', '2007', '2008', '2009']
 ROLES = ['bureaucrat', 'normal user', 'bot', 'anonymous', 'sysop']
 
 
-def getedges(_list, _selfedge=True, _year=None, cwiki=None):
+def getedges(_list, _selfedge=True, _year=None, wiki=''):
     """
     Prepare a dictionary of owner and writers, to be used to populate
     the network.
@@ -43,16 +43,14 @@ def getedges(_list, _selfedge=True, _year=None, cwiki=None):
         year = l['year']
         redirect = (l['Redirect (0=no / 1=yes)'] == '1')
         info_msg = (l['Information msg (0=no / 1=yes)'] == '1')
-        signed = (l['Signature yes=1, no=0'] == '1')
+        signature = (l['Signature findable by script 1=yes; 0=no'] == '1')
 
-        if info_msg or redirect or not signed:
+        if info_msg or redirect or not signature:
             continue
 
         if _year and _year != year:
             continue
         if not _selfedge and writer == owner:
-            continue
-        if cwiki and not writer.startswith(cwiki):
             continue
 
         # Add owner
@@ -64,10 +62,10 @@ def getedges(_list, _selfedge=True, _year=None, cwiki=None):
             continue
 
         try:
-            us = re.search(r'(?<=Utente[/:])([^&]*)', writer, re.IGNORECASE)
+            us = re.search(r'^%s.*(?<=Utente[/:])([^&]*)' % wiki, writer, re.IGNORECASE)
             #us = re.search(r'((?<=Utente[/:])|(?<=Discussion_utente[/:]))([^&]*)', writer, re.IGNORECASE)
             if us is not None:
-                user = us.group()
+                user = us.groups()[0]
             else:
                 print 'User %s not find' % (writer,)
                 continue
@@ -117,7 +115,7 @@ def main():
     dest = _dir + "/"
     ec = EdgeCache()
 
-    for writer,owner in getedges(_list=iter_csv(_file, True), cwiki='http://vec.wikipedia.org'):
+    for writer,owner in getedges(_list=iter_csv(_file, True), wiki='http://vec.wikipedia.org'):
         ec.add(writer, owner)
 
     ec.flush()
