@@ -3,7 +3,7 @@
 
 from edgecache import *
 from lib import iter_csv, print_csv, ensure_dir
-
+from mwlib import capfirst
 import re
 import sonetgraph as sg
 import urllib as ul
@@ -56,7 +56,7 @@ def getedges(_list, _selfedge=True, _year=None, cwiki=None):
             continue
 
         # Add owner
-        o = ul.unquote(owner).decode('utf-8').replace('_', ' ').capitalize()
+        o = capfirst(ul.unquote(owner).decode('utf-8').replace('_', ' '))
         if o not in d:
             d[o] = {}
 
@@ -75,7 +75,7 @@ def getedges(_list, _selfedge=True, _year=None, cwiki=None):
             print e
             continue
 
-        w = ul.unquote(user).decode('utf-8').replace('_', ' ').capitalize()
+        w = capfirst(ul.unquote(user).decode('utf-8').replace('_', ' '))
         d[o][w] = (d[o]).get(w,0) + 1
 
     for k, v in d.iteritems():
