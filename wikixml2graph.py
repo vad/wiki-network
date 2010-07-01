@@ -63,7 +63,7 @@ class PageProcessor(object):
                     #    print "Warning: exception with user %s" % (
                     #        user.encode('utf-8'),)
                         
-                    self.ecache.add(user, talks)
+                    self.ecache.add(user.replace('_', ' '), talks)
                     self.count += 1
                     if not self.count % 500:
                         print self.count

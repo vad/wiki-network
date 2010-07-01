@@ -68,23 +68,24 @@ def getCollaborators(rawWikiText, search):
     "La firma deve sempre contenere un wikilink alla pagina utente e/o alla
     propria pagina di discussione."
     
-    >>> getCollaborators('d [[User:you|mee:-)ee]] d [[User:me]][[utente:me]]',
-                         'Utente', 'User')
-    {'me': 2, 'you': 1}
+    >>> getCollaborators( \
+            'd [[User:you|mee:-)e/e]] d [[User:me]][[utente:me]]', \
+                         ('Utente', 'User'))
+    {u'me': 2, u'you': 1}
     >>> getCollaborators('[[User:you', ('Utente', 'User'))
     {}
 
     """
-    rex = r'\[\[(%s|%s)\:([^]\|/]*)[^]/]*\]\]' % search
+    rex = r'\[\[(%s|%s)\:([^]\|/]*)[^]]*\]\]' % search
     try:
         matches = re_cache[rex].finditer(rawWikiText)
     except KeyError:
-        re_cache[rex] = re.compile(rex)
+        re_cache[rex] = re.compile(rex, re.IGNORECASE)
         matches = re_cache[rex].finditer(rawWikiText)
 
     weights = dict()
     for u in matches:
-        un = unicode(u.group(2))
+        un = unicode(u.group(2)).replace('_', ' ')
         weights[un] = weights.get(un, 0) + 1
 
     return weights
@@ -215,6 +216,11 @@ def getTranslations(src):
 
 
 def explode_dump_filename(fn):
+    """
+    >>> explode_dump_filename( \
+            "/tmp/itwiki-20100218-pages-meta-current.xml.bz2")
+    ('it', '20100218')
+    """
     from os.path import split
     
     s = split(fn)[1] #filename with extension
