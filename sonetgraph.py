@@ -207,7 +207,7 @@ class Graph(object):
         self.getTopDegree(type=ig.IN, lb=lb, label=label)
                 
     def getTopDegree(self, type=ig.IN, limit=None, lb=1, label='username'):
-        stype = 'weighted_%sdegree' % ('in' if ig.IN else 'out',)
+        stype = 'weighted_%sdegree' % ('in' if type == ig.IN else 'out',)
         kwargs = {stype+'_gt': lb}
         for v in sorted(self.g.vs(**kwargs), key=lambda x: x[stype], reverse=True)[0:limit]:
             print v.index, v[stype], v[label]
