@@ -3,6 +3,9 @@
 
 from edgecache import *
 from utils import iter_csv, print_csv, ensure_dir
+
+import sys
+import igraph as ig
 import sonetgraph as sg
 import urllib as ul
 import numpy
@@ -287,21 +290,30 @@ def main():
             g.g.write(dest_net+'network'+suff+'.graphml', format="graphml")
             #g.g.write(dest_net+'network'+suff+'.net', format="pajek")
 
-            g.set_weighted_degree() # set weighted indegree
-            g.g.vs['bw'] = g.g.betweenness(directed=True) # betweenness centrality for each vertex
+            g.set_weighted_degree(type=ig.IN) # set weighted indegree
+            g.set_weighted_degree(type=ig.OUT) # set weighted outdegree
+            g.invert_edge_attr('weight', 'length') # length = 1./weight
+            g.g.vs['bw'] = g.g.betweenness(weights='length', directed=True) # betweenness centrality for each vertex
 
-            w_dg = numpy.average(numpy.array(g.g.vs.degree(type="in"))) # average indegree
-            w_adg = numpy.average(numpy.array(g.g.vs['weighted_indegree'])) # average weighted indegree
+            w_dg = numpy.average(numpy.array(g.g.vs.degree(type=ig.IN))) # average indegree
+            w_aidg = numpy.average(numpy.array(g.g.vs['weighted_indegree'])) # average weighted indegree
+            w_aodg = numpy.average(numpy.array(g.g.vs['weighted_outdegree'])) # average weighted indegree
 
             # print network stats
             with open(dest_net+'network'+suff+'_summary.txt', 'w') as f:
                 print >>f, g.g.summary()
                 print >>f, '\nAverage indegree: %f' % (w_dg,)
-                print >>f, 'Average weighted indegree: %f' % (w_adg,)
+                print >>f, 'Average weighted indegree: %f' % (w_aidg,)
+                print >>f, 'Average weighted outdegree: %f' % (w_aodg,)
                 print >>f, '\nList of users (max 10) with higher betweenness centrality:'
                 for vx in sorted([v for v in g.g.vs(bw_gt=0.0)], key=lambda v: v['bw'], reverse=True)[0:10]:
-                    print >>f, '\t', vx['Label'], vx['role'], vx['bw']
-
+                    print >>f, vx['Label'], vx['role'], vx['bw']
+                sys.stdout = f # redirecting stdout to a file
+                print '\nList of users with higher outdegree'
+                g.getTopDegree(type=ig.OUT,label='Label')
+                print '\nList of users with higher indegree'
+                g.getTopDegree(type=ig.IN,label='Label')
+                sys.stdout = sys.__stdout__  # restore stdout back to normal
 
             if y is None: # complete network!
                 wrts = [v[0] for v in zip(g.g.vs["Label"], g.g.outdegree()) if v[1]]
