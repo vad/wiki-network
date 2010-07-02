@@ -57,13 +57,17 @@ class PageProcessor(object):
                     if not (rc.text and user):
                         continue
     
+                    if mwlib.isHardRedirect(rc.text):
+                        continue
+                    
                     #try:
                     talks = mwlib.getCollaborators(rc.text, self.search)
                     #except:
                     #    print "Warning: exception with user %s" % (
                     #        user.encode('utf-8'),)
                         
-                    self.ecache.add(user.replace('_', ' '), talks)
+                    self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
+                                    talks)
                     self.count += 1
                     if not self.count % 500:
                         print self.count
