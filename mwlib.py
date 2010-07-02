@@ -43,6 +43,16 @@ def isip(s):
     except error:
         return False
 
+def isHardRedirect(rawWikiText):
+    """
+    >>> isHardRedirect("   #REDIRECT [[User:me]]")
+    True
+    >>> isHardRedirect("[[User:me]]")
+    False
+    """
+    rex = r'[\n ]*#REDIRECT[\n ]*\[\[[^]]*\]\]'
+    return re.match(rex, rawWikiText) is not None
+    
 
 re_cache = {}
 def getCollaborators(rawWikiText, search):
@@ -71,21 +81,26 @@ def getCollaborators(rawWikiText, search):
     >>> getCollaborators( \
             'd [[User:you|mee:-)e/e]] d [[User:me]][[utente:me]]', \
                          ('Utente', 'User'))
-    {u'me': 2, u'you': 1}
+    {u'Me': 2, u'You': 1}
     >>> getCollaborators('[[User:you', ('Utente', 'User'))
+    {}
+    >>> getCollaborators('[[Utente:me/archive|archive]]', ('Utente', 'User'))
     {}
 
     """
-    rex = r'\[\[(%s|%s)\:([^]\|/]*)[^]]*\]\]' % search
+    rex = r'\[\[(%s|%s):([^/]*?)[|\]][^\]]*\]' % search
     try:
         matches = re_cache[rex].finditer(rawWikiText)
     except KeyError:
         re_cache[rex] = re.compile(rex, re.IGNORECASE)
         matches = re_cache[rex].finditer(rawWikiText)
+        
 
     weights = dict()
     for u in matches:
-        un = unicode(u.group(2)).replace('_', ' ')
+        ##TODO: fare un test per controllare che questo continui a funzionare
+        ##      (nomi utenti strani da correggere con capfirst e replace)
+        un = capfirst(unicode(u.group(2)).replace('_', ' '))
         weights[un] = weights.get(un, 0) + 1
 
     return weights
@@ -230,11 +245,16 @@ def explode_dump_filename(fn):
     return (lang, date)
     
 
-def capfirst(str):
+def capfirst(s):
     """
     Given a string, it returns the same string with the first letter capitlized
 
     >>> capfirst("test")
-    Test
+    'Test'
     """
-    return str[0].upper() + str[1:]
+    return s[0].upper() + s[1:]
+
+
+if __name__ == "__main__":
+    getCollaborators('d [[User:you|mee:-)e/e]] d [[User:me]][[utente:me]]', \
+        ('utente', 'user'))
