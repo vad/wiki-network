@@ -45,9 +45,6 @@ def getedges(_list, _selfedge=True, _year=None, wiki=''):
         info_msg = (l['Information msg (0=no / 1=yes)'] == '1')
         signature = (l['Signature findable by script 1=yes; 0=no'] == '1')
 
-        if info_msg or redirect or not signature:
-            continue
-
         if _year and _year != year:
             continue
         if not _selfedge and writer == owner:
@@ -57,6 +54,9 @@ def getedges(_list, _selfedge=True, _year=None, wiki=''):
         o = capfirst(ul.unquote(owner).decode('utf-8').replace('_', ' '))
         if o not in d:
             d[o] = {}
+        
+        if info_msg or redirect or not signature:
+            continue
 
         if writer is None or writer == '' or writer == 'NONE':
             continue
