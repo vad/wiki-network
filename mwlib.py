@@ -88,7 +88,7 @@ def getCollaborators(rawWikiText, search):
     {}
 
     """
-    rex = r'\[\[(%s|%s):([^/]*?)[|\]][^\]]*\]' % search
+    rex = r'\[\[(%s):([^/]*?)[|\]][^\]]*\]' % ('|'.join(search),)
     try:
         matches = re_cache[rex].finditer(rawWikiText)
     except KeyError:
