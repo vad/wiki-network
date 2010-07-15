@@ -81,6 +81,7 @@ INSTALLED_APPS = (
     'django_wikinetwork.wikinetwork',
     'django_evolution',
     'celery',
+    'django_extensions',
 )
 
 AMQP_SERVER = "bowie"
