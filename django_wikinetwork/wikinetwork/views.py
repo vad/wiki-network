@@ -132,7 +132,7 @@ def group(request, cls=None):
     else:
         lang_list = sorted(set(r.lang for r in all_run))
         title = "All wikis"
-    
+   
     # for which languages? single languages
     get_lang = request.GET.get('lang', "")
     if get_lang:
