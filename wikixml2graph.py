@@ -29,13 +29,15 @@ class PageProcessor(object):
     tag = None
     user_talk_names = None
     search = None
+    lang = None
     
     def __init__(self, ecache=None, tag=None, user_talk_names=None,
-                 search=None):
+                 search=None, lang=None):
         self.ecache = ecache
         self.tag = tag
         self.user_talk_names = user_talk_names
         self.search = search
+        self.lang = lang
     
     def process(self, elem):
         tag = self.tag
@@ -56,12 +58,15 @@ class PageProcessor(object):
                     assert user, "User still not defined"
                     if not (rc.text and user):
                         continue
-    
-                    if mwlib.isHardRedirect(rc.text):
+                    
+                    if (mwlib.isHardRedirect(rc.text) or
+                       mwlib.isSoftRedirect(rc.text)):
                         continue
                     
                     #try:
-                    talks = mwlib.getCollaborators(rc.text, self.search)
+                    #talks = mwlib.getCollaborators(rc.text, self.search)
+                    talks = mwlib.getCollaborators(rc.text, ('User', 'Utente'),
+                                                   lang="vec")
                     #except:
                     #    print "Warning: exception with user %s" % (
                     #        user.encode('utf-8'),)
@@ -108,7 +113,7 @@ def main():
     
     processor = PageProcessor(ecache=ecache, tag=tag,
                               user_talk_names=(lang_user_talk, en_user_talk),
-                              search=(lang_user, en_user))
+                              search=(lang_user, en_user), lang=lang)
     mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
                     processor.process)
 
