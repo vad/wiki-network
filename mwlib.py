@@ -43,6 +43,24 @@ def isip(s):
     except error:
         return False
 
+    
+def isSoftRedirect(rawWikiText):    
+    r"""
+    Find if the page starts with a soft redirect template
+    
+    >>> isSoftRedirect("{{softredirect|User:bot}}")
+    True
+    >>> isSoftRedirect("\n\n{{\nsoftredirect \n |  :en:User talk:bot}}")
+    True
+    >>> isSoftRedirect("{{ softredirect}}")
+    False
+    >>> isSoftRedirect("some text {{softredirect|:en:User talk:bot}}")
+    False
+    """
+    rex = r'^[\n ]*{{[\n ]*softredirect[\n ]*\|[^}\n]*\}\}'
+    return re.match(rex, rawWikiText) is not None
+
+    
 def isHardRedirect(rawWikiText):
     """
     >>> isHardRedirect("   #REDIRECT [[User:me]]")
@@ -55,7 +73,7 @@ def isHardRedirect(rawWikiText):
     
 
 re_cache = {}
-def getCollaborators(rawWikiText, search):
+def getCollaborators(rawWikiText, search, lang=None):
     """
     Search for regular expression containing [[User:username|anchor text]] and
     count a new message from username to the owner of the page. It also works
@@ -86,8 +104,13 @@ def getCollaborators(rawWikiText, search):
     {}
     >>> getCollaborators('[[Utente:me/archive|archive]]', ('Utente', 'User'))
     {}
+    >>> getCollaborators('[[:vec:Utente:me|or you]]', ('Utente', 'User'), \
+            'vec')
+    {u'Me': 1}
 
     """
+    if lang:
+        search += tuple([":%s:%s" % (lang, s) for s in search])
     rex = r'\[\[(%s):([^/]*?)[|\]][^\]]*\]' % ('|'.join(search),)
     try:
         matches = re_cache[rex].finditer(rawWikiText)
@@ -106,6 +129,7 @@ def getCollaborators(rawWikiText, search):
     return weights
 
 
+##TODO: add doctests
 def getTemplates(rawWikiText):
     rex = '\{\{(\{?[^\}\|\{]*)'
     matches = re.finditer(rex, rawWikiText)
@@ -254,7 +278,3 @@ def capfirst(s):
     """
     return s[0].upper() + s[1:]
 
-
-if __name__ == "__main__":
-    getCollaborators('d [[User:you|mee:-)e/e]] d [[User:me]][[utente:me]]', \
-        ('utente', 'user'))
