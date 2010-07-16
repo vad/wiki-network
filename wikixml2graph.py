@@ -109,7 +109,7 @@ def main():
     _fast = True
     if _fast:
         src.close()
-        src = lib.BZ2FileExt(xml)
+        src = lib.SevenZipFileExt(xml)
     
     processor = PageProcessor(ecache=ecache, tag=tag,
                               user_talk_names=(lang_user_talk, en_user_talk),
