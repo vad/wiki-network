@@ -47,6 +47,32 @@ def BZ2FileExt(fn):
     return unzip_process.stdout
 
 
+def SevenZipFileExt(fn, lines=None):
+    """
+    fn: filename
+    lines: if you don't want the whole file, specify how many lines you want
+    """
+    from subprocess import Popen, PIPE
+    
+    if not find_executable('7z'):
+        raise Exception, 'Cannot find 7zip executable (7z)'
+           
+    unzip_process = Popen(['7z', 'e', '-so', fn], stdout=PIPE, stderr=PIPE)
+    stdout = unzip_process.stdout
+    
+    if not lines:
+        return stdout
+    else:
+        import mmap
+        m = mmap.mmap(-1, 16*1024)
+        for i in xrange(lines):
+            line = stdout.readline()
+            if not line: break
+            m.write(line)
+        m.seek(0)
+        return m
+
+
 def ensure_dir(f):
     d = os.path.dirname(f)
     if not os.path.exists(d):
