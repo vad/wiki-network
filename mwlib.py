@@ -224,7 +224,7 @@ def getTags(src):
         tag_prefix = u'{%s}' % ns
     
         tag = {}
-        for t in 'page,title,revision,text'.split(','):
+        for t in 'page,title,revision,text,contributor,username,ip'.split(','):
             tag[t] = tag_prefix + unicode(t)
     finally:
         src.seek(0)
@@ -236,8 +236,10 @@ def getTranslations(src):
     try:
         counter = 0
         
-        for line in src:
-            keys = re.findall(r'<namespace key="(\d+)">([^<]*)</namespace>',
+        while 1:
+            line = src.readline()
+            if not line: break
+            keys = re.findall(r'<namespace key="(\d+)"[^>]*>([^<]*)</namespace>',
                               line)
             for key, ns in keys:
                 if key == '2':
