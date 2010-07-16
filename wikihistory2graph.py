@@ -133,7 +133,6 @@ def main():
     g.write("%swikihistory-%s.graphml" % (lang, date), format="graphml")
     
 
-
 if __name__ == "__main__":
     #import cProfile as profile
     #profile.run('main()', 'mainprof')

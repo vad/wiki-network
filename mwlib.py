@@ -13,6 +13,7 @@
 ##########################################################################
 
 import re
+import sys
 from socket import inet_ntoa, inet_aton, error
 from urllib import urlopen
 
@@ -123,7 +124,11 @@ def getCollaborators(rawWikiText, search, lang=None):
     for u in matches:
         ##TODO: fare un test per controllare che questo continui a funzionare
         ##      (nomi utenti strani da correggere con capfirst e replace)
-        un = capfirst(unicode(u.group(2)).replace('_', ' '))
+        u2 = u.group(2)
+        if not u2:
+            print >>sys.stderr, 'getCollaborators: empty username found'
+            continue
+        un = capfirst(unicode(u2).replace('_', ' '))
         weights[un] = weights.get(un, 0) + 1
 
     return weights
