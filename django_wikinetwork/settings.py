@@ -1,4 +1,4 @@
-# Django settings for wiki_network project.
+import sys
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
@@ -9,12 +9,12 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
-DATABASE_ENGINE = 'postgresql_psycopg2'     # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-DATABASE_NAME = 'research_wiki'             # Or path to database file if using sqlite3.
-DATABASE_USER = 'research'                  # Not used with sqlite3.
-DATABASE_PASSWORD = 'mandove'               # Not used with sqlite3.
-DATABASE_HOST = 'bowie'                     # Set to empty string for localhost. Not used with sqlite3.
-DATABASE_PORT = ''                          # Set to empty string for default. Not used with sqlite3.
+DATABASE_ENGINE = ''     # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+DATABASE_NAME = ''       # Or path to database file if using sqlite3.
+DATABASE_USER = ''       # Not used with sqlite3.
+DATABASE_PASSWORD = ''   # Not used with sqlite3.
+DATABASE_HOST = ''       # Set to empty string for localhost. Not used with sqlite3.
+DATABASE_PORT = ''       # Set to empty string for default. Not used with sqlite3.
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -78,21 +78,24 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.admin',
     'django.contrib.admindocs',
-    'django_wikinetwork.wikinetwork',
+    'wikinetwork',
     'django_evolution',
     'celery',
     'django_extensions',
 )
 
-AMQP_SERVER = "bowie"
+AMQP_SERVER = ""
 AMQP_PORT = 5672
-AMQP_USER = "research"
-AMQP_PASSWORD = "mandove"
-AMQP_VHOST = "bowie"
+AMQP_USER = ""
+AMQP_PASSWORD = ""
+AMQP_VHOST = ""
 
-from socket import gethostname
-DATASET_PATH = '/hardmnt/%s0/sra/setti/datasets/wikipedia/' % gethostname()
+DATASET_PATH = ''
 
 #to import analysis.py
-import sys
 sys.path.insert(0, '..')
+
+try:
+    from settings_local import *
+except ImportError:
+    pass
