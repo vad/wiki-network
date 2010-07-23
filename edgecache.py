@@ -2,6 +2,7 @@ import igraph as ig
 
 class EdgeCache:
     """
+    Acts as a cache to speed up graph creation
 
     >>> ec = EdgeCache()
     >>> ec.add('me', {'him': 1, 'her': 3})
@@ -23,21 +24,26 @@ class EdgeCache:
         self.temp_edges = {}
         self.nodes = {}
 
-        
     def add(self, user, talks):
         """
         user: string
         talks: dict
         """
-        if not self.temp_edges.has_key(user):
+        try:
+            d = self.temp_edges[user]
+        except KeyError:
             self.temp_edges[user] = talks
             return
 
-        d = self.temp_edges[user]
         for speaker, msgs in talks.iteritems():
-            d[speaker] = d.get(speaker, 0) + msgs
-
-
+            if isinstance(msgs, int):
+                d[speaker] = d.get(speaker, 0) + msgs
+            else:
+                try:
+                    d[speaker].extend(msgs)
+                except KeyError:
+                    d[speaker] = msgs
+                
     def flush(self):
         """
         This function assumes that all edges directed to the same node are
@@ -58,20 +64,16 @@ class EdgeCache:
 
         self.temp_edges.clear()
 
-
-    def get_network(self, label='username'):
+    def get_network(self, vertex_label='username', edge_label='weight'):
         """
         Get the resulting network and clean cached data
         """
         from operator import itemgetter
 
         g = ig.Graph(n = len(self.nodes), directed=True)
-        g.es['weight'] = []
-        #g.vs['username'] = []
+        g.es[edge_label] = []
 
-        #g.add_vertices(len(self.nodes))
-
-        g.vs[label] = [n.encode('utf-8') for n, _ in sorted(
+        g.vs[vertex_label] = [n.encode('utf-8') for n, _ in sorted(
             self.nodes.items(), key=itemgetter(1))]
         self.nodes = []
 
@@ -79,9 +81,9 @@ class EdgeCache:
         g.add_edges(clean_edges)
         del clean_edges
 
-        for e_from, e_to, weight in self.edges:
+        for e_from, e_to, attr in self.edges:
             eid = g.get_eid(e_from, e_to, directed=True)
-            g.es[eid]['weight'] = weight
+            g.es[eid][edge_label] = attr
         self.edges = []
 
         return g

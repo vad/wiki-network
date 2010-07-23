@@ -61,24 +61,22 @@ class PageProcessor(object):
                     pass
 
             elif child.tag == tag['revision']:
+                timestamp = child.find(tag['timestamp']).text
                 for rc in child:
                     if rc.tag != tag['contributor']:
                         continue
     
                     assert user, "User still not defined"
                     
-                    try:
-                        sender_tag = rc.find(tag['username'])
-                        if sender_tag is None:
-                            sender_tag = rc.find(tag['ip'])
-                        collaborator = mwlib.capfirst(
-                            sender_tag.text.replace('_', ' ')
-                        )
-                    except AttributeError, e:
-                        raise AttributeError, e
+                    sender_tag = rc.find(tag['username'])
+                    if sender_tag is None:
+                        sender_tag = rc.find(tag['ip'])
+                    collaborator = mwlib.capfirst(
+                        sender_tag.text.replace('_', ' ')
+                    )
                         
                     self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
-                                    {collaborator: 1}
+                                    {collaborator: [timestamp,]}
                                     )
                     self.count += 1
                     if not self.count % 500:
@@ -125,11 +123,16 @@ def main():
     print 'ARCHIVES: ', processor.count_archive
 
     ecache.flush()
-    g = ecache.get_network()
+    g = ecache.get_network(edge_label='timestamp')
 
     print "Len:", len(g.vs)
     print "Edges:", len(g.es)
 
+    g.write("%swikihistory-%s.pickle" % (lang, date), format="pickle")
+    
+    for e in g.es:
+        e['weight'] = len(e['timestamp'])
+        #e['timestamp'] = str(e['timestamp'])
     g.write("%swikihistory-%s.graphml" % (lang, date), format="graphml")
     
 

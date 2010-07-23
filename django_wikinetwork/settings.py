@@ -80,7 +80,7 @@ INSTALLED_APPS = (
     'django.contrib.admindocs',
     'wikinetwork',
     'django_evolution',
-    'celery',
+    'djcelery',
     'django_extensions',
 )
 

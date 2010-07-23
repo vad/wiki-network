@@ -229,7 +229,8 @@ def getTags(src):
         tag_prefix = u'{%s}' % ns
     
         tag = {}
-        for t in 'page,title,revision,text,contributor,username,ip'.split(','):
+        for t in 'page,title,revision,text,contributor,username,ip,timestamp' \
+            .split(','):
             tag[t] = tag_prefix + unicode(t)
     finally:
         src.seek(0)
