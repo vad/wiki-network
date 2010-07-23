@@ -344,7 +344,9 @@ def main():
 
 
     if options.plot:
-        import math
+        ## TODO: evaluate if this can be done with
+        ## http://bazaar.launchpad.net/~igraph/igraph/0.6-main/revision/2018
+        import math        
         bots = g.g.vs.select(bot=True)
         bots['color'] = ('purple',)*len(bots)
 
