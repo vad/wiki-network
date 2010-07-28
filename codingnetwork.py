@@ -93,6 +93,7 @@ def main():
     op.add_option('-c', '--clean', action="store_true", dest="clean",help="Skip message with signature not findable by script", default=False)
     op.add_option('-w', '--wiki', dest="wiki",help="wiki url", default='')
     op.add_option('-u', '--userns', dest="user_ns",help="User namespace, default \'Utente\'", default='Utente')
+    op.add_option('-f', '--filename', dest="filename",help="Filename", default='network')
     
     opts, args = op.parse_args()
 
@@ -114,8 +115,8 @@ def main():
 
     g = sg.Graph(ec.get_network())
 
-    g.g.write_graphml(dest+'coding_network'+_sfx+'.graphml')
-    g.g.write_pickle(dest+'coding_network'+_sfx+'.pickle')
+    g.g.write_graphml(dest+opts.filename+_sfx+'.graphml')
+    g.g.write_pickle(dest+opts.filename+_sfx+'.pickle')
 
     return g
 
