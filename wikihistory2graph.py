@@ -16,30 +16,20 @@
 ## LXML
 from lxml import etree
 
-import mmap
+from datetime import datetime
 
 ## PROJECT LIBS
 from edgecache import EdgeCache
 import mwlib
-import lib
 from lib import SevenZipFileExt
+from mwlib import PageProcessor
 
-class PageProcessor(object):
-    count = 0
-    count_archive = 0
-    ecache = None
-    tag = None
-    user_talk_names = None
-    search = None
-    lang = None
-    
-    def __init__(self, ecache=None, tag=None, user_talk_names=None,
-                 search=None, lang=None):
-        self.ecache = ecache
-        self.tag = tag
-        self.user_talk_names = user_talk_names
-        self.search = search
-        self.lang = lang
+
+class HistoryPageProcessor(PageProcessor):
+    # to limit the extraction to changes before a datetime
+    end = None
+    # to limit the extraction to changes after a datetime
+    start = None
     
     def process(self, elem):
         tag = self.tag
@@ -61,26 +51,35 @@ class PageProcessor(object):
                     pass
 
             elif child.tag == tag['revision']:
-                timestamp = child.find(tag['timestamp']).text
-                for rc in child:
-                    if rc.tag != tag['contributor']:
-                        continue
-    
-                    assert user, "User still not defined"
+                revision_time = datetime.strptime(
+                    child.find(tag['timestamp']).text,
+                    "%Y-%m-%dT%H:%M:%SZ"
+                )
+                if self.end and revision_time > self.end:
+                    continue
+                if self.start and revision_time < self.start:
+                    continue
                     
-                    sender_tag = rc.find(tag['username'])
-                    if sender_tag is None:
-                        sender_tag = rc.find(tag['ip'])
-                    collaborator = mwlib.capfirst(
-                        sender_tag.text.replace('_', ' ')
-                    )
-                        
-                    self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
-                                    {collaborator: [timestamp,]}
-                                    )
-                    self.count += 1
-                    if not self.count % 500:
-                        print self.count
+                ##TODO: change 'rc' variable name
+                rc = child.find(tag['contributor'])
+                if rc.tag != tag['contributor']:
+                    continue
+
+                assert user, "User still not defined"
+                
+                sender_tag = rc.find(tag['username'])
+                if sender_tag is None:
+                    sender_tag = rc.find(tag['ip'])
+                collaborator = mwlib.capfirst(
+                    sender_tag.text.replace('_', ' ')
+                )
+                    
+                self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
+                                {collaborator: [revision_time,]}
+                                )
+                self.count += 1
+                if not self.count % 500:
+                    print self.count
 
 
 def main():
@@ -95,7 +94,7 @@ def main():
 
     en_user, en_user_talk = u"User", u"User talk"
     
-    lang, date = mwlib.explode_dump_filename(xml)
+    lang, date, type_ = mwlib.explode_dump_filename(xml)
 
     ecache = EdgeCache()
 
@@ -113,10 +112,11 @@ def main():
     
     src.close()
     src = SevenZipFileExt(xml)
-    
-    processor = PageProcessor(ecache=ecache, tag=tag,
+        
+    processor = HistoryPageProcessor(ecache=ecache, tag=tag,
                               user_talk_names=(lang_user_talk, en_user_talk),
                               search=(lang_user, en_user), lang=lang)
+    processor.end = datetime(2009, 12, 31)
     mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
                     processor.process)
     print 'TOTAL UTP: ', processor.count
@@ -128,12 +128,12 @@ def main():
     print "Len:", len(g.vs)
     print "Edges:", len(g.es)
 
-    g.write("%swikihistory-%s.pickle" % (lang, date), format="pickle")
+    g.write("%swiki-%s%s.pickle" % (lang, date, type_), format="pickle")
     
     for e in g.es:
         e['weight'] = len(e['timestamp'])
         #e['timestamp'] = str(e['timestamp'])
-    g.write("%swikihistory-%s.graphml" % (lang, date), format="graphml")
+    g.write("%swiki-%s%s.graphml" % (lang, date, type_), format="graphml")
     
 
 if __name__ == "__main__":

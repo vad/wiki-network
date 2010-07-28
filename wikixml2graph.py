@@ -22,23 +22,9 @@ from lxml import etree
 from edgecache import EdgeCache
 import mwlib
 import lib
+from mwlib import PageProcessor
 
-class PageProcessor(object):
-    count = 0
-    ecache = None
-    tag = None
-    user_talk_names = None
-    search = None
-    lang = None
-    
-    def __init__(self, ecache=None, tag=None, user_talk_names=None,
-                 search=None, lang=None):
-        self.ecache = ecache
-        self.tag = tag
-        self.user_talk_names = user_talk_names
-        self.search = search
-        self.lang = lang
-    
+class CurrentPageProcessor(PageProcessor):
     def process(self, elem):
         tag = self.tag
         user = None
@@ -84,13 +70,13 @@ def main():
     p = optparse.OptionParser(usage="usage: %prog [options] file")
     _, files = p.parse_args()
 
-    if not files:
-        p.error("Give me a file, please ;-)")
+    if len(files) != 1:
+        p.error("Give me one file, please")
     xml = files[0]
 
     en_user, en_user_talk = u"User", u"User talk"
     
-    lang, date = mwlib.explode_dump_filename(xml)
+    lang, date, type_ = mwlib.explode_dump_filename(xml)
 
     ecache = EdgeCache()
 
@@ -111,7 +97,7 @@ def main():
         src.close()
         src = lib.SevenZipFileExt(xml)
     
-    processor = PageProcessor(ecache=ecache, tag=tag,
+    processor = CurrentPageProcessor(ecache=ecache, tag=tag,
                               user_talk_names=(lang_user_talk, en_user_talk),
                               search=(lang_user, en_user), lang=lang)
     mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
@@ -129,8 +115,7 @@ def main():
     print "Len:", len(g.vs)
     print "Edges:", len(g.es)
 
-    g.write("%swiki-%s.pickle" % (lang, date), format="pickle")
-    
+    g.write("%swiki-%s%s.pickle" % (lang, date, type_), format="pickle")
 
 
 if __name__ == "__main__":
