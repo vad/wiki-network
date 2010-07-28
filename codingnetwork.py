@@ -42,7 +42,7 @@ def getedges(_list, _selfedge=True, _year=None, wiki='', clean=False):
         owner = l['Owner']
         year = l['year']
         redirect = (l['Redirect (0=no / 1=yes)'] == '1')
-        info_msg = (l['Information msg (0=no / 1=yes)'] == '1')
+        info_box = (l['Information msg (0=no / 1=yes)'] == '1')
         signature = (l['Signature findable by script 1=yes; 0=no'] == '1')
 
         if _year and _year != year:
@@ -55,7 +55,7 @@ def getedges(_list, _selfedge=True, _year=None, wiki='', clean=False):
         if o not in d:
             d[o] = {}
 
-        if info_msg or redirect:
+        if info_box or redirect:
             continue
         
         if clean and not signature:
