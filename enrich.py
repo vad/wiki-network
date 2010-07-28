@@ -14,13 +14,18 @@
 ##########################################################################
 import os, sys
 import igraph as ig
-from mwlib import addGroupAttribute, addBlockedAttribute, isip
+import sonetgraph as sg
+from mwlib import addGroupAttribute, addBlockedAttribute, isip, \
+     explode_dump_filename
 
 def main():
     import re
     import optparse
 
-    p = optparse.OptionParser(usage="usage: %prog file")
+    p = optparse.OptionParser(usage="usage: %prog [-s SOURCE] [-h] file")
+    p.add_option('-s', '--source', metavar='SOURCE', dest='source',
+                 help='Specify a graph to use as source for attributes '+ \
+                 '(this will disable API calls)')
 
     opts, files = p.parse_args()
 
@@ -28,29 +33,36 @@ def main():
         p.error("Give me a file, please ;-)")
     fn = files[0]
 
-    s = os.path.split(fn)[1]
-    print s
-    lang = s[:s.index('wiki')]
-    res = re.search('wiki-(\d{4})(\d{2})(\d{2})',s)
-    date = ''.join([res.group(x) for x in xrange(1,4)])
+    lang, date, type_ = explode_dump_filename(fn)
 
+    groups = ('bot', 'sysop', 'bureaucrat', 'checkuser', 'steward', 'import',
+              'transwiki', 'uploader', 'ipblock-exempt', 'oversight',
+              'founder', 'rollbacker', 'accountcreator', 'autoreviewer',
+              'abusefilter')
     g = ig.load(fn)
+    if opts.source:
+        sourceg = ig.load(opts.source)
+        for destv in g.vs:
+            try:
+                sourcev = sourceg.vs.select(username=destv['username'])[0]
+            except IndexError:
+                print destv['username'], 'not found in source'
+                for group in groups:
+                    destv[group] = None
+                continue
+            for group in groups:
+                destv[group] = sourcev[group]
+                
+    else:
+        for group in groups:
+            addGroupAttribute(g, lang, group)
 
-    groups = ('bot', 'sysop', 'bureaucrat', 'checkuser', 'steward', 'import', 'transwiki', 'uploader', 'ipblock-exempt', 'oversight', 'founder', 'rollbacker', 'accountcreator', 'autoreviewer', 'abusefilter')
-
-    for group in groups:
-        addGroupAttribute(g, lang, group)
-
-    print 'BLOCKED ACCOUNTS'
-    addBlockedAttribute(g, lang)
+        print 'BLOCKED ACCOUNTS'
+        addBlockedAttribute(g, lang)
 
     print 'ANONYMOUS USERS'
     g.vs['anonymous'] = map(isip, g.vs['username'])
-
-    #print g.attributes()
-    #print g.vs['bot']
-    #print len(g.vs.select(bot=True))
-    g.write("%swiki-%s_rich.pickle" % (lang, date), format="pickle")
+    g.write("%swiki-%s%s_rich.pickle" % (lang, date, type_), format="pickle")
 
 
 if __name__ == "__main__":

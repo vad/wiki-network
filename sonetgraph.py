@@ -209,9 +209,11 @@ class Graph(object):
     def getTopDegree(self, type=ig.IN, limit=None, lb=1, label='username'):
         stype = 'weighted_%sdegree' % ('in' if type == ig.IN else 'out',)
         kwargs = {stype+'_gt': lb}
-        for v in sorted(self.g.vs(**kwargs), key=lambda x: x[stype], reverse=True)[0:limit]:
+        ##TODO: use itemgetter
+        for v in sorted(self.g.vs(**kwargs), key=lambda x: x[stype],
+                        reverse=True)[0:limit]:
             print v.index, v[stype], v[label]
-                #TODO: aggiungere ruolo
+            #TODO: aggiungere ruolo
                 
     def getUserClass(self, label, classes=None):
         if not classes:
