@@ -10,12 +10,11 @@ import urllib as ul
 
 
 #Global vars
-user_roles = None
 YEARS = ['2005', '2006', '2007', '2008', '2009']
 ROLES = ['bureaucrat', 'normal user', 'bot', 'anonymous', 'sysop']
 
 
-def getedges(_list, _selfedge=True, _year=None, wiki='', clean=False):
+def getedges(_list, _selfedge=True, _year=None, wiki='', user_ns='', clean=False):
     """
     Prepare a dictionary of owner and writers, to be used to populate
     the network.
@@ -51,7 +50,7 @@ def getedges(_list, _selfedge=True, _year=None, wiki='', clean=False):
             continue
 
         # Add owner
-        o = capfirst(ul.unquote(owner).decode('utf-8').replace('_', ' '))
+        o = capfirst(owner.decode('utf-8').replace('_', ' '))
         if o not in d:
             d[o] = {}
 
@@ -65,8 +64,7 @@ def getedges(_list, _selfedge=True, _year=None, wiki='', clean=False):
             continue
 
         try:
-            us = re.search(r'^%s.*(?<=Utente[/:])([^&]*)' % wiki, writer, re.IGNORECASE)
-            #us = re.search(r'((?<=Utente[/:])|(?<=Discussion_utente[/:]))([^&]*)', writer, re.IGNORECASE)
+            us = re.search(r'^%s.*(?<=%s[/:])([^&]*)' % (wiki, user_ns,), writer, re.IGNORECASE)
             if us is not None:
                 user = us.groups()[0]
             else:
@@ -83,74 +81,42 @@ def getedges(_list, _selfedge=True, _year=None, wiki='', clean=False):
         yield k, v
 
 
-def getuserrole(user):
-    try:
-        return user_roles[user]
-    except KeyError, e:
-        print 'No role for user: %s' % (user,)
-        return None
-
-
 def main():
     from optparse import OptionParser
     from itertools import imap
     from operator import itemgetter
     from os import path
 
-    global user_roles
-
-    _clean = False
     _sfx = '' 
 
-    op = OptionParser(usage="usage: %prog [options] file pickle")
-    op.add_option('-c', '--clean', action="store_true", dest="clean",help="Skip message with signature not findable by script")
+    op = OptionParser(usage="usage: %prog [options] file")
+    op.add_option('-c', '--clean', action="store_true", dest="clean",help="Skip message with signature not findable by script", default=False)
+    op.add_option('-w', '--wiki', dest="wiki",help="wiki url", default='')
+    op.add_option('-u', '--userns', dest="user_ns",help="User namespace, default \'Utente\'", default='Utente')
     
     opts, args = op.parse_args()
 
     if not args:
         op.error("Need a file to run analysis")
     if opts.clean:
-        _clean = True
         _sfx = "_clean"
     
     _file = args[0]
-    _pickle = args[1] # pickle file name
-    
-    urg = sg.load(_pickle) # pickle loading
-    
-    # Saving users' roles in a dictionary with "username, role" as "key, value"
-    user_roles = dict([e for e in urg.getUserClass('username', ('anonymous', 'bot', 'bureaucrat', 'sysop'))])
 
     _dir = path.dirname(_file)
     dest = _dir + "/"
     ec = EdgeCache()
 
-    for writer,owner in getedges(_list=iter_csv(_file, True), wiki='http://vec.wikipedia.org', clean=_clean):
+    for writer,owner in getedges(_list=iter_csv(_file, True), wiki=opts.wiki, user_ns=opts.user_ns, clean=opts.clean):
         ec.add(writer, owner)
 
     ec.flush()
 
     g = sg.Graph(ec.get_network())
-    # Adding 'role' attribute to each vertex in the graph
-    g.g.vs.set_attribute_values('role', map(lambda x: getuserrole(x), g.g.vs['username']))
-    # 
-    g.g.write_graphml(dest+'vec_only'+_sfx+'.graphml')
-    g.g.write_pickle(dest+'vec_only'+_sfx+'.pickle')
-    
-    # complete coding
-    ec = EdgeCache()
 
-    for writer,owner in getedges(_list=iter_csv(_file, True), clean=_clean):
-        ec.add(writer, owner)
+    g.g.write_graphml(dest+'coding_network'+_sfx+'.graphml')
+    g.g.write_pickle(dest+'coding_network'+_sfx+'.pickle')
 
-    ec.flush()
-
-    g = sg.Graph(ec.get_network())
-    # Adding 'role' attribute to each vertex in the graph
-    g.g.vs.set_attribute_values('role', map(lambda x: getuserrole(x), g.g.vs['username']))
-    # 
-    g.g.write_graphml(dest+'coding'+_sfx+'.graphml')
-    g.g.write_pickle(dest+'coding'+_sfx+'.pickle')
     return g
 
 
