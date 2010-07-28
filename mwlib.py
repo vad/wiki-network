@@ -24,6 +24,11 @@ except ImportError:
 
     
 def fast_iter(context, func):
+    """
+    Use this function with etree.iterparse().
+    
+    See http://www.ibm.com/developerworks/xml/library/x-hiperfparse/ for doc.
+    """
     for _, elem in context:
         func(elem)
         elem.clear()
@@ -266,15 +271,13 @@ def explode_dump_filename(fn):
     """
     >>> explode_dump_filename( \
             "/tmp/itwiki-20100218-pages-meta-current.xml.bz2")
-    ('it', '20100218')
+    ('it', '20100218', '-pages-meta-current')
     """
     from os.path import split
     
     s = split(fn)[1] #filename with extension
-    lang = s[:s.index('wiki')]
-    res = re.search('wiki-(\d{4})(\d{2})(\d{2})-', s)
-    date = ''.join([res.group(x) for x in range(1, 4)])
-    return (lang, date)
+    res = re.search('(.*?)wiki[\-]*-(\d{8})([^.]*)', s)
+    return (res.group(1), res.group(2), res.group(3))
     
 
 def capfirst(s):
@@ -286,3 +289,48 @@ def capfirst(s):
     """
     return s[0].upper() + s[1:]
 
+
+class PageProcessor(object):
+    count = 0
+    count_archive = 0
+    ecache = None
+    tag = None
+    user_talk_names = None
+    search = None
+    lang = None
+    
+    def __init__(self, ecache=None, tag=None, user_talk_names=None,
+                 search=None, lang=None):
+        self.ecache = ecache
+        self.tag = tag
+        self.user_talk_names = user_talk_names
+        self.search = search
+        self.lang = lang
+
+
+def count_renames(lang):
+    url = base_url = ('http://%s.wikipedia.org/w/api.php?action=query&list='+\
+                      'logevents&letype=renameuser&lelimit=500&leprop='+ \
+                      'title|type|user|timestamp|comment|details&format=json'
+                      ) % ( lang, )
+    counter = 0
+    start = None
+    while True:
+        if start:
+            url = '%s&lestart=%s' % (base_url, start)
+        furl = urlopen(url)
+        res = json.load(furl)
+
+        if not res.has_key('query') or not res['query']['logevents']:
+            print 'No logs'
+            return
+
+        counter += len(res['query']['logevents'])
+
+        if res.has_key('query-continue'):
+            start = res['query-continue']['logevents']['lestart']
+        else:
+            break
+        print counter
+
+    return counter
