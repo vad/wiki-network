@@ -12,6 +12,7 @@ import urllib as ul
 #Global vars
 YEARS = ['2005', '2006', '2007', '2008', '2009']
 ROLES = ['bureaucrat', 'normal user', 'bot', 'anonymous', 'sysop']
+verbose = False
 
 
 def getedges(_list, _selfedge=True, _year=None, wiki='', user_ns='', clean=False):
@@ -54,12 +55,6 @@ def getedges(_list, _selfedge=True, _year=None, wiki='', user_ns='', clean=False
         if o not in d:
             d[o] = {}
 
-        if info_box or redirect:
-            continue
-        
-        if clean and not signature:
-            continue
-
         if writer is None or writer == '' or writer == 'NONE':
             continue
 
@@ -68,13 +63,25 @@ def getedges(_list, _selfedge=True, _year=None, wiki='', user_ns='', clean=False
             if us is not None:
                 user = us.groups()[0]
             else:
-                print 'User %s not find' % (writer,)
+                if verbose:
+                    print 'User %s not find' % (writer,)
                 continue
         except (KeyError, AttributeError), e:
             print e
             continue
 
         w = capfirst(ul.unquote(user).decode('utf-8').replace('_', ' '))
+        
+        if w not in d:
+            d[w] = {}
+
+        if info_box or redirect:
+            continue
+        
+        if clean and not signature:
+            continue
+
+        # Aggiungo l'edge oppure aumento il peso di uno esistente
         d[o][w] = (d[o]).get(w,0) + 1
 
     for k, v in d.iteritems():
@@ -87,10 +94,11 @@ def main():
     from operator import itemgetter
     from os import path
 
-    _sfx = '' 
-
+    global verbose
+    
     op = OptionParser(usage="usage: %prog [options] file")
     op.add_option('-c', '--clean', action="store_true", dest="clean",help="Skip message with signature not findable by script", default=False)
+    op.add_option('-v', '--verbose', action="store_true", dest="verbose",help="Verbose output", default=False)
     op.add_option('-w', '--wiki', dest="wiki",help="wiki url", default='')
     op.add_option('-u', '--userns', dest="user_ns",help="User namespace, default \'Utente\'", default='Utente')
     op.add_option('-f', '--filename', dest="filename",help="Filename", default='network')
@@ -99,24 +107,25 @@ def main():
 
     if not args:
         op.error("Need a file to run analysis")
-    if opts.clean:
-        _sfx = "_clean"
-    
-    _file = args[0]
 
-    _dir = path.dirname(_file)
-    dest = _dir + "/"
+    verbose = opts.verbose
+    
+    f = args[0]
+    dest = path.dirname(f) + '/'
+
     ec = EdgeCache()
 
-    for writer,owner in getedges(_list=iter_csv(_file, True), wiki=opts.wiki, user_ns=opts.user_ns, clean=opts.clean):
+    for writer,owner in getedges(_list=iter_csv(f, True), wiki=opts.wiki, user_ns=opts.user_ns, clean=opts.clean):
         ec.add(writer, owner)
 
     ec.flush()
 
     g = sg.Graph(ec.get_network())
 
-    g.g.write_graphml(dest+opts.filename+_sfx+'.graphml')
-    g.g.write_pickle(dest+opts.filename+_sfx+'.pickle')
+    if verbose:
+        print '\nCreating files'
+    g.g.write_graphml(dest+opts.filename+'.graphml')
+    g.g.write_pickle(dest+opts.filename+'.pickle')
 
     return g
 
