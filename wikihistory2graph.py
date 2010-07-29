@@ -35,62 +35,59 @@ class HistoryPageProcessor(PageProcessor):
         tag = self.tag
         user = None
         first_revision = True
-        for child in elem:
-            if child.tag == tag['title'] and child.text:
-                a_title = child.text.split(':')
+        a_title = elem.find(tag['title']).text.split(':')
 
-                if len(a_title) > 1 and a_title[0] in self.user_talk_names:
-                    user = a_title[1]
-                else:
-                    return
+        if len(a_title) > 1 and a_title[0] in self.user_talk_names:
+            user = a_title[1]
+        else:
+            return
 
-                try:
-                    child.text.index('/')
-                    self.count_archive += 1
-                    return
-                except ValueError:
-                    pass
+        try:
+            a_title.index('/')
+            self.count_archive += 1
+            return
+        except ValueError:
+            pass
 
-            elif child.tag == tag['revision']:
-                if first_revision:
-                    first_revision = False
-                    not_skip = True
-                else:
-                    not_skip = False
-                revision_time = datetime.strptime(
-                    child.find(tag['timestamp']).text,
-                    "%Y-%m-%dT%H:%M:%SZ"
-                )
-                if self.end and revision_time > self.end:
-                    continue
-                if self.start and revision_time < self.start:
-                    continue
+        for child in elem.findall(tag['revision']):
+            if first_revision:
+                first_revision = False
+                not_skip = True
+            else:
+                not_skip = False
+            revision_time = datetime.strptime(
+                child.find(tag['timestamp']).text,
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+            if self.end and revision_time > self.end:
+                continue
+            if self.start and revision_time < self.start:
+                continue
 
-                #if (not not_skip) and child.find(tag['minor']) is not None:
-                #    self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
-                #                    {})
-                #    continue
+            #if (not not_skip) and child.find(tag['minor']) is not None:
+            #    self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
+            #                    {})
+            #    continue
 
-                ##TODO: change 'rc' variable name
-                rc = child.find(tag['contributor'])
-                if rc.tag != tag['contributor']:
-                    continue
+            contributor = child.find(tag['contributor'])
+            if contributor is None:
+                continue
 
-                assert user, "User still not defined"
+            assert user, "User still not defined"
 
-                sender_tag = rc.find(tag['username'])
-                if sender_tag is None:
-                    sender_tag = rc.find(tag['ip'])
-                collaborator = mwlib.capfirst(
-                    sender_tag.text.replace('_', ' ')
-                )
+            sender_tag = contributor.find(tag['username'])
+            if sender_tag is None:
+                sender_tag = contributor.find(tag['ip'])
+            collaborator = mwlib.capfirst(
+                sender_tag.text.replace('_', ' ')
+            )
 
-                self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
-                                {collaborator: [revision_time,]}
-                                )
-                self.count += 1
-                if not self.count % 500:
-                    print self.count
+            self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
+                            {collaborator: [revision_time,]}
+                            )
+            self.count += 1
+            if not self.count % 500:
+                print self.count
 
 
 def main():
