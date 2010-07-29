@@ -90,29 +90,29 @@ class Graph(object):
     def defineClass(self, cls, attr):
         # maybe it's better to store attr only (and not the whole VertexSet)
         self.classes[cls] = self.g.vs.select(**attr)
-        
-        
+
+
     def writeAdjacencyMatrix(self, fn, label, weight='weight'):
         """
         writes the matrix like:
-        
+
         ,Bar,Foo,TOTAL
         Bar,0,2,2
         Foo,1,2,3
         TOTAL,1,4,5
-         
+
         fn: name of the file to write
         label: a node attribute to use as node label
-        
+
         """
         isinstance(self.g, ig.Graph)
         isinstance(self.g.es, ig.EdgeSeq)
-        
+
         matrix = self.g.get_adjacency(ig.GET_ADJACENCY_BOTH, weight, 0)
         vs = self.g.vs
         with open(fn, 'w') as f:
             usernames = vs['username']
-            
+
             accumulate = ["",]
             print >>f, ','.join(['',]+ usernames +['TOTAL',])
 
@@ -123,7 +123,7 @@ class Graph(object):
                 accumulate += [str(e) for e in msgs]
                 accumulate.append(str(sum(msgs)))
                 print >>f, ','.join(accumulate)
-            
+
             # write TOTAL line
             accumulate = ['TOTAL',]
 
@@ -131,19 +131,19 @@ class Graph(object):
             accumulate += [str(e) for e in msgs]
             accumulate.append(str(sum(msgs)))
             print >>f, ','.join(accumulate)
-                
+
 
     def writeReciprocityMatrix(self, label, fn=None, weight='weight'):
         """
         writes the matrix like:
-        
+
         ,Bar,Foo,TOTAL
         Bar,1,1,2
         Foo,1,0,1
         TOTAL,2,1,3
-        
+
         It's obviousbly a simmetric matrix. On the main diagonal are there self-edges.
-        
+
         >>> g = ig.Graph(n=3, directed=True)
         >>> g.vs['name'] = ['me', 'you', 'she']
         >>> g = Graph(g.add_edges(((1,0),(0,1),(0,2))))
@@ -154,37 +154,37 @@ class Graph(object):
         she,0,0,0,0
         TOTAL,1,1,0,2
 
-         
+
         fn: name of the file to write
         label: a node attribute to use as node label
-        
+
         """
         isinstance(self.g, ig.Graph)
         isinstance(self.g.es, ig.EdgeSeq)
         isinstance(self.g.vs, ig.VertexSeq)
-        
+
         matrix = self.g.get_adjacency(ig.GET_ADJACENCY_BOTH, default=0)
         vs = self.g.vs
         N = len(vs)
-        
+
         # len(vs) x len(vs) matrix
         rmatrix_data = [N*[0] for i in xrange(N)]
         for i in xrange(N):
             for j in xrange(i+1):
                 if matrix[(i,j)] and matrix[(j,i)]:
                     rmatrix_data[i][j] = rmatrix_data[j][i] = 1
-        
+
         if fn == None:
             import sys
             f = sys.stdout
         else:
             f = open(fn, 'w')
-        
+
         labels = vs[label]
-                
+
         accumulate = ["",]
         print >>f, ','.join(['',]+ labels +['TOTAL',])
-    
+
         rmatrix = ig.datatypes.Matrix(rmatrix_data)
         for i in range(len(vs)):
             accumulate = [labels[i],]
@@ -193,7 +193,7 @@ class Graph(object):
             accumulate += [str(e) for e in msgs]
             accumulate.append(str(sum(msgs)))
             print >>f, ','.join(accumulate)
-        
+
         # write TOTAL line
         accumulate = ['TOTAL',]
 
@@ -201,11 +201,11 @@ class Graph(object):
         accumulate += [str(e) for e in msgs]
         accumulate.append(str(sum(msgs)))
         print >>f, ','.join(accumulate)
-    
-            
+
+
     def getTopIndegree(self, lb=15, label='username'):
         self.getTopDegree(type=ig.IN, lb=lb, label=label)
-                
+
     def getTopDegree(self, type=ig.IN, limit=None, lb=1, label='username'):
         stype = 'weighted_%sdegree' % ('in' if type == ig.IN else 'out',)
         kwargs = {stype+'_gt': lb}
@@ -214,11 +214,11 @@ class Graph(object):
                         reverse=True)[0:limit]:
             print v.index, v[stype], v[label]
             #TODO: aggiungere ruolo
-                
+
     def getUserClass(self, label, classes=None):
         if not classes:
             classes = self.classes.keys()
-            
+
         vs = self.g.vs
         for n in vs:
             found = False
@@ -230,9 +230,8 @@ class Graph(object):
                     break
             if not found:
                 yield (n[label], 'normal user')
-                
+
     def remove_if(self, attrs):
         kwargs = dict([(attr+'_ne', True) for attr in attrs])
         self.g = self.g.subgraph(self.g.vs.select(**kwargs))
         pass
-                
