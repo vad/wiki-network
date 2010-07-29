@@ -91,7 +91,7 @@ def main():
         sys.exit(2)
 
     fn = args[0]
-    lang, date = mwlib.explode_dump_filename(fn)
+    lang, date, type_ = mwlib.explode_dump_filename(fn)
 
     g = sg.load(fn)
     ##print 'loaded'

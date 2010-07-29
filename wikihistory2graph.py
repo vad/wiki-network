@@ -30,19 +30,20 @@ class HistoryPageProcessor(PageProcessor):
     end = None
     # to limit the extraction to changes after a datetime
     start = None
-    
+
     def process(self, elem):
         tag = self.tag
         user = None
+        first_revision = True
         for child in elem:
             if child.tag == tag['title'] and child.text:
                 a_title = child.text.split(':')
-    
+
                 if len(a_title) > 1 and a_title[0] in self.user_talk_names:
                     user = a_title[1]
                 else:
                     return
-                
+
                 try:
                     child.text.index('/')
                     self.count_archive += 1
@@ -51,6 +52,11 @@ class HistoryPageProcessor(PageProcessor):
                     pass
 
             elif child.tag == tag['revision']:
+                if first_revision:
+                    first_revision = False
+                    not_skip = True
+                else:
+                    not_skip = False
                 revision_time = datetime.strptime(
                     child.find(tag['timestamp']).text,
                     "%Y-%m-%dT%H:%M:%SZ"
@@ -59,21 +65,26 @@ class HistoryPageProcessor(PageProcessor):
                     continue
                 if self.start and revision_time < self.start:
                     continue
-                    
+
+                #if (not not_skip) and child.find(tag['minor']) is not None:
+                #    self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
+                #                    {})
+                #    continue
+
                 ##TODO: change 'rc' variable name
                 rc = child.find(tag['contributor'])
                 if rc.tag != tag['contributor']:
                     continue
 
                 assert user, "User still not defined"
-                
+
                 sender_tag = rc.find(tag['username'])
                 if sender_tag is None:
                     sender_tag = rc.find(tag['ip'])
                 collaborator = mwlib.capfirst(
                     sender_tag.text.replace('_', ' ')
                 )
-                    
+
                 self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
                                 {collaborator: [revision_time,]}
                                 )
@@ -93,26 +104,26 @@ def main():
     xml = files[0]
 
     en_user, en_user_talk = u"User", u"User talk"
-    
+
     lang, date, type_ = mwlib.explode_dump_filename(xml)
 
     ecache = EdgeCache()
 
     src = SevenZipFileExt(xml, 51)
-    
+
     tag = mwlib.getTags(src)
 
     lang_user, lang_user_talk = mwlib.getTranslations(src)
-    
+
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
 
     lang_user = unicode(lang_user)
     en_user = unicode(en_user)
-    
+
     src.close()
     src = SevenZipFileExt(xml)
-        
+
     processor = HistoryPageProcessor(ecache=ecache, tag=tag,
                               user_talk_names=(lang_user_talk, en_user_talk),
                               search=(lang_user, en_user), lang=lang)
@@ -128,13 +139,12 @@ def main():
     print "Len:", len(g.vs)
     print "Edges:", len(g.es)
 
-    g.write("%swiki-%s%s.pickle" % (lang, date, type_), format="pickle")
-    
     for e in g.es:
         e['weight'] = len(e['timestamp'])
         #e['timestamp'] = str(e['timestamp'])
+    g.write("%swiki-%s%s.pickle" % (lang, date, type_), format="pickle")
     g.write("%swiki-%s%s.graphml" % (lang, date, type_), format="graphml")
-    
+
 
 if __name__ == "__main__":
     #import cProfile as profile

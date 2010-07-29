@@ -231,3 +231,8 @@ class Graph(object):
             if not found:
                 yield (n[label], 'normal user')
                 
+    def remove_if(self, attrs):
+        kwargs = dict([(attr+'_ne', True) for attr in attrs])
+        self.g = self.g.subgraph(self.g.vs.select(**kwargs))
+        pass
+                
