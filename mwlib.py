@@ -22,11 +22,11 @@ try:
 except ImportError:
     import simplejson as json
 
-    
+
 def fast_iter(context, func):
     """
     Use this function with etree.iterparse().
-    
+
     See http://www.ibm.com/developerworks/xml/library/x-hiperfparse/ for doc.
     """
     for _, elem in context:
@@ -35,8 +35,8 @@ def fast_iter(context, func):
         while elem.getprevious() is not None:
             del elem.getparent()[0]
     del context
-    
-    
+
+
 def isip(s):
     """
     >>> isip("192.168.1.1")
@@ -49,11 +49,11 @@ def isip(s):
     except error:
         return False
 
-    
-def isSoftRedirect(rawWikiText):    
+
+def isSoftRedirect(rawWikiText):
     r"""
     Find if the page starts with a soft redirect template
-    
+
     >>> isSoftRedirect("{{softredirect|User:bot}}")
     True
     >>> isSoftRedirect("\n\n{{\nsoftredirect \n |  :en:User talk:bot}}")
@@ -66,7 +66,7 @@ def isSoftRedirect(rawWikiText):
     rex = r'^[\n ]*{{[\n ]*softredirect[\n ]*\|[^}\n]*\}\}'
     return re.match(rex, rawWikiText) is not None
 
-    
+
 def isHardRedirect(rawWikiText):
     """
     >>> isHardRedirect("   #REDIRECT [[User:me]]")
@@ -76,10 +76,9 @@ def isHardRedirect(rawWikiText):
     """
     rex = r'[\n ]*#REDIRECT[\n ]*\[\[[^]]*\]\]'
     return re.match(rex, rawWikiText) is not None
-    
 
-re_cache = {}
-def getCollaborators(rawWikiText, search, lang=None):
+## re_cache is a mutable, so it keeps state through function calls
+def getCollaborators(rawWikiText, search, lang=None, re_cache = {}):
     """
     Search for regular expression containing [[User:username|anchor text]] and
     count a new message from username to the owner of the page. It also works
@@ -90,7 +89,7 @@ def getCollaborators(rawWikiText, search, lang=None):
     We choose to get [[User:username|anchor text]] and not the
     User_discussion:username link for the following reason: signatures can be
     personalized.
-    
+
     We rely on policies for signatures in the different Wikipedias.
     In English Wikipedia, see
     http://en.wikipedia.org/wiki/Wikipedia:Signatures#Links "Signatures must
@@ -101,7 +100,7 @@ def getCollaborators(rawWikiText, search, lang=None):
     http://it.wikipedia.org/wiki/Aiuto:Personalizzare_la_firma#Personalizzare_la_firma
     "La firma deve sempre contenere un wikilink alla pagina utente e/o alla
     propria pagina di discussione."
-    
+
     >>> getCollaborators( \
             'd [[User:you|mee:-)e/e]] d [[User:me]][[utente:me]]', \
                          ('Utente', 'User'))
@@ -123,7 +122,6 @@ def getCollaborators(rawWikiText, search, lang=None):
     except KeyError:
         re_cache[rex] = re.compile(rex, re.IGNORECASE)
         matches = re_cache[rex].finditer(rawWikiText)
-        
 
     weights = dict()
     for u in matches:
@@ -143,7 +141,7 @@ def getCollaborators(rawWikiText, search, lang=None):
 def getTemplates(rawWikiText):
     rex = '\{\{(\{?[^\}\|\{]*)'
     matches = re.finditer(rex, rawWikiText)
-    
+
     weights = dict()
     for tm in matches:
         t = tm.group(1)
@@ -230,23 +228,23 @@ def getTags(src):
     try:
         root = src.readline()
         ns = unicode(re.findall(r'xmlns="([^"]*)', root)[0])
-        
+
         tag_prefix = u'{%s}' % ns
-    
+
         tag = {}
         for t in ('page,title,revision,text,contributor,username,ip,'+ \
-            'minor,timestamp').split(','):
+            'minor,timestamp,id').split(','):
             tag[t] = tag_prefix + unicode(t)
     finally:
         src.seek(0)
-    
+
     return tag
 
 
 def getTranslations(src):
     try:
         counter = 0
-        
+
         while 1:
             line = src.readline()
             if not line: break
@@ -257,13 +255,13 @@ def getTranslations(src):
                     lang_user = unicode(ns, 'utf-8')
                 elif key == '3':
                     lang_user_talk = unicode(ns, 'utf-8')
-    
+
             counter += 1
             if counter > 50:
                 break
     finally:
         src.seek(0)
-        
+
     return (lang_user, lang_user_talk)
 
 
@@ -274,11 +272,11 @@ def explode_dump_filename(fn):
     ('it', '20100218', '-pages-meta-current')
     """
     from os.path import split
-    
+
     s = split(fn)[1] #filename with extension
     res = re.search('(.*?)wiki[\-]*-(\d{8})([^.]*)', s)
     return (res.group(1), res.group(2), res.group(3))
-    
+
 
 def capfirst(s):
     """
@@ -298,7 +296,7 @@ class PageProcessor(object):
     user_talk_names = None
     search = None
     lang = None
-    
+
     def __init__(self, ecache=None, tag=None, user_talk_names=None,
                  search=None, lang=None):
         self.ecache = ecache

@@ -31,11 +31,16 @@ class HistoryPageProcessor(PageProcessor):
     # to limit the extraction to changes after a datetime
     start = None
 
+    def null(self, elem):
+        pass
+
     def process(self, elem):
         tag = self.tag
         user = None
         first_revision = True
-        a_title = elem.find(tag['title']).text.split(':')
+        title = elem.find(tag['title']).text
+        a_title = title.split(':')
+        start, end = self.start, self.end
 
         if len(a_title) > 1 and a_title[0] in self.user_talk_names:
             user = a_title[1]
@@ -43,11 +48,12 @@ class HistoryPageProcessor(PageProcessor):
             return
 
         try:
-            a_title.index('/')
+            title.index('/')
             self.count_archive += 1
             return
         except ValueError:
             pass
+        del a_title
 
         for child in elem.findall(tag['revision']):
             if first_revision:
@@ -59,9 +65,8 @@ class HistoryPageProcessor(PageProcessor):
                 child.find(tag['timestamp']).text,
                 "%Y-%m-%dT%H:%M:%SZ"
             )
-            if self.end and revision_time > self.end:
-                continue
-            if self.start and revision_time < self.start:
+            if ((end and revision_time > end) or
+                (start and revision_time < start)):
                 continue
 
             #if (not not_skip) and child.find(tag['minor']) is not None:
@@ -77,10 +82,14 @@ class HistoryPageProcessor(PageProcessor):
 
             sender_tag = contributor.find(tag['username'])
             if sender_tag is None:
-                sender_tag = contributor.find(tag['ip'])
-            collaborator = mwlib.capfirst(
-                sender_tag.text.replace('_', ' ')
-            )
+                collaborator = contributor.find(tag['ip']).text
+            else:
+                try:
+                    collaborator = mwlib.capfirst(
+                        sender_tag.text.replace('_', ' ')
+                    )
+                except AttributeError:
+                    collaborator = contributor.find(tag['id']).text
 
             self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
                             {collaborator: [revision_time,]}
@@ -88,6 +97,7 @@ class HistoryPageProcessor(PageProcessor):
             self.count += 1
             if not self.count % 500:
                 print self.count
+            del child, collaborator, contributor, sender_tag
 
 
 def main():
@@ -119,14 +129,16 @@ def main():
     en_user = unicode(en_user)
 
     src.close()
+    print "BEGIN PARSING"
     src = SevenZipFileExt(xml)
 
     processor = HistoryPageProcessor(ecache=ecache, tag=tag,
                               user_talk_names=(lang_user_talk, en_user_talk),
                               search=(lang_user, en_user), lang=lang)
     processor.end = datetime(2009, 12, 31)
-    mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
-                    processor.process)
+    mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False,
+                                    events=('start',)),
+                    processor.null)
     print 'TOTAL UTP: ', processor.count
     print 'ARCHIVES: ', processor.count_archive
 
