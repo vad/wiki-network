@@ -41,9 +41,10 @@ def getedges(_list, _selfedge=True, _year=None, wiki='', user_ns='', clean=False
         writer = l['Writer']
         owner = l['Owner']
         year = l['year']
+        signature = (l['Signature findable by script 1=yes; 0=no'] == '1')
         redirect = (l['Redirect (0=no / 1=yes)'] == '1')
         info_box = (l['Information msg (0=no / 1=yes)'] == '1')
-        signature = (l['Signature findable by script 1=yes; 0=no'] == '1')
+        welcome_tpl = (l['template: welcome 1=yes; 0=no'] == '1')
 
         if _year and _year != year:
             continue
@@ -78,7 +79,7 @@ def getedges(_list, _selfedge=True, _year=None, wiki='', user_ns='', clean=False
         if info_box or redirect:
             continue
         
-        if clean and not signature:
+        if clean and not welcome_tpl:
             continue
 
         # Aggiungo l'edge oppure aumento il peso di uno esistente
