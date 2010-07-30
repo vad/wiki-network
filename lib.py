@@ -36,14 +36,14 @@ def find_executable(executable, path=None):
     else:
         return None
 
-    
+
 def BZ2FileExt(fn):
     from subprocess import Popen, PIPE
-    
+
     executable = 'lbzip2' if find_executable('lbzip2') else 'bzip2'
-        
+
     unzip_process = Popen([executable, '-c', '-k', '-d', fn], stdout=PIPE)
-    
+
     return unzip_process.stdout
 
 
@@ -53,13 +53,13 @@ def SevenZipFileExt(fn, lines=None):
     lines: if you don't want the whole file, specify how many lines you want
     """
     from subprocess import Popen, PIPE
-    
+
     if not find_executable('7z'):
         raise Exception, 'Cannot find 7zip executable (7z)'
-           
+
     unzip_process = Popen(['7z', 'e', '-so', fn], stdout=PIPE, stderr=PIPE)
     stdout = unzip_process.stdout
-    
+
     if not lines:
         return stdout
     else:
@@ -125,7 +125,7 @@ def iter_csv(filename, _hasHeader = False):
 
     if _hasHeader:
         fieldNames = lines.next()
-        
+
     for row in lines:
         d = {}
         for i, f in enumerate(row):
@@ -134,5 +134,5 @@ def iter_csv(filename, _hasHeader = False):
             else:
                 d[i] = f
         yield d
-    
+
     cf.close()
