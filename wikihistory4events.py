@@ -15,6 +15,7 @@
 
 ## LXML
 from lxml import etree
+#import xml.etree.cElementTree as etree
 
 from datetime import datetime
 import sys
@@ -22,6 +23,7 @@ import re
 
 ## PROJECT LIBS
 import mwlib
+#import cmwlib
 from lib import SevenZipFileExt
 from mwlib import PageProcessor
 
@@ -66,6 +68,10 @@ class HistoryEventsPageProcessor(PageProcessor):
         'normal': {'total': 0, 'anniversary': 0}
     }
     counter_pages = 0
+    __title = None
+    __type = None
+    __creation = None
+    __skip = None
 
     def setDesired(self, l):
         self.counter_desired = {}
@@ -81,7 +87,6 @@ class HistoryEventsPageProcessor(PageProcessor):
                 }
             }
 
-
     def isDesired(self, title):
         try:
             self.counter_desired[title]
@@ -90,73 +95,75 @@ class HistoryEventsPageProcessor(PageProcessor):
         else:
             return True
 
-
-    def process(self, elem):
-        tag = self.tag
-        creation = None
-        for el in elem:
-            if el.tag == tag['title']:
-                title = el.text
-                break
+    def process_title(self, elem):
+        title = elem.text
         a_title = title.split(':')
         if len(a_title) == 1:
-            type_ = 'normal'
-            title = a_title[0]
+            self.__type = 'normal'
+            self.__title = a_title[0]
         else:
             if a_title[0] == 'Talk':
-                title = a_title[1]
-                type_ = 'talk'
+                self.__type = 'talk'
+                self.__title = a_title[1]
+
             else:
+                self.__skip = True
                 return
+        self.__skip = False
+        self.__creation = None
         self.counter_pages += 1
 
         if self.isDesired(title):
-            desired = True
+            self.__desired = True
         else:
-            desired = False
+            self.__desired = False
 
-        for child in elem.getiterator(tag['revision']): ##or elem.findall(...)
-            for el in child:
-                if el.tag == tag['timestamp']:
-                    timestamp = el.text
-                    break
-            #revision_time = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
-            #m = re.match('(\d{4})-(\d{2})-(\d{2}).*', timestamp)
-            #revision_time = datetime(m.group(0), m.group(1))
-            year = int(timestamp[:4])
-            month = int(timestamp[5:7])
-            day = int(timestamp[8:10])
-            revision_time = datetime(year, month, day)
+    def process_revision(self, elem):
+        if self.__skip: return
 
-            if creation is None:
-                if month == 2 and day == 29:
-                    creation = datetime(year, 2, 28)
-                else:
-                    creation = revision_time
-                continue
+        tag = self.tag
 
-            if (revision_time - creation).days < 180:
-                continue
+        for el in elem:
+            if el.tag == tag['timestamp']:
+                timestamp = el.text
+                break
+        #revision_time = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
+        #m = re.match('(\d{4})-(\d{2})-(\d{2}).*', timestamp)
+        #revision_time = datetime(m.group(0), m.group(1))
+        year = int(timestamp[:4])
+        month = int(timestamp[5:7])
+        day = int(timestamp[8:10])
+        revision_time = datetime(year, month, day)
 
-            isNear = isNearAnniversary(creation, revision_time, self.days)
-            if desired:
-                page_counter = self.counter_desired[title][type_]
+        if self.__creation is None:
+            if month == 2 and day == 29:
+                self.__creation = datetime(year, 2, 28)
             else:
-                page_counter = self.counter_normal[type_]
-            if isNear:
-                page_counter['anniversary'] += 1
-            page_counter['total'] += 1
+                self.__creation = revision_time
+            return
 
-            self.count += 1
-            if not self.count % 5000:
-                print 'PAGES:', self.counter_pages, 'REVS:', self.count
-                print 'DESIRED'
-                for page, counter in self.counter_desired.iteritems():
-                    print page
-                    print counter
-                print 'NORMAL'
-                print self.counter_normal
-            #del child
+        if (revision_time - self.__creation).days < 180:
+            return
+
+        isNear = isNearAnniversary(self.__creation, revision_time, self.days)
+        if self.__desired:
+            page_counter = self.counter_desired[self.__title][self.__type]
+        else:
+            page_counter = self.counter_normal[self.__type]
+        if isNear:
+            page_counter['anniversary'] += 1
+        page_counter['total'] += 1
+
+        self.count += 1
+        if not self.count % 50000:
+            print 'PAGES:', self.counter_pages, 'REVS:', self.count
+            print 'DESIRED'
+            for page, counter in self.counter_desired.iteritems():
+                print page
+                print counter
+            print 'NORMAL'
+            print self.counter_normal
+        #del child
 
 
 def main():
@@ -185,8 +192,12 @@ def main():
     processor.setDesired(desired_pages)
 
     print "BEGIN PARSING"
-    mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
-                    processor.process)
+    #mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
+    #                processor.process)
+    mwlib.fast_iter_filter(etree.iterparse(src), {
+        tag['title']: processor.process_title,
+        tag['revision']: processor.process_revision
+    })
 
     print 'DESIRED'
     print processor.counter_desired
