@@ -36,6 +36,21 @@ def fast_iter(context, func):
             del elem.getparent()[0]
     del context
 
+def fast_iter_filter(context, dfunc):
+    """
+    Use this function with etree.iterparse().
+
+    See http://www.ibm.com/developerworks/xml/library/x-hiperfparse/ for doc.
+    """
+    for _, elem in context:
+        try:
+            dfunc[elem.tag](elem)
+        except KeyError:
+            continue
+        elem.clear()
+        while elem.getprevious() is not None:
+            del elem.getparent()[0]
+    del context
 
 def isip(s):
     """
