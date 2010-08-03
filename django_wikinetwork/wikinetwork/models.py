@@ -158,10 +158,12 @@ class WikiEvent(Model):
 
     title = CharField(max_length=200)
     lang = CharField(max_length=3)
+    desired = BooleanField(default=False)
     # pickle (aka dictionary)
     normal = DictionaryField(blank=True)
     talk = DictionaryField(blank=True)
     # page creation date
+    ##TODO: remove
     creation = DateTimeField(null=True)
 
     def __unicode__(self):

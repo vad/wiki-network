@@ -18,85 +18,59 @@ import xml.etree.cElementTree as etree
 
 from datetime import date
 import sys
+from random import random
 
 ## PROJECT LIBS
 import mwlib
-from lib import SevenZipFileExt
+import lib
 
-
-## TODO: move into the analysis script
-def isNearAnniversary(creation, revision, range_):
-    """
-    >>> isNearAnniversary(date(2001, 9, 11), date(2005, 9, 19), 10)
-    True
-    >>> isNearAnniversary(date(2001, 1, 1), date(2005, 12, 30), 10)
-    True
-    >>> isNearAnniversary(date(2001, 12, 31), date(2005, 1, 1), 10)
-    True
-    """
-    isinstance(revision, date) ##WING IDE
-    isinstance(creation, date) ##WING IDE
-    anniversary = date(revision.year, creation.month, creation.day)
-    delta = (revision - anniversary).days
-    if abs(delta) <= range_:
-        return True
-    else:
-        if delta > 0:
-            anniversary = date(revision.year + 1, creation.month,
-                                   creation.day)
-            delta = (revision - anniversary).days
-            if abs(delta) <= range_:
-                return True
-        else:
-            anniversary = date(revision.year - 1, creation.month,
-                                   creation.day)
-            delta = (revision - anniversary).days
-            if abs(delta) <= range_:
-                return True
-        return False
 
 class HistoryEventsPageProcessor(mwlib.PageProcessor):
     counter_pages = 0
     ## count only revisions 'days' before or after the anniversary
     days = 10
     ## desired pages
-    desired_pages = []
+    desired_pages = {}
     ## initial date, used for comparison and substraction
-    s_date = date(2000,1,1)
+    s_date = date(2000, 1, 1)
     __counter = None
     __title = None
     __type = None
-    __creation = None
     ## Whether the page should be skipped or not, according to its Namespace
-    __skip = None
+    __skip = False
+    threshold = 1.
+    talkns = None
+    __desired = False
 
-    def saveInDjangoModel(self):
+    def save_in_django_model(self):
         import os
         os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
-        sys.path.append('django_wikinetwork')
+        PROJECT_ROOT = os.path.dirname(__file__)
+        sys.path.append(PROJECT_ROOT+'/django_wikinetwork')
         from django_wikinetwork.wikinetwork.models import WikiEvent
 
-        data = {}
-        data['title'] = self.__title
-        data['lang'] = self.lang
+        data = {
+            'title': self.__title,
+            'lang': self.lang
+        }
 
         results = WikiEvent.objects.filter(**data)
         if not len(results):
-            data['creation'] = self.__creation
-            data_model = WikiEvent(**data)
+            we = WikiEvent(**data)
         else:
-            data_model = results[0]
+            we = results[0]
 
-        data_model.__setattr__(self.__type, self.__counter[self.__type])
-        data_model.save()
+        we.desired = self.__desired
+        we.__setattr__(self.__type, self.__counter[self.__type])
+        we.save()
 
-    def setDesired(self, l):
-        self.counter_desired = {}
-        for page in l:
-            self.desired_pages.append(page)
+    def set_desired(self, l):
+        self.desired_pages = dict(
+            [(page, 1) for page in l]
+        )
 
-    def isDesired(self, title):
-        return (title in self.desired_pages)
+    def is_desired(self, title):
+        return self.desired_pages.has_key(title)
 
     def process_title(self, elem):
         title = elem.text
@@ -112,11 +86,13 @@ class HistoryEventsPageProcessor(mwlib.PageProcessor):
                 self.__skip = True
                 return
 
-        self.__skip = False
-        self.__creation = None
-        self.counter_pages += 1
+        self.__desired = self.is_desired(title)
+        if not self.__desired:
+            if random() > self.threshold:
+                self.__skip = True
+                return
 
-        self.__desired = self.isDesired(title)
+        self.counter_pages += 1
 
         self.__counter = {
             'normal': {}
@@ -137,27 +113,28 @@ class HistoryEventsPageProcessor(mwlib.PageProcessor):
         day = int(timestamp[8:10])
         revision_time = date(year, month, day)
 
-        if self.__creation is None:
-            if month == 2 and day == 29:
-                self.__creation = date(year, 2, 28)
-        else:
-            self.__creation = revision_time
-
         days = (revision_time - self.s_date).days
-        self.__counter[self.__type][days] = self.__counter[self.__type].get(days, 0) + 1
+        self.__counter[self.__type][days] = \
+            self.__counter[self.__type].get(days, 0) + 1
 
         self.count += 1
         if not self.count % 50000:
             print 'PAGES:', self.counter_pages, 'REVS:', self.count
         #del child
 
-    def process_page(self, elem):
-        self.saveInDjangoModel()
+    def process_page(self, _):
+        if not self.__skip:
+            self.save_in_django_model()
+        self.__skip = False
+
+    def process_redirect(self, _):
+        #print 'SKIP', self.__title
+        self.__skip = True
 
 def main():
     import optparse
 
-    p = optparse.OptionParser(usage="usage: %prog [options] file")
+    p = optparse.OptionParser(usage="usage: %prog [options] file desired_list acceptance_ratio")
     _, files = p.parse_args()
 
     if not files:
@@ -165,31 +142,41 @@ def main():
 
     xml = files[0]
     desired_pages_fn = files[1]
+    threshold = float(files[2])
 
     with open(desired_pages_fn) as f:
         lines = f.readlines()
 
-    desired_pages = [l for l in [l.strip() for l in lines] if l and not l[0] == '#']
+    desired_pages = [l.decode('latin-1') for l in [l.strip() for l in lines]
+                     if l and not l[0] == '#']
 
-    lang, date_, type_ = mwlib.explode_dump_filename(xml)
+    lang, _, _ = mwlib.explode_dump_filename(xml)
 
-    src = SevenZipFileExt(xml, 51)
+    deflate, _lineno = lib.find_open_for_this_file(xml)
+
+    if _lineno:
+        src = deflate(xml, 51)
+    else:
+        src = deflate(xml)
 
     translation = mwlib.getTranslations(src)
-    tag = mwlib.getTags(src)
+    tag = mwlib.getTags(src, tags='page,title,revision,'+ \
+                        'minor,timestamp,redirect')
 
     src.close()
-    src = SevenZipFileExt(xml)
+    src = deflate(xml)
 
     processor = HistoryEventsPageProcessor(tag=tag, lang=lang)
     processor.talkns = translation['Talk']
-    processor.setDesired(desired_pages)
+    processor.threshold = threshold
+    processor.set_desired(desired_pages)
 
     print "BEGIN PARSING"
     mwlib.fast_iter_filter(etree.iterparse(src), {
         tag['title']: processor.process_title,
         tag['revision']: processor.process_revision,
-        tag['page']: processor.process_page
+        tag['page']: processor.process_page,
+        tag['redirect']: processor.process_redirect
     })
 
 

@@ -136,3 +136,20 @@ def iter_csv(filename, _hasHeader = False):
         yield d
 
     cf.close()
+
+def find_open_for_this_file(fn):
+    ext = fn.split('.')[-1]
+    _lineno = False
+    if ext == 'gz':
+        import gzip
+        deflate = gzip.GzipFile
+    elif ext == 'bz2':
+        import bz2
+        deflate = bz2.BZ2File
+    elif ext == '7z':
+        deflate = SevenZipFileExt
+        _lineno = True
+    else:
+        assert False, 'Wrong data file (unknown extension)'
+
+    return (deflate, _lineno)

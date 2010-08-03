@@ -242,7 +242,7 @@ def addBlockedAttribute(g, lang):
     return
 
 
-def getTags(src):
+def getTags(src, tags='page,title,revision,text'):
     # find namespace (eg: http://www.mediawiki.org/xml/export-0.3/)
     try:
         root = src.readline()
@@ -251,8 +251,7 @@ def getTags(src):
         tag_prefix = u'{%s}' % ns
 
         tag = {}
-        for t in ('page,title,revision,text,contributor,username,ip,'+ \
-            'minor,timestamp,id').split(','):
+        for t in tags.split(','):
             tag[t] = tag_prefix + unicode(t)
     finally:
         src.seek(0)
