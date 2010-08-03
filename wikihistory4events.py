@@ -61,21 +61,15 @@ class HistoryEventsPageProcessor(mwlib.PageProcessor):
     days = 10
     ## desired pages
     desired_pages = []
-    # language of the wikipedia, max length is 3 char
-    lang = 'vec'
-    talkns = 'Discussion'
     ## initial date, used for comparison and substraction
     s_date = date(2000,1,1)
-    __counter = {
-        'normal': {}
-        ,'talk': {}
-    }
+    __counter = None
     __title = None
     __type = None
     __creation = None
     ## Whether the page should be skipped or not, according to its Namespace
     __skip = None
-    
+
     def saveInDjangoModel(self):
         import os
         os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
@@ -123,6 +117,11 @@ class HistoryEventsPageProcessor(mwlib.PageProcessor):
         self.counter_pages += 1
 
         self.__desired = self.isDesired(title)
+
+        self.__counter = {
+            'normal': {}
+            ,'talk': {}
+        }
 
     def process_revision(self, elem):
         if self.__skip: return
@@ -176,12 +175,14 @@ def main():
 
     src = SevenZipFileExt(xml, 51)
 
+    translation = mwlib.getTranslations(src)
     tag = mwlib.getTags(src)
 
     src.close()
     src = SevenZipFileExt(xml)
 
     processor = HistoryEventsPageProcessor(tag=tag, lang=lang)
+    processor.talkns = translation['Talk']
     processor.setDesired(desired_pages)
 
     print "BEGIN PARSING"
