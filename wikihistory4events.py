@@ -16,7 +16,7 @@
 #from lxml import etree
 import xml.etree.cElementTree as etree
 
-from datetime import datetime
+from datetime import date
 import sys
 
 ## PROJECT LIBS
