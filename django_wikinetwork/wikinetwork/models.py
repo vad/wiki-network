@@ -149,3 +149,14 @@ class CeleryRun(Model):
     
     created = DateTimeField(auto_now_add = True)
     modified = DateTimeField(auto_now = True)
+
+class WikiEvent(Model):
+    """
+        Class used to store revisions per date for each page in wiki history dump
+    """
+
+    title = CharField(max_length=200)
+    lang = CharField(max_length=3)
+    # pickle (aka dictionary)
+    normal = DictionaryField()
+    talk = DictionaryField()
