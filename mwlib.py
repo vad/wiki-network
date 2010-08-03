@@ -119,9 +119,15 @@ def getCollaborators(rawWikiText, search, lang=None, re_cache = {}):
                          ('Utente', 'User'))
     {u'Me': 2, u'You': 1}
     >>> getCollaborators('[[User:you', ('Utente', 'User'))
+<<<<<<< HEAD
     {}
     >>> getCollaborators('[[Utente:me/archive|archive]]', ('Utente', 'User'))
     {}
+=======
+    {}
+    >>> getCollaborators('[[Utente:me/archive|archive]]', ('Utente', 'User'))
+    {}
+>>>>>>> morail/master
     >>> getCollaborators('[[:vec:Utente:me|or you]]', ('Utente', 'User'), \
             'vec')
     {u'Me': 1}
