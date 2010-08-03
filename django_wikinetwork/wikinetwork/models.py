@@ -1,5 +1,6 @@
 #from django.db import models
 from django.db.models import *
+from wikinetwork.fields import DictionaryField
 
 
 class WikiRunData(Model):
@@ -158,5 +159,7 @@ class WikiEvent(Model):
     title = CharField(max_length=200)
     lang = CharField(max_length=3)
     # pickle (aka dictionary)
-    normal = DictionaryField()
-    talk = DictionaryField()
+    normal = DictionaryField(blank=True)
+    talk = DictionaryField(blank=True)
+    # page creation date
+    creation = DateTimeField(blank=True)
