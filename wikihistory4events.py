@@ -14,8 +14,8 @@
 ##########################################################################
 
 ## LXML
-from lxml import etree
-#import xml.etree.cElementTree as etree
+#from lxml import etree
+import xml.etree.cElementTree as etree
 
 from datetime import datetime
 import sys
@@ -112,10 +112,7 @@ class HistoryEventsPageProcessor(PageProcessor):
         self.__creation = None
         self.counter_pages += 1
 
-        if self.isDesired(title):
-            self.__desired = True
-        else:
-            self.__desired = False
+        self.__desired = self.isDesired(title)
 
     def process_revision(self, elem):
         if self.__skip: return

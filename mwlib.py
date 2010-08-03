@@ -46,8 +46,8 @@ def fast_iter_filter(context, dfunc):
     for elem in (elem for _, elem in context if elem.tag in dfunc):
         dfunc[elem.tag](elem)
         elem.clear()
-        while elem.getprevious() is not None:
-            del elem.getparent()[0]
+        #while elem.getprevious() is not None:
+        #    del elem.getparent()[0]
     del context
 
 def isip(s):
