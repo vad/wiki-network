@@ -19,13 +19,10 @@ from lxml import etree
 
 from datetime import date
 import sys
-import re
-import wbin
 
 ## PROJECT LIBS
 import mwlib
 from lib import SevenZipFileExt
-from mwlib import PageProcessor
 
 
 ## TODO: move into the analysis script
@@ -67,12 +64,12 @@ class HistoryEventsPageProcessor(PageProcessor):
     desired_pages = []
     # language of the wikipedia, max length is 3 char
     lang = 'vec'
+    talkns = 'Discussion'
     ## initial date, used for comparison and substraction
     s_date = date(2000,1,1)
     __counter = {
         'normal': {}
         ,'talk': {}
-        ,'title': None
     }
     __title = None
     __type = None
@@ -83,8 +80,10 @@ class HistoryEventsPageProcessor(PageProcessor):
     def saveInDjangoModel(self):
         import os
         os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
+        sys.path.append('django_wikinetwork')
         from django_wikinetwork.wikinetwork.models import WikiEvent
 
+        data = {}
         data['title'] = self.__title
         data['lang'] = self.lang
 
@@ -95,7 +94,7 @@ class HistoryEventsPageProcessor(PageProcessor):
         else:
             data_model = results[0]
 
-        data_model[self.__type] = self.__counter
+        data_model.__setattr__(self.__type, self.__counter[self.__type])
         data_model.save()
 
     def setDesired(self, l):
@@ -113,14 +112,13 @@ class HistoryEventsPageProcessor(PageProcessor):
             self.__type = 'normal'
             self.__title = a_title[0]
         else:
-            if a_title[0] == 'Talk':
+            if a_title[0] == self.talkns:
                 self.__type = 'talk'
                 self.__title = a_title[1]
             else:
                 self.__skip = True
                 return
 
-        self.__counter['title'] = self.__title
         self.__skip = False
         self.__creation = None
         self.counter_pages += 1
