@@ -162,4 +162,4 @@ class WikiEvent(Model):
     normal = DictionaryField(blank=True)
     talk = DictionaryField(blank=True)
     # page creation date
-    creation = DateTimeField(blank=True)
+    creation = DateTimeField(null=True)
