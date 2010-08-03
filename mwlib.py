@@ -42,11 +42,9 @@ def fast_iter_filter(context, dfunc):
 
     See http://www.ibm.com/developerworks/xml/library/x-hiperfparse/ for doc.
     """
-    for _, elem in context:
-        try:
-            dfunc[elem.tag](elem)
-        except KeyError:
-            continue
+
+    for elem in (elem for _, elem in context if elem.tag in dfunc):
+        dfunc[elem.tag](elem)
         elem.clear()
         while elem.getprevious() is not None:
             del elem.getparent()[0]

@@ -26,7 +26,6 @@ import wbin
 
 ## PROJECT LIBS
 import mwlib
-#import cmwlib
 from lib import SevenZipFileExt
 from mwlib import PageProcessor
 
@@ -192,8 +191,6 @@ def main():
     processor.setDesired(desired_pages)
 
     print "BEGIN PARSING"
-    #mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
-    #                processor.process)
     mwlib.fast_iter_filter(etree.iterparse(src), {
         tag['title']: processor.process_title,
         tag['revision']: processor.process_revision,
