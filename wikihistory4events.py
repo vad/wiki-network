@@ -20,8 +20,6 @@ from lxml import etree
 from datetime import date
 import sys
 import re
-import cPickle as pickle
-import psycopg2
 import wbin
 
 ## PROJECT LIBS
@@ -62,20 +60,15 @@ def isNearAnniversary(creation, revision, range_):
         return False
 
 class HistoryEventsPageProcessor(PageProcessor):
+    counter_pages = 0
     ## count only revisions 'days' before or after the anniversary
     days = 10
+    ## desired pages
+    desired_pages = []
+    # language of the wikipedia, max length is 3 char
+    lang = 'vec'
     ## initial date, used for comparison and substraction
     s_date = date(2000,1,1)
-    ## counter for desired pages
-    ## total revisions vs revisions near the anniversary
-    #counter_desired = None
-    #counter_normal = {
-    #    'talk': {'total': 0, 'anniversary': 0},
-    #    'normal': {'total': 0, 'anniversary': 0}
-    #}
-    desired_pages = []
-    counter_pages = 0
-    writer = None
     __counter = {
         'normal': {}
         ,'talk': {}
@@ -86,11 +79,24 @@ class HistoryEventsPageProcessor(PageProcessor):
     __creation = None
     ## Whether the page should be skipped or not, according to its Namespace
     __skip = None
+    
+    def saveInDjangoModel(self):
+        import os
+        os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
+        from django_wikinetwork.wikinetwork.models import WikiEvent
 
-    def __init__(self, tag=None, lang=None, writer=None):
-        PageProcessor.__init__(self, tag=tag, lang=lang)
-        if writer:
-            self.writer = writer
+        data['title'] = self.__title
+        data['lang'] = self.lang
+
+        results = WikiEvent.objects.filter(**data)
+        if not len(results):
+            data['creation'] = self.__creation
+            data_model = WikiEvent(**data)
+        else:
+            data_model = results[0]
+
+        data_model[self.__type] = self.__counter
+        data_model.save()
 
     def setDesired(self, l):
         self.counter_desired = {}
@@ -99,7 +105,7 @@ class HistoryEventsPageProcessor(PageProcessor):
 
     def isDesired(self, title):
         return (title in self.desired_pages)
-        
+
     def process_title(self, elem):
         title = elem.text
         a_title = title.split(':')
@@ -138,6 +144,12 @@ class HistoryEventsPageProcessor(PageProcessor):
         day = int(timestamp[8:10])
         revision_time = date(year, month, day)
 
+        if self.__creation is None:
+            if month == 2 and day == 29:
+                self.__creation = date(year, 2, 28)
+        else:
+            self.__creation = revision_time
+
         days = (revision_time - self.s_date).days
         self.__counter[self.__type][days] = self.__counter[self.__type].get(days, 0) + 1
 
@@ -147,17 +159,7 @@ class HistoryEventsPageProcessor(PageProcessor):
         #del child
 
     def process_page(self, elem):
-        ## PICKLE
-        #self.writer.write(pickle.dumps(self.__counter))
-        ## WBIN
-        #self.writer.write(wbin.serialize(self.__counter))
-        ## DB
-        try:
-            
-            self.writer.execute("""SELECT set_%s(\'%s\', %%(bytea)s)""" % (self.__type, self.__title), {'bytea': psycopg2.Binary(pickle.dumps(self.__counter))})
-        except Exception, e:
-            print e
-
+        self.saveInDjangoModel()
 
 def main():
     import optparse
@@ -167,12 +169,13 @@ def main():
 
     if not files:
         p.error("Give me a file, please ;-)")
+
     xml = files[0]
     desired_pages_fn = files[1]
-    out_filename = files[2]
 
     with open(desired_pages_fn) as f:
         lines = f.readlines()
+
     desired_pages = [l for l in [l.strip() for l in lines] if l and not l[0] == '#']
 
     lang, date_, type_ = mwlib.explode_dump_filename(xml)
@@ -184,10 +187,7 @@ def main():
     src.close()
     src = SevenZipFileExt(xml)
 
-    conn = psycopg2.connect("host=sakamoto dbname=research_wiki user=psqladm password=admpsql port=5432")
-    writer = conn.cursor()
-
-    processor = HistoryEventsPageProcessor(tag=tag, lang=lang, writer=writer)
+    processor = HistoryEventsPageProcessor(tag=tag, lang=lang)
     processor.setDesired(desired_pages)
 
     print "BEGIN PARSING"
