@@ -19,10 +19,9 @@ class WikiStatAdmin(admin.ModelAdmin):
     date_hierarchy  = 'created'
 
 class WikiEventAdmin(admin.ModelAdmin):
-    list_display    = ('lang', 'title') #, 'created')
+    list_display    = ('lang', 'title')
     list_filter     = ('lang',)
     search_fields   = ('title',)
-    #date_hierarchy  = 'created'
 
 admin.site.register(WikiRunData, WikiRunDataAdmin)
 admin.site.register(WikiRunGroupData, WikiRunGroupDataAdmin)
