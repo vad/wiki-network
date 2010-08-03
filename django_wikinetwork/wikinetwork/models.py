@@ -90,11 +90,7 @@ class WikiStat(Model):
     ## name
     lang = CharField(max_length=20, blank=False)
     family = CharField(max_length=20, blank=False, default="wikipedia")
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> morail/master
     ## data
     articles = IntegerField(blank=True, null=True)
     jobs = IntegerField(blank=True, null=True)
@@ -107,11 +103,7 @@ class WikiStat(Model):
 
     created = DateTimeField(auto_now_add = True)
     modified = DateTimeField(auto_now = True)
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> morail/master
     def __unicode__(self):
         return "%s, stats of %s" % (self.lang, self.created.isoformat())
 
