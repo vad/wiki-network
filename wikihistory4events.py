@@ -86,9 +86,11 @@ class HistoryEventsPageProcessor(mwlib.PageProcessor):
                 self.__skip = True
                 return
 
-        self.__desired = self.is_desired(title)
+        self.__desired = self.is_desired(self.__title)
         if not self.__desired:
             if random() > self.threshold:
+                ## 1>1: false -> non skippa -> accettato ok!
+                ## 0>0: false -> non skippa -> accettato problema!
                 self.__skip = True
                 return
 
