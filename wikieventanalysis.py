@@ -138,9 +138,13 @@ class EventsProcessor:
         print 'PAGES:', self.count_pages, 'REVS:', self.count
         print 'DESIRED'
         for d,value in self.counter_desired.iteritems():
-            print d
+            print d, ' - http://%s.wikipedia.org/w/%s' % (self.lang,d.replace(' ','_'))
             for k,v in value.iteritems():
-                print k, v
+                print k,
+                for a,b in v.iteritems():
+                    print '\t', a, b,
+                print
+            print
         print 'NORMAL'
         print self.counter_normal
 
@@ -258,10 +262,10 @@ class EventsProcessor:
             self.count_pages += 1
             if not self.count_pages % 50000:
                 print 'PAGES:', self.count_pages, 'REVS:', self.count
-                print 'DESIRED'
-                for page, counter in self.counter_desired.iteritems():
-                    print page
-                    print counter
+                #print 'DESIRED'
+                #for page, counter in self.counter_desired.iteritems():
+                #    print page
+                #    print counter
 
 def main():
     import optparse
