@@ -1,6 +1,6 @@
 #from django.db import models
 from django.db.models import *
-from wikinetwork.fields import DictionaryField
+from fields import DictionaryField
 
 
 class WikiRunData(Model):
@@ -156,8 +156,8 @@ class WikiEvent(Model):
         Class used to store revisions per date for each page in wiki history dump
     """
 
-    title = CharField(max_length=200)
-    lang = CharField(max_length=3)
+    title = CharField(max_length=200, db_index=True)
+    lang = CharField(max_length=3, db_index=True)
     desired = BooleanField(default=False)
     # pickle (aka dictionary)
     normal = DictionaryField(blank=True)
@@ -167,4 +167,4 @@ class WikiEvent(Model):
     creation = DateTimeField(null=True)
 
     def __unicode__(self):
-        return "%s: %s (%s)" % (self.lang, self.title, self.creation)
+        return "%s: %s" % (self.lang, self.title)

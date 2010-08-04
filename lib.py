@@ -37,14 +37,45 @@ def find_executable(executable, path=None):
         return None
 
 
-def BZ2FileExt(fn):
+def GzipFileExt(fn, lines=None):
+    from subprocess import Popen, PIPE
+
+    executable = 'gzip'
+    unzip_process = Popen([executable, '-c', '-d', fn], stdout=PIPE)
+    stdout = unzip_process.stdout
+
+    if not lines:
+        return stdout
+    else:
+        import mmap
+        m = mmap.mmap(-1, 16*1024)
+        for i in xrange(lines):
+            line = stdout.readline()
+            if not line: break
+            m.write(line)
+        m.seek(0)
+        return m
+
+
+def BZ2FileExt(fn, lines=None):
     from subprocess import Popen, PIPE
 
     executable = 'lbzip2' if find_executable('lbzip2') else 'bzip2'
 
     unzip_process = Popen([executable, '-c', '-k', '-d', fn], stdout=PIPE)
+    stdout = unzip_process.stdout
 
-    return unzip_process.stdout
+    if not lines:
+        return stdout
+    else:
+        import mmap
+        m = mmap.mmap(-1, 16*1024)
+        for i in xrange(lines):
+            line = stdout.readline()
+            if not line: break
+            m.write(line)
+        m.seek(0)
+        return m
 
 
 def SevenZipFileExt(fn, lines=None):
@@ -141,11 +172,13 @@ def find_open_for_this_file(fn):
     ext = fn.split('.')[-1]
     _lineno = False
     if ext == 'gz':
-        import gzip
-        deflate = gzip.GzipFile
+        #import gzip
+        #deflate = gzip.GzipFile
+        deflate = GzipFileExt
+        _lineno = True
     elif ext == 'bz2':
-        import bz2
-        deflate = bz2.BZ2File
+        deflate = BZ2FileExt
+        _lineno = True
     elif ext == '7z':
         deflate = SevenZipFileExt
         _lineno = True
