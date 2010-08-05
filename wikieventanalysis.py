@@ -14,9 +14,70 @@
 ##########################################################################
 
 from __future__ import division
-import mwlib
 from datetime import date, timedelta
 
+
+def retrieve_pages(**kwargs):
+    import os, sys
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
+    sys.path.append('django_wikinetwork')
+    from django_wikinetwork.wikinetwork.models import WikiEvent
+
+    return WikiEvent.objects.filter(**kwargs)
+    
+def get_days_since(s_date, end_date, range_ = 10, skipped_days = 180, is_anniversary = False):
+    """
+    Returns the number of days passed between two dates minus the number of days to be skipped (if any).
+    If the considered date is an anniversary, count the number of days in the range around the anniversary
+    for each year
+
+    >>> get_days_since(date(2001, 9, 11), date(2005, 9, 19), 10, 180, False)
+    1289
+    >>> get_days_since(date(2001, 1, 1), date(2005, 12, 30), 10, 180, True)
+    86
+    >>> get_days_since(date(2001, 12, 31), date(2005, 1, 1), 10, 0, False)
+    1097
+    >>> get_days_since(date(2005, 7, 7), date(2010, 7, 2), 10, 180, True)
+    89
+    >>> get_days_since(date(2005, 7, 7), date(2010, 7, 15), 10, 180, True)
+    103
+    >>> get_days_since(date(2005, 7, 7), date(2006, 7, 7), 10, 180, True)
+    11
+    """
+    if not is_anniversary:
+        return (end_date - s_date).days - skipped_days
+
+    ## counter for days
+    days = 0
+    for i in range(s_date.year+1,end_date.year+2):
+        try:
+            ad = date(i, s_date.month, s_date.day)
+        except ValueError, e:
+            # print e, creation, revision
+            ad = date(i, s_date.month, (s_date.day-1))
+        if (ad - s_date).days < skipped_days:
+            continue
+        if (ad - timedelta(range_)) > end_date:
+            break
+        ## difference in days between the checked date - which is ad - and the creation
+        ## of the page
+        delta = (end_date - ad).days
+        ## if delta is greater than two times the considered range, then the range doubled
+        ## elsewhere, if delta is postive means that the dump date is still greater then the anniversary
+        ## date in the considered year - i -, hence add the range plus the difference in days.
+        ## last case, dump date felt in the range for the considered date, but less than that date. Hence
+        ## add the difference between range and delta 
+        if delta > (range_ * 2):
+            days += (range_ * 2) + 1
+        elif not delta:
+            days += range_ + 1
+        elif delta > 0:
+            days += range_ + 1 + delta
+        else:
+             days += abs(delta)
+    #if self.__desired:
+    #    print self.__title, self.__anniversary_date, days
+    return days
 
 def is_near_anniversary(creation, revision, range_):
     """
@@ -69,6 +130,11 @@ def is_near_anniversary(creation, revision, range_):
         return False
 
 def get_first_revision(start_date, normal, talk):
+    """
+    >>> get_first_revision(date(2000,1,1), None, 2)
+    >>> get_first_revision(date(2000,1,1), {51: 'a', 20: 'b'}, {10: 'c', 123: 'd'})
+    datetime.date(2000, 1, 11)
+    """
     sum = []
     for d in (normal, talk):
         if isinstance(d,dict):
@@ -138,7 +204,7 @@ class EventsProcessor:
         print 'PAGES:', self.count_pages, 'REVS:', self.count
         print 'DESIRED'
         for d,value in self.counter_desired.iteritems():
-            print d, ' - http://%s.wikipedia.org/w/%s' % (self.lang,d.replace(' ','_'))
+            print d, ' - http://%s.wikipedia.org/wiki/%s' % (self.lang,d.replace(' ','_'))
             for k,v in value.iteritems():
                 print k,
                 for a,b in v.iteritems():
@@ -154,62 +220,19 @@ class EventsProcessor:
         try:
             days = self.ack['anniversary'][self.__anniversary_date] if anniversary else self.ack['creation'][self.__creation]
         except KeyError:
-            days = self.get_days_since(anniversary)
             ack = self.ack['anniversary'] if anniversary else self.ack['creation']
-            key = self.__anniversary_date if anniversary else self.__creation
-            ack[key] = days
+            date = self.__anniversary_date if anniversary else self.__creation
+            days = get_days_since(s_date=date, end_date=self.dump_date, range_=self.range_, is_anniversary=anniversary, skipped_days=self.skipped_days)
+            ack[date] = days
 
         try:
             return value / days
         except ZeroDivisionError:
             return value
 
-    def get_days_since(self, anniversary=False):
-        if not anniversary:
-            return (self.dump_date - self.__creation).days - self.skipped_days
-
-        ## counter for days
-        days = 0
-        for i in range(self.__creation.year+1,self.dump_date.year+1):
-            try:
-                ## ad is, year by year, the anniversary date -> anniversary date
-                ad = date(i, self.__anniversary_date.month, self.__anniversary_date.day)
-            except ValueError, e:
-                # print e, creation, revision
-                ad = date(i, self.__anniversary_date.month, (self.__anniversary_date.day-1))
-            if (ad - self.__creation).days < self.skipped_days:
-                continue
-            if (ad - timedelta(self.range_)) > self.dump_date:
-                break
-            ## difference in days between the checked date - which is ad - and the creation
-            ## of the page
-            delta = (self.dump_date - ad).days
-            ## if delta is greater than two times the considered range, then the range doubled
-            ## elsewhere, if delta is postive means that the dump date is still greater then the anniversary
-            ## date in the considered year - i -, hence add the range plus the difference in days.
-            ## last case, dump date felt in the range for the considered date, but less than that date. Hence
-            ## add the difference between range and delta 
-            if delta > (self.range_ * 2):
-                days += self.range_ * 2
-            elif delta > 0:
-                days += self.range_ + delta
-            else:
-                ## delta is negative, hence this is a substraction
-                 days += self.range_ + delta
-        #if self.__desired:
-        #    print self.__title, self.__anniversary_date, days
-        return days
-
-    def retrieve_pages(self, **kwargs):
-        import os, sys
-        os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
-        sys.path.append('django_wikinetwork')
-        from django_wikinetwork.wikinetwork.models import WikiEvent
-
-        return WikiEvent.objects.filter(**kwargs)
 
     def process(self):
-        all_pages = self.retrieve_pages(lang=self.lang)
+        all_pages = retrieve_pages(lang=self.lang)
         for r in all_pages:
             self.__title = r.title
             self.__revisions = {
@@ -239,7 +262,7 @@ class EventsProcessor:
                 return
             # Iter among normal and talk pages
             for type_, value in self.__revisions.iteritems():
-                if not value or type(value) is not dict:
+                if not isinstance(value,dict):
                     continue
 
                 ack = {'anniversary': 0, 'total': 0}
