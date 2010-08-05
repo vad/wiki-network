@@ -41,6 +41,8 @@ def get_days_since(s_date, end_date, range_ = 10, skipped_days = 180, is_anniver
     89
     >>> get_days_since(date(2005, 7, 7), date(2010, 7, 15), 10, 180, True)
     103
+    >>> get_days_since(date(2005, 7, 7), date(2006, 7, 7), 10, 180, True)
+    11
     """
     if not is_anniversary:
         return (end_date - s_date).days - skipped_days
@@ -67,6 +69,8 @@ def get_days_since(s_date, end_date, range_ = 10, skipped_days = 180, is_anniver
         ## add the difference between range and delta 
         if delta > (range_ * 2):
             days += (range_ * 2) + 1
+        elif not delta:
+            days += range_ + 1
         elif delta > 0:
             days += range_ + 1 + delta
         else:
