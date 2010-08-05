@@ -12,7 +12,7 @@ class DictTimeField(Textarea):
         if isinstance(value, dict):
             d = {}
             for k, v in value.iteritems():
-                da = date(2001, 1, 1) + timedelta(k)
+                da = date(2000, 1, 1) + timedelta(k)
                 d['%s-%s-%s' % (da.year, da.month, da.day)] = v
             value = d
 
