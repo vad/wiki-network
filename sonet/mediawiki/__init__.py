@@ -17,6 +17,8 @@ import sys
 from socket import inet_ntoa, inet_aton, error
 from urllib import urlopen
 
+from pageprocessor import PageProcessor
+
 try:
     import json
 except ImportError:
@@ -36,19 +38,6 @@ def fast_iter(context, func):
             del elem.getparent()[0]
     del context
 
-def fast_iter_filter(context, dfunc):
-    """
-    Use this function with etree.iterparse().
-
-    See http://www.ibm.com/developerworks/xml/library/x-hiperfparse/ for doc.
-    """
-
-    for elem in (elem for _, elem in context if elem.tag in dfunc):
-        dfunc[elem.tag](elem)
-        elem.clear()
-        #while elem.getprevious() is not None:
-        #    del elem.getparent()[0]
-    del context
 
 def isip(s):
     """
@@ -307,24 +296,6 @@ def capfirst(s):
     'Test'
     """
     return s[0].upper() + s[1:]
-
-
-class PageProcessor(object):
-    count = 0
-    count_archive = 0
-    ecache = None
-    tag = None
-    user_talk_names = None
-    search = None
-    lang = None
-
-    def __init__(self, ecache=None, tag=None, user_talk_names=None,
-                 search=None, lang=None):
-        self.ecache = ecache
-        self.tag = tag
-        self.user_talk_names = user_talk_names
-        self.search = search
-        self.lang = lang
 
 
 def count_renames(lang):

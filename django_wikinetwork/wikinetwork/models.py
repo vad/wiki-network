@@ -153,10 +153,10 @@ class CeleryRun(Model):
 
 class WikiEvent(Model):
     """
-        Class used to store revisions per date for each page in wiki history dump
+        Class used to store revisions per date per page in wiki history dump
     """
 
-    title = CharField(max_length=200, db_index=True)
+    title = CharField(max_length=400, db_index=True)
     lang = CharField(max_length=3, db_index=True)
     desired = BooleanField(default=False)
     # pickle (aka dictionary)

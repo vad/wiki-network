@@ -1,9 +1,9 @@
 ## Source code here: http://code.google.com/p/django-geo
 from django.db import models
-#import cPickle as pickle
 import wbin
 from base64 import b64decode, b64encode
 from zlib import compress, decompress
+
 
 class DictionaryField(models.Field):
     # Django seems to do some funky stuff prohibiting this class from inheriting from
