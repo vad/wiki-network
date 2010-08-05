@@ -80,6 +80,10 @@ def get_first_revision(start_date, normal, talk):
         return None
 
 class EventsProcessor:
+    ack = {
+        'anniversary': {}
+        ,'creation': {}
+    }
     count = 0
     count_not_desired = {'normal': 0, 'talk': 0}
     count_pages = 0
@@ -133,14 +137,30 @@ class EventsProcessor:
     def print_out(self):
         print 'PAGES:', self.count_pages, 'REVS:', self.count
         print 'DESIRED'
-        for d,v in self.counter_desired.iteritems():
-            print d,'\n',v
+        for d,value in self.counter_desired.iteritems():
+            print d, ' - http://%s.wikipedia.org/w/%s' % (self.lang,d.replace(' ','_'))
+            for k,v in value.iteritems():
+                print k,
+                for a,b in v.iteritems():
+                    print '\t', a, b,
+                print
+            print
         print 'NORMAL'
         print self.counter_normal
 
-    def update_counter(self, value, anniversary=False):
+    def get_average(self, value, anniversary):
+        ## Check if the days passed since the considered date have already
+        ## been computed. If so, avoid calculating them once again
         try:
-            return value / self.get_days_since(anniversary)
+            days = self.ack['anniversary'][self.__anniversary_date] if anniversary else self.ack['creation'][self.__creation]
+        except KeyError:
+            days = self.get_days_since(anniversary)
+            ack = self.ack['anniversary'] if anniversary else self.ack['creation']
+            key = self.__anniversary_date if anniversary else self.__creation
+            ack[key] = days
+
+        try:
+            return value / days
         except ZeroDivisionError:
             return value
 
@@ -149,7 +169,7 @@ class EventsProcessor:
             return (self.dump_date - self.__creation).days - self.skipped_days
 
         ## counter for days
-        days = 1
+        days = 0
         for i in range(self.__creation.year+1,self.dump_date.year+1):
             try:
                 ## ad is, year by year, the anniversary date -> anniversary date
@@ -176,6 +196,8 @@ class EventsProcessor:
             else:
                 ## delta is negative, hence this is a substraction
                  days += self.range_ + delta
+        #if self.__desired:
+        #    print self.__title, self.__anniversary_date, days
         return days
 
     def retrieve_pages(self, **kwargs):
@@ -199,7 +221,10 @@ class EventsProcessor:
 
         for type_ in ['normal', 'talk']:
             for t in ['anniversary','total']:
-                self.counter_normal[type_][t] /= self.count_not_desired[type_]
+                try:
+                    self.counter_normal[type_][t] /= self.count_not_desired[type_]
+                except ZeroDivisionError:
+                    continue
 
     def process_page(self):
             # creation date
@@ -217,30 +242,30 @@ class EventsProcessor:
                 if not value or type(value) is not dict:
                     continue
 
-                acc = {'anniversary': 0,'total': 0}
+                ack = {'anniversary': 0, 'total': 0}
 
                 for d, v in value.iteritems():
                     revision = self.s_date + timedelta(d)
                     if (revision - self.__creation).days < self.skipped_days:
                        continue
                     if is_near_anniversary(self.__anniversary_date, revision, self.range_):
-                        acc['anniversary'] += v
-                    acc['total'] += v
+                        ack['anniversary'] += v
+                    ack['total'] += v
                     self.count += v
 
                 page_counter = self.counter_desired[self.__title][type_] if self.__desired else self.counter_normal[type_]
                 for t in ['anniversary','total']:
-                    page_counter[t] += self.update_counter(acc[t],t=='anniversary')
+                    page_counter[t] += self.get_average(ack[t], (t=='anniversary'))
                 if not self.__desired:
                     self.count_not_desired[type_] += 1
 
             self.count_pages += 1
             if not self.count_pages % 50000:
                 print 'PAGES:', self.count_pages, 'REVS:', self.count
-                print 'DESIRED'
-                for page, counter in self.counter_desired.iteritems():
-                    print page
-                    print counter
+                #print 'DESIRED'
+                #for page, counter in self.counter_desired.iteritems():
+                #    print page
+                #    print counter
 
 def main():
     import optparse
