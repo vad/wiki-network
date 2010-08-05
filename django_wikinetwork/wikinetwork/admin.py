@@ -13,8 +13,8 @@ class DictTimeField(Textarea):
             d = {}
             for k, v in value.iteritems():
                 da = date(2000, 1, 1) + timedelta(k)
-                d['%s-%s-%s' % (da.year, da.month, da.day)] = v
-            value = d
+                d['%s-%.2d-%.2d' % (da.year, da.month, da.day)] = v
+            value = sorted(d)
 
         return super(DictTimeField, self).render(name, value, attrs)
 

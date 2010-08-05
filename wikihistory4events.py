@@ -47,15 +47,12 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
         we.save()
         self.counter_pages += 1
 
-    def process_revision(self, elem):
+    def process_timestamp(self, elem):
         if self._skip: return
 
         tag = self.tag
 
-        for el in elem:
-            if el.tag == tag['timestamp']:
-                timestamp = el.text
-                break
+        timestamp = elem.text
         year = int(timestamp[:4])
         month = int(timestamp[5:7])
         day = int(timestamp[8:10])
