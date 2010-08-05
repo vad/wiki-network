@@ -13,19 +13,16 @@
 #                                                                        #
 ##########################################################################
 
-#from lxml import etree
-import xml.etree.cElementTree as etree
-
 from datetime import date
 import sys
 from random import random
 
 ## PROJECT LIBS
-import mwlib
+from sonet.mediawiki import PageProcessor
 import lib
 
 
-class HistoryEventsPageProcessor(mwlib.PageProcessor):
+class HistoryEventsPageProcessor(PageProcessor):
     counter_pages = 0
     ## count only revisions 'days' before or after the anniversary
     days = 10
@@ -63,6 +60,7 @@ class HistoryEventsPageProcessor(mwlib.PageProcessor):
         we.desired = self.__desired
         we.__setattr__(self.__type, self.__counter[self.__type])
         we.save()
+        self.counter_pages += 1
 
     def set_desired(self, l):
         self.desired_pages = dict(
@@ -87,14 +85,10 @@ class HistoryEventsPageProcessor(mwlib.PageProcessor):
                 return
 
         self.__desired = self.is_desired(self.__title)
-        if not self.__desired:
-            if random() > self.threshold:
-                ## 1>1: false -> non skippa -> accettato ok!
-                ## 0>0: false -> non skippa -> accettato problema!
+        if not self.__desired or self.threshold < 1.:
+            if self.threshold == 0. or random() > self.threshold:
                 self.__skip = True
                 return
-
-        self.counter_pages += 1
 
         self.__counter = {
             'normal': {}
@@ -122,7 +116,6 @@ class HistoryEventsPageProcessor(mwlib.PageProcessor):
         self.count += 1
         if not self.count % 50000:
             print 'PAGES:', self.counter_pages, 'REVS:', self.count
-        #del child
 
     def process_page(self, _):
         if not self.__skip:
@@ -130,7 +123,6 @@ class HistoryEventsPageProcessor(mwlib.PageProcessor):
         self.__skip = False
 
     def process_redirect(self, _):
-        #print 'SKIP', self.__title
         self.__skip = True
 
 def main():
@@ -174,12 +166,7 @@ def main():
     processor.set_desired(desired_pages)
 
     print "BEGIN PARSING"
-    mwlib.fast_iter_filter(etree.iterparse(src), {
-        tag['title']: processor.process_title,
-        tag['revision']: processor.process_revision,
-        tag['page']: processor.process_page,
-        tag['redirect']: processor.process_redirect
-    })
+    processor.start(src)
 
 
 if __name__ == "__main__":
