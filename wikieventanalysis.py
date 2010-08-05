@@ -22,8 +22,9 @@ def retrieve_pages(**kwargs):
     os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
     sys.path.append('django_wikinetwork')
     from django_wikinetwork.wikinetwork.models import WikiEvent
+    from django.core.paginator import Paginator
 
-    return WikiEvent.objects.filter(**kwargs)
+    return Paginator(WikiEvent.objects.filter(**kwargs), 50000)
     
 def get_days_since(s_date, end_date, range_ = 10, skipped_days = 180, is_anniversary = False):
     """
@@ -242,17 +243,29 @@ class EventsProcessor:
 
 
     def process(self):
-        all_pages = retrieve_pages(lang=self.lang)
-        print 'TOTAL LENGTH:', len(all_pages)
-        for r in all_pages:
-            self.__title = r.title
-            self.__revisions = {
-                    'normal': r.normal
-                    ,'talk': r.talk
-                }
-            self.__desired = self.is_desired()
-            self.process_page()
-
+        pages = retrieve_pages(lang=self.lang)
+        print "TOTAL:", pages.count,
+        print "PAGES:", pages.num_pages
+        try:
+            page = pages(1)
+        except EmptyPage:
+            print "NO RESULTS"
+            return
+        while page.has_next():
+            for r in page.object_list:
+                self.__title = r.title
+                self.__revisions = {
+                        'normal': r.normal
+                        ,'talk': r.talk
+                    }
+                self.__desired = self.is_desired()
+                if self.__desired:
+                    print "PROCESSING DESIRED PAGE:", self.__title
+                self.process_page()
+            try:
+                page = pages(page.next_page_number())
+            except (EmptyPage, InvalidPage):
+                break
         for type_ in ['normal', 'talk']:
             for t in ['anniversary','total']:
                 try:
