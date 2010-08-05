@@ -18,8 +18,9 @@ import sys
 from random import random
 
 ## PROJECT LIBS
-from sonet.mediawiki import PageProcessor
-import lib
+from sonet.mediawiki import PageProcessor, explode_dump_filename, \
+     getTranslations, getTags
+from sonet import lib
 
 
 class HistoryEventsPageProcessor(PageProcessor):
@@ -42,7 +43,7 @@ class HistoryEventsPageProcessor(PageProcessor):
     def save_in_django_model(self):
         import os
         os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
-        PROJECT_ROOT = os.path.dirname(__file__)
+        PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
         sys.path.append(PROJECT_ROOT+'/django_wikinetwork')
         from django_wikinetwork.wikinetwork.models import WikiEvent
 
@@ -144,7 +145,7 @@ def main():
     desired_pages = [l.decode('latin-1') for l in [l.strip() for l in lines]
                      if l and not l[0] == '#']
 
-    lang, _, _ = mwlib.explode_dump_filename(xml)
+    lang, _, _ = explode_dump_filename(xml)
 
     deflate, _lineno = lib.find_open_for_this_file(xml)
 
@@ -153,9 +154,9 @@ def main():
     else:
         src = deflate(xml)
 
-    translation = mwlib.getTranslations(src)
-    tag = mwlib.getTags(src, tags='page,title,revision,'+ \
-                        'minor,timestamp,redirect')
+    translation = getTranslations(src)
+    tag = getTags(src, tags='page,title,revision,'+ \
+                  'minor,timestamp,redirect')
 
     src.close()
     src = deflate(xml)

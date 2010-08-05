@@ -8,10 +8,9 @@ import numpy
 import igraph as ig
 
 ## PROJECT
-from tablr import Tablr
-from timr import Timr
-import mwlib
-import sonetgraph as sg
+from sonet.tablr import Tablr
+from sonet.timr import Timr
+from sonet import mediawiki as mwlib, graph as sg
 
 ## GLOBAL VARIABLES
 
@@ -76,7 +75,7 @@ def create_option_parser():
         help="Write the adjacency matrix of the giant component to a file")
     op.add_option('--users-role', action="store_true", dest="users_role",
         help="Write a list users-role to a file")
-        
+
     return op
 
 
@@ -114,7 +113,7 @@ def main():
                                                  len(g.classes[group_name]))
     else:
         g.defineClass('all', {})
-        
+
     print " * lang: %s" % (lang,)
     print " * date: %s" % (date,)
 
@@ -122,18 +121,18 @@ def main():
         with Timr("details"):
             print " * nodes number: %d" % (vn,)
             print " * edges number: %d" % (en,)
-    
+
             nodes_with_outdegree = len(g.g.vs.select(_outdegree_ge=1))
             nodes_with_indegree = len(g.g.vs.select(_indegree_ge=1))
-    
+
             print " * nodes with out edges number: %d (%6f%%)" % (
                 nodes_with_outdegree, 100.*nodes_with_outdegree/vn)
             print " * nodes with in edges number: %d (%6f%%)" % (
                 nodes_with_indegree, 100.*nodes_with_indegree/vn)
             print " * max weights on edges : %s" % top(g.g.es['weight'])
-            
+
             #print " * diameter : %6f" % g.g.diameter(weights='length')
-    
+
             #print " * average weight : %6f" % numpy.average(g.g.es['weight'])
 
 
@@ -142,9 +141,9 @@ def main():
             for cls, vs in g.classes.iteritems():
                 if not len(vs) > 1:
                     continue
-                
+
                 subgraph = vs.subgraph()
-                
+
                 print " * %s : density : %.10f" % (cls, subgraph.density())
                 print " * %s : reciprocity : %.10f" % (cls,
                                                        subgraph.reciprocity())
@@ -154,14 +153,14 @@ def main():
         with Timr('degree'):
             g.g.vs['indegree'] = g.g.degree(type=ig.IN)
             g.g.vs['outdegree'] = g.g.degree(type=ig.OUT)
-    
+
             for cls, vs in g.classes.iteritems():
                 if not vs:
                     continue
-    
+
                 ind = numpy.array(vs['indegree'])
                 outd = numpy.array(vs['outdegree'])
-    
+
                 print " * %s : mean IN degree (no weights): %f" % (
                     cls, numpy.average(ind))
                 print " * %s : mean OUT degree (no weights): %f" % (
@@ -170,7 +169,7 @@ def main():
                                                                    top(ind))
                 print " * %s : max OUT degrees (no weights): %s" % (cls,
                                                                     top(outd))
-    
+
                 print " * %s : stddev IN degree (no weights): %f" % (
                     cls, numpy.sqrt(numpy.var(ind)))
                 print " * %s : stddev OUT degree (no weights): %f" % (
@@ -189,7 +188,7 @@ def main():
             vc = g.g.clusters()
             size_clusters = vc.sizes()
             giant = vc.giant()
-    
+
             print " * length of 5 max clusters: %s" % top(size_clusters)
             #print " * #node in 5 max clusters/#all nodes: %s" % top(
             #    [1.*cluster_len/vn for cluster_len in size_clusters])
@@ -202,7 +201,7 @@ def main():
                   gg.averageDistance(weight='length')
             print " * average hops in the giant component: %f" % \
                   gg.averageDistance()
-    
+
             #print "Average distance 2: %f" % giant.average_path_length(True,
             #                                                           False)
 
@@ -212,7 +211,7 @@ def main():
             print " * efficiency: %f" % g.efficiency(weight='length')
 
 
-    if (options.plot or options.histogram or options.power_law or 
+    if (options.plot or options.histogram or options.power_law or
         options.centrality):
         with Timr('set weighted indegree'):
             g.set_weighted_degree()
@@ -220,14 +219,14 @@ def main():
 
     if options.centrality:
         timr.start('centrality')
-        
+
         print >> sys.stderr, "betweenness"
         g.g.vs['bw'] = g.g.betweenness(weights='length', directed = True)
         #g.g.vs['ev'] = g.g.evcent(weights='weight') # eigenvector centrality
-        
+
         print >> sys.stderr, "pagerank"
         g.g.vs['pr'] = g.g.pagerank(weights='weight') # pagerank
-        
+
         print >> sys.stderr, "outdegree"
         g.set_weighted_degree(type=ig.OUT)
         #total_weights = sum(g.g.es['weight'])
@@ -236,7 +235,7 @@ def main():
         for cls, vs in g.classes.iteritems():
             if not vs:
                 continue
-            
+
             norm_betweenness = numpy.array(g.classes[cls]['bw'])/max_edges
             print " * %s : average betweenness : %.10f" % (
                 cls, numpy.average(norm_betweenness))
@@ -244,17 +243,17 @@ def main():
                 cls, numpy.sqrt(numpy.var(norm_betweenness)))
             print " * %s : max betweenness: %s" % (
                 cls, top(numpy.array(g.classes[cls]['bw'])/max_edges))
-            
+
             #print " * Average eigenvector centrality : %6f" % numpy.average(
             #    g.vs['ev'])
-            
+
             print " * %s : average pagerank : %.10f" % (
                 cls, numpy.average(g.classes[cls]['pr']))
             print " * %s : stddev pagerank : %.10f" % (
                 cls, numpy.sqrt(numpy.var(g.classes[cls]['pr'])))
             print " * %s : max pagerank: %s" % (
                 cls, top(g.classes[cls]['pr']))
-            
+
             wi = g.classes[cls]['weighted_indegree']
             print " * %s : average IN degree centrality (weighted): %.10f" % (
                 cls, numpy.average(wi))
@@ -263,7 +262,7 @@ def main():
             print " * %s : max IN degrees centrality (weighted): %s" % (
                 cls, top(wi))
             del wi
-                  
+
             wo = g.classes[cls]['weighted_outdegree']
             print " * %s : average OUT degree centrality (weighted) : %.10f" %\
                   (cls, numpy.average(wo))
@@ -272,7 +271,7 @@ def main():
             print " * %s : max OUT degrees centrality (weighted): %s" % (
                 cls, top(wo))
             del wo
-            
+
         timr.stop('centrality')
 
     if options.power_law:
@@ -280,9 +279,9 @@ def main():
             for cls, vs in g.classes.iteritems():
                 if not vs:
                     continue
-                
+
                 indegrees = vs['weighted_indegree']
-    
+
                 try:
                     alpha_exp = ig.statistics.power_law_fit(indegrees, xmin=6)
                     print " * %s : alpha exp IN degree distribution : %10f " %\
@@ -346,7 +345,7 @@ def main():
     if options.plot:
         ## TODO: evaluate if this can be done with
         ## http://bazaar.launchpad.net/~igraph/igraph/0.6-main/revision/2018
-        import math        
+        import math
         bots = g.g.vs.select(bot=True)
         bots['color'] = ('purple',)*len(bots)
 
@@ -371,7 +370,7 @@ def main():
                            in g.g.es]
         g.g.es['width'] = weights
 
-        ig.plot(g.g, target=lang+"_weighted_edges.png", bbox=(0, 0, 4000, 
+        ig.plot(g.g, target=lang+"_weighted_edges.png", bbox=(0, 0, 4000,
                                                               2400),
                 layout='fr', vertex_label=' ')
 
@@ -382,7 +381,7 @@ def main():
         #tablr.printHeader()
         #tablr.printData()
         tablr.saveInDjangoModel()
-        
+
 
     if options.adjacency:
         giant = g.g.clusters().giant()
@@ -390,17 +389,17 @@ def main():
         destRec = "%s/%swiki-%s-rec.csv" % (os.path.split(fn)[0], lang, date)
         sg.Graph(giant).writeAdjacencyMatrix(destAdj, 'username')
         sg.Graph(giant).writeReciprocityMatrix('username', destRec)
-        
+
 
     if options.users_role:
         l = g.getUserClass('username', ('anonymous', 'bot', 'bureaucrat',
                                         'sysop'))
-        
+
         destUR = "%s/%swiki-%s-ur.csv" % (os.path.split(fn)[0], lang, date)
         with open(destUR, 'w') as f:
             for username, role in sorted(l):
                 print >> f, "%s,%s" % (username, role)
-                
+
         from random import shuffle
         destCls = "%s/%swiki-%s-%%s.csv" % (os.path.split(fn)[0], lang, date)
         for cls in ('anonymous', 'bot', 'bureaucrat', 'sysop', 'normal_user'):
@@ -412,7 +411,7 @@ def main():
                           ("%s,http://vec.wikipedia.org/w/index.php?title="+\
                           "Discussion_utente:%s&action=history&offset="+\
                           "20100000000001") % (username, username)
-        
+
 
 
 if __name__ == '__main__':

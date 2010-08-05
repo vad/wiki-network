@@ -12,14 +12,11 @@
 #  GNU General Public License for more details.                          #
 #                                                                        #
 ##########################################################################
-import os, sys
 import igraph as ig
-import sonetgraph as sg
-from mwlib import addGroupAttribute, addBlockedAttribute, isip, \
+from sonet.mediawiki import addGroupAttribute, addBlockedAttribute, isip, \
      explode_dump_filename
 
 def main():
-    import re
     import optparse
 
     p = optparse.OptionParser(usage="usage: %prog [-s SOURCE] [-h] file")
@@ -52,7 +49,7 @@ def main():
                 continue
             for group in groups:
                 destv[group] = sourcev[group]
-                
+
     else:
         for group in groups:
             addGroupAttribute(g, lang, group)
