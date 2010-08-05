@@ -4,19 +4,21 @@ from django_wikinetwork.wikinetwork.models import WikiRunData, \
 from django.contrib import admin
 from django.forms import Textarea
 from datetime import date, timedelta
+from django.utils.safestring import mark_safe
 
 class DictTimeField(Textarea):
     def render(self, name, value, attrs=None):
         if attrs is None: attrs = {}
         attrs['readonly'] = 'readonly'
         if isinstance(value, dict):
-            d = {}
-            for k, v in value.iteritems():
+            out = []
+            for k, v in sorted(value.iteritems()):
                 da = date(2000, 1, 1) + timedelta(k)
-                d['%s-%.2d-%.2d' % (da.year, da.month, da.day)] = v
-            value = sorted(d)
+                sk = '%s-%.2d-%.2d' % (da.year, da.month, da.day)
+                out.append("%s:\t%3d" % (sk, v))
+            value = '</tr></td><tr><td>'.join(out)
 
-        return super(DictTimeField, self).render(name, value, attrs)
+        return mark_safe(u"<table><tr><td>%s</tr></td></table>" % (value,))
 
 class WikiRunDataAdmin(admin.ModelAdmin):
     list_display    = ('lang', 'date', 'created')

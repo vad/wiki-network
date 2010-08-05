@@ -166,5 +166,8 @@ class WikiEvent(Model):
     ##TODO: remove
     creation = DateTimeField(null=True)
 
+    class Meta:
+        ordering = ('id',)
+
     def __unicode__(self):
         return "%s: %s" % (self.lang, self.title)
