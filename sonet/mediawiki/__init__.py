@@ -17,7 +17,7 @@ import sys
 from socket import inet_ntoa, inet_aton, error
 from urllib import urlopen
 
-from pageprocessor import PageProcessor
+from pageprocessor import PageProcessor, HistoryPageProcessor
 
 try:
     import json

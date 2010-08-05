@@ -18,28 +18,12 @@ import sys
 from random import random
 
 ## PROJECT LIBS
-from sonet.mediawiki import PageProcessor, explode_dump_filename, \
+from sonet.mediawiki import HistoryPageProcessor, explode_dump_filename, \
      getTranslations, getTags
 from sonet import lib
 
 
-class HistoryEventsPageProcessor(PageProcessor):
-    counter_pages = 0
-    ## count only revisions 'days' before or after the anniversary
-    days = 10
-    ## desired pages
-    desired_pages = {}
-    ## initial date, used for comparison and substraction
-    s_date = date(2000, 1, 1)
-    __counter = None
-    __title = None
-    __type = None
-    ## Whether the page should be skipped or not, according to its Namespace
-    __skip = False
-    threshold = 1.
-    talkns = None
-    __desired = False
-
+class HistoryEventsPageProcessor(HistoryPageProcessor):
     def save_in_django_model(self):
         import os
         os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
@@ -48,7 +32,7 @@ class HistoryEventsPageProcessor(PageProcessor):
         from django_wikinetwork.wikinetwork.models import WikiEvent
 
         data = {
-            'title': self.__title,
+            'title': self._title,
             'lang': self.lang
         }
 
@@ -58,46 +42,13 @@ class HistoryEventsPageProcessor(PageProcessor):
         else:
             we = results[0]
 
-        we.desired = self.__desired
-        we.__setattr__(self.__type, self.__counter[self.__type])
+        we.desired = self._desired
+        we.__setattr__(self._type, self._counter[self._type])
         we.save()
         self.counter_pages += 1
 
-    def set_desired(self, l):
-        self.desired_pages = dict(
-            [(page, 1) for page in l]
-        )
-
-    def is_desired(self, title):
-        return self.desired_pages.has_key(title)
-
-    def process_title(self, elem):
-        title = elem.text
-        a_title = title.split(':')
-        if len(a_title) == 1:
-            self.__type = 'normal'
-            self.__title = a_title[0]
-        else:
-            if a_title[0] == self.talkns:
-                self.__type = 'talk'
-                self.__title = a_title[1]
-            else:
-                self.__skip = True
-                return
-
-        self.__desired = self.is_desired(self.__title)
-        if not self.__desired or self.threshold < 1.:
-            if self.threshold == 0. or random() > self.threshold:
-                self.__skip = True
-                return
-
-        self.__counter = {
-            'normal': {}
-            ,'talk': {}
-        }
-
     def process_revision(self, elem):
-        if self.__skip: return
+        if self._skip: return
 
         tag = self.tag
 
@@ -111,20 +62,12 @@ class HistoryEventsPageProcessor(PageProcessor):
         revision_time = date(year, month, day)
 
         days = (revision_time - self.s_date).days
-        self.__counter[self.__type][days] = \
-            self.__counter[self.__type].get(days, 0) + 1
+        self._counter[self._type][days] = \
+            self._counter[self._type].get(days, 0) + 1
 
         self.count += 1
         if not self.count % 50000:
             print 'PAGES:', self.counter_pages, 'REVS:', self.count
-
-    def process_page(self, _):
-        if not self.__skip:
-            self.save_in_django_model()
-        self.__skip = False
-
-    def process_redirect(self, _):
-        self.__skip = True
 
 def main():
     import optparse
