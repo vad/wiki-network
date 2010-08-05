@@ -27,16 +27,20 @@ def retrieve_pages(**kwargs):
     
 def get_days_since(s_date, end_date, range_ = 10, skipped_days = 180, is_anniversary = False):
     """
+    Returns the number of days passed between two dates minus the number of days to be skipped (if any).
+    If the considered date is an anniversary, count the number of days in the range around the anniversary
+    for each year
+
     >>> get_days_since(date(2001, 9, 11), date(2005, 9, 19), 10, 180, False)
     1289
     >>> get_days_since(date(2001, 1, 1), date(2005, 12, 30), 10, 180, True)
-    82
+    86
     >>> get_days_since(date(2001, 12, 31), date(2005, 1, 1), 10, 0, False)
     1097
     >>> get_days_since(date(2005, 7, 7), date(2010, 7, 2), 10, 180, True)
-    85
+    89
     >>> get_days_since(date(2005, 7, 7), date(2010, 7, 15), 10, 180, True)
-    98
+    103
     """
     if not is_anniversary:
         return (end_date - s_date).days - skipped_days
@@ -45,7 +49,6 @@ def get_days_since(s_date, end_date, range_ = 10, skipped_days = 180, is_anniver
     days = 0
     for i in range(s_date.year+1,end_date.year+2):
         try:
-            ## ad is, year by year, the start date is anniversary date
             ad = date(i, s_date.month, s_date.day)
         except ValueError, e:
             # print e, creation, revision
@@ -63,9 +66,9 @@ def get_days_since(s_date, end_date, range_ = 10, skipped_days = 180, is_anniver
         ## last case, dump date felt in the range for the considered date, but less than that date. Hence
         ## add the difference between range and delta 
         if delta > (range_ * 2):
-            days += range_ * 2
+            days += (range_ * 2) + 1
         elif delta > 0:
-            days += range_ + delta
+            days += range_ + 1 + delta
         else:
              days += abs(delta)
     #if self.__desired:
@@ -255,7 +258,7 @@ class EventsProcessor:
                 return
             # Iter among normal and talk pages
             for type_, value in self.__revisions.iteritems():
-                if not value or type(value) is not dict:
+                if not isinstance(value,dict):
                     continue
 
                 ack = {'anniversary': 0, 'total': 0}
