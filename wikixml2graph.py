@@ -19,10 +19,10 @@ from bz2 import BZ2File
 from lxml import etree
 
 ## PROJECT LIBS
-from edgecache import EdgeCache
-import mwlib
-import lib
-from mwlib import PageProcessor
+from sonet.edgecache import EdgeCache
+import sonet.mediawiki as mwlib
+from sonet.mediawiki import PageProcessor
+from sonet import lib
 
 class CurrentPageProcessor(PageProcessor):
     def process(self, elem):

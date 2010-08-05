@@ -14,17 +14,13 @@
 ##########################################################################
 
 from bz2 import BZ2File
-import mwlib
-import os, sys
-import re
-from time import time
-from itertools import ifilter
+import sonet.mediawiki as mwlib
+import sys
 from functools import partial
 import cProfile as profile
 
 ## etree
 from lxml import etree
-
 
 ## nltk
 import nltk
@@ -46,27 +42,26 @@ stopwords = nltk.corpus.stopwords.words('italian')
 
 ### CHILD PROCESS
 def get_freq_dist(q, done_q, fd=None):
-    global stopwords
     dstpw = dict(zip(stopwords, [0]*len(stopwords)))
     tokenizer = nltk.PunktWordTokenizer()
 
     if not fd:
         fd = nltk.FreqDist()
-    
+
     while 1:
         s = q.get()
-        
+
         try:
             tokens = tokenizer.tokenize(nltk.clean_html(s.encode('utf-8')
                                                         .lower()))
         except AttributeError: ## end
             done_q.put(fd.items())
-            
+
             return
-            
+
         text = nltk.Text(t for t in tokens if len(t) > 2 and t not in dstpw)
         fd.update(text)
-        
+
 
 def get_freq_dist_wrapper(q, done_q, fd=None):
     profile.runctx("get_freq_dist(q, done_q, fd)",
@@ -76,8 +71,8 @@ def get_freq_dist_wrapper(q, done_q, fd=None):
 ### MAIN PROCESS
 def process_page(elem, queue=None):
     user = None
-    global count, it_stopwords
-    
+    global count
+
     for child in elem:
         if child.tag == tag['title'] and child.text:
             a_title = child.text.split('/')[0].split(':')
@@ -100,35 +95,34 @@ def process_page(elem, queue=None):
 
                 try:
                     queue.put(rc.text)
-                    
+
                     count += 1
-                    
+
                     if not count % 500:
                         print >>sys.stderr, count
                 except:
                     print "Warning: exception with user %s" % (
                         user.encode('utf-8'),)
                     raise
-    
+
 
 def main():
     import optparse
 
     p = optparse.OptionParser(usage="usage: %prog [options] file")
 
-    opts, files = p.parse_args()
+    _, files = p.parse_args()
 
     if not files:
         p.error("Give me a file, please ;-)")
     xml = files[0]
 
-    global templates
     global lang_user_talk, lang_user, tag
 
     src = BZ2File(xml)
 
     tag = mwlib.getTags(src)
-    
+
     p = Process(target=get_freq_dist, args=(queue, done_queue))
     p.start()
 
@@ -140,16 +134,16 @@ def main():
     partial_process_page = partial(process_page, queue=queue)
     mwlib.fast_iter(etree.iterparse(src, tag=tag['page']),
                     partial_process_page)
-    
+
     queue.put(0) ## this STOPS the process
-    
+
     print >>sys.stderr, "end of parsing"
-    
+
     fd = done_queue.get()
     p.join()
-    
+
     print >>sys.stderr, "end of FreqDist"
-    
+
     for k, v in sorted(fd,cmp=lambda x,y: cmp(x[1], y[1]), reverse=True):
         print v, k
 
