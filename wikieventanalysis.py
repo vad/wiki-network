@@ -213,10 +213,12 @@ class EventsProcessor:
         for d,value in self.counter_desired.iteritems():
             print d, ' - http://%s.wikipedia.org/wiki/%s' % (self.lang,d.replace(' ','_'))
             for k,v in value.iteritems():
-                print k,
-                for a,b in v.iteritems():
-                    print '\t', a, b,
-                print
+		output_line = "  %10s \t Total=%2.15f \t Anniversary=%2.15f \t " % (k,v['total'],v['anniversary'])
+		if v['total']!=0:
+			output_line += "Anniversary/Total=%2.15f " % (v['anniversary']/v['total'])
+		else:
+			output_line += " - Total is zero, no division!"
+		print output_line           
             print
         print 'NORMAL'
         print self.counter_normal
