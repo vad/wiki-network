@@ -212,13 +212,14 @@ class EventsProcessor:
         print 'PAGES:', self.count_pages, 'REVS:', self.count
         print 'DESIRED'
         for d,value in self.counter_desired.iteritems():
-            print d, ' - http://%s.wikipedia.org/wiki/%s' % (self.lang,d.replace(' ','_'))
-            for k,v in value.iteritems():
+            print '%s - http://%s.wikipedia.org/wiki/%s - Anniversary: %s' % (d, self.lang,d.replace(' ','_'), self.desired_pages[d])
+            for k in ['normal','talk']:
+                v = value[k]
                 output_line = "  %10s \t Total=%2.15f \t Anniversary=%2.15f \t " % (k,v['total'],v['anniversary'])
-                if v['total']!=0:
+                try:
                     output_line += "Anniversary/Total=%2.15f " % (v['anniversary']/v['total'])
-                else:
-                    output_line += " - Total is zero, no division!"
+                except ZeroDivisionError:
+                    output_line += "Anniversary/Total=0"
                 output_line += " \t Anniv-total=%2.15f" % (v['anniversary']-v['total'])
                 print output_line
             print
@@ -243,11 +244,12 @@ class EventsProcessor:
 
 
     def process(self):
+        from django.core.paginator import EmptyPage, InvalidPage
         pages = retrieve_pages(lang=self.lang)
         print "TOTAL:", pages.count,
         print "PAGES:", pages.num_pages
         page = pages.page(1)
-        while page.has_next():
+        while True:
             for r in page.object_list:
                 self.__title = r.title
                 self.__revisions = {
@@ -274,9 +276,9 @@ class EventsProcessor:
             self.__creation = get_first_revision(self.initial_date, self.__revisions['normal'], self.__revisions['talk'])
             # anniversary_date, if set 
             self.__anniversary_date = self.desired_pages[self.__title] if (self.__desired and self.desired_pages[self.__title]) else self.__creation
-            if not self.__creation:
-                print "CREATION NONE:", self.__title
-
+            if (self.__desired and not self.desired_pages[self.__title]):
+                self.desired_pages[self.__title] = self.__anniversary_date
+            
             ## if the page has been created less than one year ago, skip
             if (self.dump_date - self.__creation).days < 365:
                 return
