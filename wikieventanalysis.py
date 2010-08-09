@@ -243,11 +243,7 @@ class EventsProcessor:
         pages = retrieve_pages(lang=self.lang)
         print "TOTAL:", pages.count,
         print "PAGES:", pages.num_pages
-        try:
-            page = pages(1)
-        except EmptyPage:
-            print "NO RESULTS"
-            return
+        page = pages.page(1)
         while page.has_next():
             for r in page.object_list:
                 self.__title = r.title
@@ -260,7 +256,7 @@ class EventsProcessor:
                     print "PROCESSING DESIRED PAGE:", self.__title
                 self.process_page()
             try:
-                page = pages(page.next_page_number())
+                page = pages.page(page.next_page_number())
             except (EmptyPage, InvalidPage):
                 break
         for type_ in ['normal', 'talk']:
