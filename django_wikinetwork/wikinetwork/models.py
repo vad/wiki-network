@@ -162,9 +162,6 @@ class WikiEvent(Model):
     # pickle (aka dictionary)
     normal = DictionaryField(blank=True)
     talk = DictionaryField(blank=True)
-    # page creation date
-    ##TODO: remove
-    creation = DateTimeField(null=True)
 
     class Meta:
         ordering = ('id',)
