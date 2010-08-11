@@ -56,9 +56,7 @@ class HistoryPageProcessor(PageProcessor):
     _desired = False
 
     def set_desired(self, l):
-        self.desired_pages = dict(
-            [(page, 1) for page in l]
-        )
+        self.desired_pages = set(l)
 
     def is_desired(self, title):
         return (title in self.desired_pages)

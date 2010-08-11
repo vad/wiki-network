@@ -42,7 +42,7 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
             data = {'title': page['title'], 'lang': self.lang}
             we = WikiEvent(title=page['title'],
                            lang=self.lang,
-                           talk=page['type'] == 'talk',
+                           talk=(page['type'] == 'talk'),
                            data=page['counter'],
                            desired=page['desired'])
 
