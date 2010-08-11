@@ -61,6 +61,7 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.middleware.transaction.TransactionMiddleware',
 )
 
 ROOT_URLCONF = 'django_wikinetwork.urls'
@@ -82,6 +83,7 @@ INSTALLED_APPS = (
     'django_evolution',
     'djcelery',
     'django_extensions',
+    #'debug_toolbar',
 )
 
 AMQP_SERVER = ""

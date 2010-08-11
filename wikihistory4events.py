@@ -15,6 +15,7 @@
 
 from datetime import date
 import sys
+import os
 from random import random
 
 ## PROJECT LIBS
@@ -22,29 +23,42 @@ from sonet.mediawiki import HistoryPageProcessor, explode_dump_filename, \
      getTranslations, getTags
 from sonet import lib
 
+os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(PROJECT_ROOT+'/django_wikinetwork')
+from django_wikinetwork.wikinetwork.models import WikiEvent
+from django.db import transaction
 
 class HistoryEventsPageProcessor(HistoryPageProcessor):
-    def save_in_django_model(self):
-        import os
-        os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
-        PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-        sys.path.append(PROJECT_ROOT+'/django_wikinetwork')
-        from django_wikinetwork.wikinetwork.models import WikiEvent
+    accumulator = None
 
+    def __init__(self, **kwargs):
+        super(HistoryEventsPageProcessor, self).__init__(**kwargs)
+        self.accumulator = []
+
+    @transaction.commit_manually
+    def flush(self):
+        for page in self.accumulator:
+            data = {'title': page['title'], 'lang': self.lang}
+            we = WikiEvent(title=page['title'],
+                           lang=self.lang,
+                           talk=page['type'] == 'talk',
+                           data=page['counter'],
+                           desired=page['desired'])
+
+            we.save()
+        transaction.commit()
+        self.accumulator = []
+
+    def save_in_django_model(self):
         data = {
             'title': self._title,
-            'lang': self.lang
+            'type': self._type,
+            'desired': self._desired,
+            'counter': self._counter
         }
 
-        results = WikiEvent.objects.filter(**data)
-        if not len(results):
-            we = WikiEvent(**data)
-        else:
-            we = results[0]
-
-        we.desired = self._desired
-        we.__setattr__(self._type, self._counter[self._type])
-        we.save()
+        self.accumulator.append(data)
         self.counter_pages += 1
 
     def process_timestamp(self, elem):
@@ -59,12 +73,14 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
         revision_time = date(year, month, day)
 
         days = (revision_time - self.s_date).days
-        self._counter[self._type][days] = \
-            self._counter[self._type].get(days, 0) + 1
+        self._counter[days] = \
+            self._counter.get(days, 0) + 1
 
         self.count += 1
         if not self.count % 50000:
+            self.flush()
             print 'PAGES:', self.counter_pages, 'REVS:', self.count
+
 
 def main():
     import optparse
@@ -72,8 +88,8 @@ def main():
     p = optparse.OptionParser(usage="usage: %prog [options] file desired_list acceptance_ratio")
     _, files = p.parse_args()
 
-    if not files:
-        p.error("Give me a file, please ;-)")
+    if len(files) != 3:
+        p.error("Wrong parameters")
 
     xml = files[0]
     desired_pages_fn = files[1]
@@ -108,6 +124,7 @@ def main():
 
     print "BEGIN PARSING"
     processor.start(src)
+    processor.flush()
 
 
 if __name__ == "__main__":

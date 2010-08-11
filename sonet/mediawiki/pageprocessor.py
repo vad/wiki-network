@@ -34,6 +34,9 @@ class PageProcessor(object):
         for elem in (elem for _, elem in context if elem.tag in dfunc):
             dfunc[elem.tag](elem)
             elem.clear()
+            del elem
+            #while elem.getprevious() is not None:
+            #    del elem.getparent()[0]
         del context
 
 
@@ -58,7 +61,7 @@ class HistoryPageProcessor(PageProcessor):
         )
 
     def is_desired(self, title):
-        return self.desired_pages.has_key(title)
+        return (title in self.desired_pages)
 
     def process_title(self, elem):
         title = elem.text
@@ -80,10 +83,7 @@ class HistoryPageProcessor(PageProcessor):
                 self._skip = True
                 return
 
-        self._counter = {
-            'normal': {}
-            ,'talk': {}
-        }
+        self._counter = {}
 
     def process_page(self, _):
         if not self._skip:

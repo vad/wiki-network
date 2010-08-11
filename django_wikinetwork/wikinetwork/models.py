@@ -156,12 +156,12 @@ class WikiEvent(Model):
         Class used to store revisions per date per page in wiki history dump
     """
 
-    title = CharField(max_length=400, db_index=True)
+    title = TextField(db_index=True)
     lang = CharField(max_length=3, db_index=True)
     desired = BooleanField(default=False)
     # pickle (aka dictionary)
-    normal = DictionaryField(blank=True)
-    talk = DictionaryField(blank=True)
+    data = DictionaryField()
+    talk = BooleanField(default=False)
 
     class Meta:
         ordering = ('id',)
