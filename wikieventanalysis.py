@@ -24,9 +24,9 @@ def retrieve_pages(**kwargs):
     from django_wikinetwork.wikinetwork.models import WikiEvent
     from django.core.paginator import Paginator
 
-    return Paginator(WikiEvent.objects.filter(**kwargs), 50000)
+    return Paginator(WikiEvent.objects.filter(**kwargs).order_by('title','talk'), 50000)
     
-def get_days_since(s_date, end_date, range_ = 10, skipped_days = 180, is_anniversary = False):
+def get_days_since(s_date, end_date, range_=10, skipped_days=180, is_anniversary=False):
     """
     Returns the number of days passed between two dates minus the number of days to be skipped (if any).
     If the considered date is an anniversary, count the number of days in the range around the anniversary
@@ -135,24 +135,19 @@ def is_near_anniversary(creation, revision, range_):
                 return True
         return False
 
-def get_first_revision(start_date, normal, talk):
+def get_first_revision(start_date, data):
     """
-    >>> get_first_revision(date(2000,1,1), None, 2)
-    >>> get_first_revision(date(2000,1,1), {51: 'a', 20: 'b'}, {10: 'c', 123: 'd'})
+    >>> get_first_revision(date(2000,1,1), 2)
+    >>> get_first_revision(date(2000,1,1), {51: 'a', 20: 'b', 10: 'c', 123: 'd'})
     datetime.date(2000, 1, 11)
     """
-    sum = []
-    for d in (normal, talk):
-        if isinstance(d,dict):
-            sum += d.keys()
-
-    if len(sum):
-        return start_date + timedelta(min(sum))
-    else:
+    try:
+        return start_date + timedelta(min(data))
+    except:
         return None
 
 class EventsProcessor:
-    ack = {
+    accumulator = {
         'anniversary': {}
         ,'creation': {}
     }
@@ -164,25 +159,25 @@ class EventsProcessor:
         'normal': {'total': 0, 'anniversary': 0}
         ,'talk': {'total': 0, 'anniversary': 0}
     }
+    creation_accumulator = {}
     desired_pages = {}
     dump_date = None
     initial_date = date(2000,1,1)
     lang = None
     range_ = None
-    searched_pages = []
     skipped_days = None
     __anniversary_date = None
-    __title = None
-    __desired = None
     __creation = None
-    __revisions = None
+    __data = None
+    __desired = None
+    __title = None
+    __type = None
     
-    def __init__(self, lang, range_, skip, dump_date, pages):
+    def __init__(self, lang, range_, skip, dump_date):
         self.lang = lang
         self.range_ = range_
         self.skipped_days = skip
         self.dump_date = dump_date
-        self.searched_pages = pages
 
     def set_desired(self, list_):
         for l in list_:
@@ -230,42 +225,47 @@ class EventsProcessor:
         ## Check if the days passed since the considered date have already
         ## been computed. If so, avoid calculating them once again
         try:
-            days = self.ack['anniversary'][self.__anniversary_date] if anniversary else self.ack['creation'][self.__creation]
+            days = self.accumulator['anniversary'][self.__anniversary_date] if anniversary \
+                 else self.accumulator['creation'][self.__creation]
         except KeyError:
-            ack = self.ack['anniversary'] if anniversary else self.ack['creation']
-            date_ = date(self.__creation.year,self.__anniversary_date.month,self.__anniversary_date.day) if anniversary else self.__creation
-            days = get_days_since(s_date=date_, end_date=self.dump_date, range_=self.range_, skipped_days=self.skipped_days, is_anniversary=anniversary)
-            ack[date_] = days
+            accumulator = self.accumulator['anniversary'] if anniversary else self.accumulator['creation']
+            date_ = date(self.__creation.year,self.__anniversary_date.month,self.__anniversary_date.day) \
+                  if anniversary else self.__creation
+            days = get_days_since(s_date=date_, end_date=self.dump_date, range_=self.range_, 
+                                  skipped_days=self.skipped_days, is_anniversary=anniversary)
+            accumulator[date_] = days
 
         try:
             return value / days
         except ZeroDivisionError:
             return value
-
-
-    def process(self):
+        
+    def get_data(self):
         from django.core.paginator import EmptyPage, InvalidPage
         pages = retrieve_pages(lang=self.lang)
         print "TOTAL:", pages.count,
         print "PAGES:", pages.num_pages
         page = pages.page(1)
         while True:
-            for r in page.object_list:
-                self.__title = r.title
-                self.__revisions = {
-                        'normal': r.normal
-                        ,'talk': r.talk
-                    }
-                self.__desired = self.is_desired()
-                if self.__desired:
-                    print "PROCESSING DESIRED PAGE:", self.__title
-                self.process_page()
+            for e in page.object_list:
+                yield e
             try:
                 page = pages.page(page.next_page_number())
             except (EmptyPage, InvalidPage):
-                break
+                return
+
+    def process(self):
+        for r in self.get_data():
+            self.__title = r.title
+            self.__data = r.data
+            self.__desired = self.is_desired()
+            self.__type = 'normal' if not r.talk else 'talk'
+            if self.__desired:
+                print "PROCESSING DESIRED PAGE:", self.__title, self.__type
+            self.process_page()
+            
         for type_ in ['normal', 'talk']:
-            for t in ['anniversary','total']:
+            for t in ['anniversary', 'total']:
                 try:
                     self.counter_normal[type_][t] /= self.count_not_desired[type_]
                 except ZeroDivisionError:
@@ -273,7 +273,14 @@ class EventsProcessor:
 
     def process_page(self):
             # creation date
-            self.__creation = get_first_revision(self.initial_date, self.__revisions['normal'], self.__revisions['talk'])
+            if self.__type == 'normal' or self.__title not in self.creation_accumulator:
+                self.__creation = get_first_revision(self.initial_date, self.__data)
+                self.creation_accumulator.clear()
+                self.creation_accumulator[self.__title] = self.__creation
+                
+            else:
+                self.__creation = self.creation_accumulator[self.__title]
+            
             # anniversary_date, if set 
             self.__anniversary_date = self.desired_pages[self.__title] if (self.__desired and self.desired_pages[self.__title]) else self.__creation
             if (self.__desired and not self.desired_pages[self.__title]):
@@ -282,36 +289,32 @@ class EventsProcessor:
             ## if the page has been created less than one year ago, skip
             if (self.dump_date - self.__creation).days < 365:
                 return
-            # Iter among normal and talk pages
-            for type_, value in self.__revisions.iteritems():
-                if not isinstance(value,dict):
+            
+            if not isinstance(self.__data, dict):
+                return
+
+            accumulator = {'anniversary': 0, 'total': 0}
+
+            for d, v in self.__data.iteritems():
+                revision = self.initial_date + timedelta(d)
+                if (revision - self.__creation).days < self.skipped_days:
                     continue
+                if is_near_anniversary(self.__anniversary_date, revision, self.range_):
+                    accumulator['anniversary'] += v
+                accumulator['total'] += v
+                self.count += v
 
-                ack = {'anniversary': 0, 'total': 0}
-
-                for d, v in value.iteritems():
-                    revision = self.initial_date + timedelta(d)
-                    if (revision - self.__creation).days < self.skipped_days:
-                        continue
-                    if is_near_anniversary(self.__anniversary_date, revision, self.range_):
-                        ack['anniversary'] += v
-                    ack['total'] += v
-                    self.count += v
-
-                page_counter = self.counter_desired[self.__title][type_] if self.__desired else self.counter_normal[type_]
-                for t in ['anniversary','total']:
-                    page_counter[t] += self.get_average(ack[t], (t=='anniversary'))
-                if not self.__desired:
-                    self.count_not_desired[type_] += 1
+            page_counter = self.counter_desired[self.__title][self.__type] if self.__desired else self.counter_normal[self.__type]
+            for t in ['anniversary','total']:
+                page_counter[t] += self.get_average(accumulator[t], (t=='anniversary'))
+            if not self.__desired:
+                self.count_not_desired[self.__type] += 1
 
             self.count_pages += 1
             if not self.count_pages % 50000:
                 print 'PAGES:', self.count_pages, 'REVS:', self.count
-                #print 'DESIRED'
-                #for page, counter in self.counter_desired.iteritems():
-                #    print page
-                #    print counter
-
+                                
+                
 def main():
     import optparse
 
@@ -319,7 +322,7 @@ def main():
     p.add_option('-l', '--lang', action="store", dest="lang",help="wikipedia language", default="en")
     p.add_option('-r', '--range', action="store", dest="range_",help="number of days before and after anniversary date", default=10, type="int")
     p.add_option('-s', '--skip', action="store", dest="skip",help="number of days to be skipped", default=180, type="int")
-    #p.add_option('-p', '--pages', action="store", dest="skip", help="comma separated list of pages to be retrieved from db", default="")
+    
     opts, files = p.parse_args()
     
     if not files:
@@ -336,11 +339,8 @@ def main():
     ## creating dump date object
     dump = date(int(dumpdate[:4]),int(dumpdate[4:6]),int(dumpdate[6:8]))
     
-    #searched_pages = [p for p in opts.pages.strip(',') if p]
-    searched_pages = []
-
     ## creating processor
-    processor = EventsProcessor(lang=opts.lang, range_=opts.range_, skip=opts.skip, dump_date=dump, pages=searched_pages)
+    processor = EventsProcessor(lang=opts.lang, range_=opts.range_, skip=opts.skip, dump_date=dump)
     ## set desired pages
     processor.set_desired(desired_pages)
     ## main process
