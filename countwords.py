@@ -42,7 +42,7 @@ stopwords = nltk.corpus.stopwords.words('italian')
 
 ### CHILD PROCESS
 def get_freq_dist(q, done_q, fd=None):
-    dstpw = dict(zip(stopwords, [0]*len(stopwords)))
+    dstpw = set(stopwords) #lookup table
     tokenizer = nltk.PunktWordTokenizer()
 
     if not fd:

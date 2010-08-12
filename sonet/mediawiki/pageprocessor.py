@@ -62,6 +62,8 @@ class HistoryPageProcessor(PageProcessor):
         return (title in self.desired_pages)
 
     def process_title(self, elem):
+        del self._type, self._title, self._counter
+
         title = elem.text
         a_title = title.split(':')
         if len(a_title) == 1:
