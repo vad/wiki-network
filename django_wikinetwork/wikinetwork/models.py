@@ -168,3 +168,19 @@ class WikiEvent(Model):
 
     def __unicode__(self):
         return "%s: %s" % (self.lang, self.title)
+
+class WikiWord(Model):
+
+    title = TextField(db_index=True)
+    lang = CharField(max_length=3, db_index=True)
+    desired = BooleanField(default=False)
+    # pickle (aka dictionary)
+    data = DictionaryField(null=True)
+    data_first = DictionaryField(null=True)
+    talk = BooleanField(default=False)
+
+    class Meta:
+        ordering = ('id',)
+
+    def __unicode__(self):
+        return "%s: %s" % (self.lang, self.title)

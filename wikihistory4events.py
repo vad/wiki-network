@@ -23,6 +23,7 @@ from sonet.mediawiki import HistoryPageProcessor, explode_dump_filename, \
      getTranslations, getTags
 from sonet import lib
 
+## DJANGO
 os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(PROJECT_ROOT+'/django_wikinetwork')
@@ -45,9 +46,10 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
                            talk=(page['type'] == 'talk'),
                            data=page['counter'],
                            desired=page['desired'])
-
             we.save()
+            del data, page, we
         transaction.commit()
+        del self.accumulator
         self.accumulator = []
 
     def save_in_django_model(self):
