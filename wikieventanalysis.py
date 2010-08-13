@@ -15,6 +15,7 @@
 
 from __future__ import division
 from datetime import date, timedelta
+from calendar import isleap
 
 
 def retrieve_pages(**kwargs):
@@ -24,9 +25,12 @@ def retrieve_pages(**kwargs):
     from django_wikinetwork.wikinetwork.models import WikiEvent
     from django.core.paginator import Paginator
 
-    return Paginator(WikiEvent.objects.filter(**kwargs).order_by('title','talk').defer('id','desired'), 50000)
-    
-def get_days_since(s_date, end_date, range_=10, skipped_days=180, is_anniversary=False):
+    return Paginator(
+        WikiEvent.objects.filter(**kwargs) \
+        .order_by('title','talk').defer('id','desired'), 50000)
+
+def get_days_since(s_date, end_date, range_=10, skipped_days=180,
+                   is_anniversary=False):
     """
     Returns the number of days passed between two dates minus the number of days to be skipped (if any).
     If the considered date is an anniversary, count the number of days in the range around the anniversary
@@ -52,10 +56,10 @@ def get_days_since(s_date, end_date, range_=10, skipped_days=180, is_anniversary
 
     ## counter for days
     days = 0
-    for i in range(s_date.year+1,end_date.year+2):
+    for i in range(s_date.year+1, end_date.year+2):
         try:
             ad = date(i, s_date.month, s_date.day)
-        except ValueError, e:
+        except ValueError:
             # print e, creation, revision
             ad = date(i, s_date.month, (s_date.day-1))
         if (ad - s_date).days < skipped_days:
@@ -69,7 +73,7 @@ def get_days_since(s_date, end_date, range_=10, skipped_days=180, is_anniversary
         ## elsewhere, if delta is postive means that the dump date is still greater then the anniversary
         ## date in the considered year - i -, hence add the range plus the difference in days.
         ## last case, dump date felt in the range for the considered date, but less than that date. Hence
-        ## add the difference between range and delta 
+        ## add the difference between range and delta
         if delta > (range_ * 2):
             days += (range_ * 2) + 1
         elif not delta:
@@ -78,7 +82,7 @@ def get_days_since(s_date, end_date, range_=10, skipped_days=180, is_anniversary
             days += range_ + 1 + delta
         else:
             days += abs(delta)
-    
+
     return days
 
 def is_near_anniversary(creation, revision, range_):
@@ -100,8 +104,8 @@ def is_near_anniversary(creation, revision, range_):
     >>> is_near_anniversary(date(2001, 12, 25), date(2001, 12, 24), 0)
     False
     """
-    isinstance(revision, date) ##WING IDE
-    isinstance(creation, date) ##WING IDE
+    #year = creation.day if isleap(revision.year) else creation.day
+
     try:
         anniversary = date(revision.year, creation.month, creation.day)
     except ValueError:
@@ -110,30 +114,24 @@ def is_near_anniversary(creation, revision, range_):
     delta = (revision - anniversary).days
     if abs(delta) <= range_:
         return True
+    elif delta > 0:
+        try:
+            anniversary = date(revision.year + 1, creation.month,
+                               creation.day)
+        except ValueError:
+            anniversary = date(revision.year + 1, creation.month,
+                               (creation.day - 1))
+        delta = (revision - anniversary).days
+        return (abs(delta) <= range_)
     else:
-        if delta > 0:
-            try:
-                anniversary = date(revision.year + 1, creation.month,
+        try:
+            anniversary = date(revision.year - 1, creation.month,
                                    creation.day)
-            except ValueError:
-            #    print e, creation, revision
-                anniversary = date(revision.year + 1, creation.month,
-                                   (creation.day - 1))
-            delta = (revision - anniversary).days
-            if abs(delta) <= range_:
-                return True
-        else:
-            try:
-                anniversary = date(revision.year - 1, creation.month,
-                                       creation.day)
-            except ValueError:
-            #    print e, creation, revision
-                anniversary = date(revision.year + 1, creation.month,
-                                   (creation.day - 1))
-            delta = (revision - anniversary).days
-            if abs(delta) <= range_:
-                return True
-        return False
+        except ValueError:
+            anniversary = date(revision.year - 1, creation.month,
+                               (creation.day - 1))
+        delta = (revision - anniversary).days
+        return (abs(delta) <= range_)
 
 def get_first_revision(start_date, data):
     """
@@ -143,8 +141,8 @@ def get_first_revision(start_date, data):
     """
     try:
         return start_date + timedelta(min(data))
-    except:
-        return None
+    except TypeError:
+        return
 
 class EventsProcessor:
     accumulator = {
@@ -165,7 +163,7 @@ class EventsProcessor:
     dump_date = None
     initial_date = date(2000,1,1)
     lang = None
-    range_ = None
+    range = None
     skipped_days = None
     __anniversary_date = None
     __creation = None
@@ -173,10 +171,10 @@ class EventsProcessor:
     __desired = None
     __title = None
     __type = None
-    
+
     def __init__(self, lang, range_, skip, dump_date):
         self.lang = lang
-        self.range_ = range_
+        self.range = range_
         self.skipped_days = skip
         self.dump_date = dump_date
 
@@ -197,17 +195,12 @@ class EventsProcessor:
             }
 
     def is_desired(self):
-        try:
-            self.desired_pages[self.__title]
-        except KeyError:
-            return False
-        else:
-            return True
-    
+        return (self.__title in self.desired_pages)
+
     def print_out(self):
         print 'PAGES:', self.count_pages, 'REVS:', self.count
         print 'DESIRED'
-        for d,value in self.counter_desired.iteritems():
+        for d, value in self.counter_desired.iteritems():
             print '%s - http://%s.wikipedia.org/wiki/%s - Anniversary: %s' % (d, self.lang,d.replace(' ','_'), self.desired_pages[d])
             for k in ['normal','talk']:
                 v = value[k]
@@ -229,18 +222,23 @@ class EventsProcessor:
             days = self.accumulator['anniversary'][self.__anniversary_date] if anniversary \
                  else self.accumulator['creation'][self.__creation]
         except KeyError:
-            accumulator = self.accumulator['anniversary'] if anniversary else self.accumulator['creation']
-            date_ = date(self.__creation.year,self.__anniversary_date.month,self.__anniversary_date.day) \
+            accumulator = self.accumulator['anniversary'] if anniversary \
+                        else self.accumulator['creation']
+            date_ = date(self.__creation.year,
+                         self.__anniversary_date.month,
+                         self.__anniversary_date.day) \
                   if anniversary else self.__creation
-            days = get_days_since(s_date=date_, end_date=self.dump_date, range_=self.range_, 
-                                  skipped_days=self.skipped_days, is_anniversary=anniversary)
+            days = get_days_since(s_date=date_, end_date=self.dump_date,
+                                  range_=self.range,
+                                  skipped_days=self.skipped_days,
+                                  is_anniversary=anniversary)
             accumulator[date_] = days
 
         try:
             return value / days
         except ZeroDivisionError:
             return value
-        
+
     def get_data(self):
         from django.core.paginator import EmptyPage, InvalidPage
         pages = retrieve_pages(lang=self.lang)
@@ -265,71 +263,82 @@ class EventsProcessor:
                 print "PROCESSING DESIRED PAGE:", self.__title
                 self.count_desired.append(self.__title)
             self.process_page()
-            
-        for type_ in ['normal', 'talk']:
-            for t in ['anniversary', 'total']:
+
+        for type_ in ('normal', 'talk'):
+            for t in ('anniversary', 'total'):
                 try:
-                    self.counter_normal[type_][t] /= self.count_not_desired[type_]
+                    self.counter_normal[type_][t] /= \
+                        self.count_not_desired[type_]
                 except ZeroDivisionError:
                     continue
 
     def process_page(self):
-            ## creation date
-            if self.__type == 'normal' or self.__title not in self.creation_accumulator:
-                self.__creation = get_first_revision(self.initial_date, self.__data)
-                ## clear accumulator, previous stored data are not more needed
-                ## since pages are ordered by title and talk (hence, if a page has talk
-                ## page, then the talk page follows the article page)
-                self.creation_accumulator.clear()
-                self.creation_accumulator[self.__title] = self.__creation
-                
+        title = self.__title
+
+        ## creation date
+        if self.__type == 'normal' or title not in self.creation_accumulator:
+            self.__creation = get_first_revision(self.initial_date,
+                                                 self.__data)
+            ## clear accumulator, previous stored data are not more needed
+            ## since pages are ordered by title and talk (hence, if a page has talk
+            ## page, then the talk page follows the article page)
+            self.creation_accumulator.clear()
+            self.creation_accumulator[title] = self.__creation
+        else:
+            self.__creation = self.creation_accumulator[title]
+
+        if self.__desired:
+            if self.desired_pages[title] is not None:
+                self.__anniversary_date = self.desired_pages[title]
             else:
-                self.__creation = self.creation_accumulator[self.__title]
-            
-            ## anniversary_date, if set 
-            self.__anniversary_date = self.desired_pages[self.__title] if (self.__desired and self.desired_pages[self.__title]) else self.__creation
-            if (self.__desired and not self.desired_pages[self.__title]):
-                self.desired_pages[self.__title] = self.__anniversary_date
-            
-            ## if the page has been created less than one year ago, skip
-            if (self.dump_date - self.__creation).days < 365:
-                return
-            
-            if not isinstance(self.__data, dict):
-                return
+                self.__anniversary_date = self.__creation
+                self.desired_pages[title] = self.__anniversary_date
 
-            accumulator = {'anniversary': 0, 'total': 0}
+        ## if the page has been created less than one year ago, skip
+        ## TODO: 365 - range??
+        if (self.dump_date - self.__creation).days < 365:
+            return
 
-            for d, v in self.__data.iteritems():
-                revision = self.initial_date + timedelta(d)
-                if (revision - self.__creation).days < self.skipped_days:
-                    continue
-                if is_near_anniversary(self.__anniversary_date, revision, self.range_):
-                    accumulator['anniversary'] += v
-                accumulator['total'] += v
-                self.count += v
+        anniversary = 0
+        total = 0
 
-            page_counter = self.counter_desired[self.__title][self.__type] if self.__desired else self.counter_normal[self.__type]
-            for t in ['anniversary','total']:
-                page_counter[t] += self.get_average(accumulator[t], (t=='anniversary'))
-            if not self.__desired:
-                self.count_not_desired[self.__type] += 1
+        for d, v in self.__data.iteritems():
+            revision = self.initial_date + timedelta(d)
+            if (revision - self.__creation).days < self.skipped_days:
+                continue
+            if is_near_anniversary(self.__anniversary_date, revision,
+                                   self.range):
+                anniversary += v
+            total += v
+            self.count += v
 
-            self.count_pages += 1
-            if not self.count_pages % 50000:
-                print 'PAGES:', self.count_pages, 'REVS:', self.count, 'DESIRED:', len(self.count_desired) 
-                                
-                
+        page_counter = self.counter_desired[title][self.__type] if \
+                     self.__desired else self.counter_normal[self.__type]
+        page_counter['anniversary'] += self.get_average(anniversary, True)
+        page_counter['total'] += self.get_average(total, False)
+        if not self.__desired:
+            self.count_not_desired[self.__type] += 1
+
+        self.count_pages += 1
+        if not self.count_pages % 50000:
+            print 'PAGES:', self.count_pages, 'REVS:', self.count, \
+                  'DESIRED:', len(self.count_desired)
+
+
 def main():
     import optparse
 
     p = optparse.OptionParser(usage="usage: %prog [options] file dump-date")
-    p.add_option('-l', '--lang', action="store", dest="lang",help="wikipedia language", default="en")
-    p.add_option('-r', '--range', action="store", dest="range_",help="number of days before and after anniversary date", default=10, type="int")
-    p.add_option('-s', '--skip', action="store", dest="skip",help="number of days to be skipped", default=180, type="int")
-    
+    p.add_option('-l', '--lang', action="store", dest="lang",
+                 help="wikipedia language", default="en")
+    p.add_option('-r', '--range', action="store", dest="range_",
+                 help="number of days before and after anniversary date",
+                 default=10, type="int")
+    p.add_option('-s', '--skip', action="store", dest="skip",
+                 help="number of days to be skipped", default=180, type="int")
+
     opts, files = p.parse_args()
-    
+
     if not files:
         p.error("Give me a file, please ;-)")
 
@@ -340,12 +349,14 @@ def main():
         lines = f.readlines()
 
     ## parsing and extracting desired pages from file
-    desired_pages = [l.decode('latin-1') for l in [l.strip() for l in lines] if l and not l[0] == '#']
+    desired_pages = [l.decode('latin-1') for l in [
+        l.strip() for l in lines] if l and not l[0] == '#']
     ## creating dump date object
-    dump = date(int(dumpdate[:4]),int(dumpdate[4:6]),int(dumpdate[6:8]))
-    
+    dump = date(int(dumpdate[:4]), int(dumpdate[4:6]), int(dumpdate[6:8]))
+
     ## creating processor
-    processor = EventsProcessor(lang=opts.lang, range_=opts.range_, skip=opts.skip, dump_date=dump)
+    processor = EventsProcessor(lang=opts.lang, range_=opts.range_,
+                                skip=opts.skip, dump_date=dump)
     ## set desired pages
     processor.set_desired(desired_pages)
     ## main process
@@ -355,5 +366,8 @@ def main():
 
 if __name__ == "__main__":
     #import cProfile as profile
-    #profile.run('main()', 'mainprof')
+    #profile.run('main()', '/tmp/itprof')
     main()
+    #import timeit
+    #print timeit.timeit("main.is_near_anniversary(date(2001, 9, 11), date(2005, 9, 19), 10)",
+    #              "import __main__ as main;from datetime import date")
