@@ -282,8 +282,7 @@ class EventsProcessor:
             ## clear accumulator, previous stored data are not more needed
             ## since pages are ordered by title and talk (hence, if a page has talk
             ## page, then the talk page follows the article page)
-            self.creation_accumulator.clear()
-            self.creation_accumulator[title] = self.__creation
+            self.creation_accumulator = {title: self.__creation}
         else:
             self.__creation = self.creation_accumulator[title]
 
