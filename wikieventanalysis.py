@@ -24,7 +24,7 @@ def retrieve_pages(**kwargs):
     from django_wikinetwork.wikinetwork.models import WikiEvent
     from django.core.paginator import Paginator
 
-    return Paginator(WikiEvent.objects.filter(**kwargs).order_by('title','talk'), 50000)
+    return Paginator(WikiEvent.objects.filter(**kwargs).order_by('title','talk').defer('id','desired'), 50000)
     
 def get_days_since(s_date, end_date, range_=10, skipped_days=180, is_anniversary=False):
     """
@@ -152,6 +152,7 @@ class EventsProcessor:
         ,'creation': {}
     }
     count = 0
+    count_desired = []
     count_not_desired = {'normal': 0, 'talk': 0}
     count_pages = 0
     counter_desired = {}
@@ -260,8 +261,9 @@ class EventsProcessor:
             self.__data = r.data
             self.__desired = self.is_desired()
             self.__type = 'normal' if not r.talk else 'talk'
-            if self.__desired:
-                print "PROCESSING DESIRED PAGE:", self.__title, self.__type
+            if self.__desired and self.__title not in self.count_desired:
+                print "PROCESSING DESIRED PAGE:", self.__title
+                self.count_desired.append(self.__title)
             self.process_page()
             
         for type_ in ['normal', 'talk']:
@@ -272,16 +274,19 @@ class EventsProcessor:
                     continue
 
     def process_page(self):
-            # creation date
+            ## creation date
             if self.__type == 'normal' or self.__title not in self.creation_accumulator:
                 self.__creation = get_first_revision(self.initial_date, self.__data)
+                ## clear accumulator, previous stored data are not more needed
+                ## since pages are ordered by title and talk (hence, if a page has talk
+                ## page, then the talk page follows the article page)
                 self.creation_accumulator.clear()
                 self.creation_accumulator[self.__title] = self.__creation
                 
             else:
                 self.__creation = self.creation_accumulator[self.__title]
             
-            # anniversary_date, if set 
+            ## anniversary_date, if set 
             self.__anniversary_date = self.desired_pages[self.__title] if (self.__desired and self.desired_pages[self.__title]) else self.__creation
             if (self.__desired and not self.desired_pages[self.__title]):
                 self.desired_pages[self.__title] = self.__anniversary_date
@@ -312,7 +317,7 @@ class EventsProcessor:
 
             self.count_pages += 1
             if not self.count_pages % 50000:
-                print 'PAGES:', self.count_pages, 'REVS:', self.count
+                print 'PAGES:', self.count_pages, 'REVS:', self.count, 'DESIRED:', len(self.count_desired) 
                                 
                 
 def main():
