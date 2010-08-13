@@ -64,14 +64,14 @@ class WikiEventAdmin(admin.ModelAdmin):
                      ).formfield_for_dbfield(db_field, **kwargs)
 
 class WikiWordAdmin(admin.ModelAdmin):
-    fields          = ('lang', 'title', 'data', 'talk', 'desired')
+    fields          = ('lang', 'title', 'data', 'data_first', 'talk', 'desired')
     list_display    = ('title', 'lang', 'talk')
     list_filter     = ('lang',)
     search_fields   = ('title',)
     readonly_fields = ('lang', 'title', 'desired')
 
     def formfield_for_dbfield(self, db_field, **kwargs):
-        if db_field.name in ('data'):
+        if db_field.name in ('data_first', 'data'):
             kwargs['widget'] = DictField
 
         return super(WikiWordAdmin, self
