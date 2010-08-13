@@ -293,6 +293,8 @@ class EventsProcessor:
             else:
                 self.__anniversary_date = self.__creation
                 self.desired_pages[title] = self.__anniversary_date
+        else:
+            self.__anniversary_date = self.__creation
 
         ## if the page has been created less than one year ago, skip
         ## TODO: 365 - range??
@@ -310,7 +312,7 @@ class EventsProcessor:
                                    self.range):
                 anniversary += v
             total += v
-            self.count += v
+        self.count += total
 
         page_counter = self.counter_desired[title][self.__type] if \
                      self.__desired else self.counter_normal[self.__type]
