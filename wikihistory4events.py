@@ -75,9 +75,9 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
         revision_time = date(year, month, day)
 
         days = (revision_time - self.s_date).days
-        self._counter[days] = \
-            self._counter.get(days, 0) + 1
+        self._counter[days] = self._counter.get(days, 0) + 1
 
+        del days, revision_time
         self.count += 1
         if not self.count % 50000:
             self.flush()
