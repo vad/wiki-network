@@ -1,4 +1,5 @@
-import xml.etree.cElementTree as etree
+#import xml.etree.cElementTree as etree
+from lxml import etree
 from datetime import date
 from random import random
 
@@ -34,23 +35,22 @@ class PageProcessor(object):
         for elem in (elem for _, elem in context if elem.tag in dfunc):
             dfunc[elem.tag](elem)
             elem.clear()
-            del elem
-            #while elem.getprevious() is not None:
-            #    del elem.getparent()[0]
+            while elem.getprevious() is not None:
+                del elem.getparent()[0]
         del context
 
 
 class HistoryPageProcessor(PageProcessor):
     counter_pages = 0
     ## desired pages
-    desired_pages = {}
+    desired_pages = None
     ## initial date, used for comparison and substraction
     s_date = date(2000, 1, 1)
     _counter = None
     _title = None
     _type = None
     ## Whether the page should be skipped or not, according to its Namespace
-    _skip = False
+    _skip = None
     threshold = 1.
     talkns = None
     _desired = False
@@ -61,11 +61,18 @@ class HistoryPageProcessor(PageProcessor):
     def is_desired(self, title):
         return (title in self.desired_pages)
 
-    def process_title(self, elem):
-        del self._type, self._title, self._counter
+    def delattr(self, attrs):
+        for attr in attrs:
+            try:
+                delattr(self, attr)
+            except AttributeError:
+                pass
 
-        title = elem.text
-        a_title = title.split(':')
+    def process_title(self, elem):
+        self.delattr(("_counter", "_type", "_title", "_skip"))
+        self._skip = False
+
+        a_title = elem.text.split(':')
         if len(a_title) == 1:
             self._type = 'normal'
             self._title = a_title[0]
@@ -77,8 +84,9 @@ class HistoryPageProcessor(PageProcessor):
                 self._skip = True
                 return
 
+        #print self._title, self._title == 'Venesia'
         self._desired = self.is_desired(self._title)
-        if not self._desired or self.threshold < 1.:
+        if not self._desired and self.threshold < 1.:
             if self.threshold == 0. or random() > self.threshold:
                 self._skip = True
                 return
@@ -88,7 +96,6 @@ class HistoryPageProcessor(PageProcessor):
     def process_page(self, _):
         if not self._skip:
             self.save_in_django_model()
-        self._skip = False
 
     def process_redirect(self, _):
         self._skip = True
