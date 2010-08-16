@@ -226,14 +226,13 @@ class EventsProcessor:
             for t in ['total', 'anniversary']:
                 l = accumulator[k][t]
                 print '\t %s %2.15f' % (t, average(l),),
-            print
+        print
         print 'NORMAL'
         for k in ['normal','talk']:
             print '%10s' % (k),
             for t in ['total', 'anniversary']:
                 print '\t %s %2.15f' % (t, self.counter_normal[k][t],),
-            print
-                       
+                                   
     def get_average(self, value, anniversary):
         ## Check if the days passed since the considered date have already
         ## been computed. If so, avoid calculating them once again
