@@ -164,6 +164,7 @@ class EventsProcessor:
     dump_date = None
     initial_date = date(2000,1,1)
     lang = None
+    looked_pages = None
     range = None
     skipped_days = None
     __anniversary_date = None
@@ -173,11 +174,33 @@ class EventsProcessor:
     __title = None
     __type = None
 
-    def __init__(self, lang, range_, skip, dump_date):
+    def __init__(self, lang, range_, skip, dump_date, desired):
         self.lang = lang
         self.range = range_
         self.skipped_days = skip
         self.dump_date = dump_date
+        self.desired_only = desired
+                            
+    def get_data(self):
+        from django.core.paginator import EmptyPage, InvalidPage
+
+        search_criteria = {}
+        search_criteria['lang'] = self.lang
+        if self.desired_only:
+            print self.desired_pages.keys()
+            search_criteria['title__in'] = self.desired_pages.keys()      
+        pages = retrieve_pages(**search_criteria)
+        
+        print "TOTAL:", pages.count,
+        print "PAGES:", pages.num_pages
+        page = pages.page(1)
+        while True:
+            for e in page.object_list:
+                yield e
+            try:
+                page = pages.page(page.next_page_number())
+            except (EmptyPage, InvalidPage):
+                return
 
     def set_desired(self, list_):
         for l in list_:
@@ -197,42 +220,7 @@ class EventsProcessor:
 
     def is_desired(self):
         return (self.__title in self.desired_pages)
-
-    def print_out(self):
-        accumulator = {
-            'normal': {'total': [], 'anniversary': []}
-            ,'talk': {'total': [], 'anniversary': []}
-        }
-        from numpy import average
-        print 'PAGES:', self.count_pages, 'REVS:', self.count
-        print 'DESIRED'
-        for d, value in self.counter_desired.iteritems():
-            print '%s - http://%s.wikipedia.org/wiki/%s - Anniversary: %s' % (d, self.lang,d.replace(' ','_'), self.desired_pages[d])
-            for k in ['normal','talk']:
-                v = value[k]
-                accumulator[k]['total'].append(v['total'])
-                accumulator[k]['anniversary'].append(v['anniversary'])
-                output_line = "  %10s \t Total=%2.15f \t Anniversary=%2.15f \t " % (k,v['total'],v['anniversary'])
-                try:
-                    output_line += "Anniversary/Total=%2.15f " % (v['anniversary']/v['total'])
-                except ZeroDivisionError:
-                    output_line += "Anniversary/Total=%2.15f" % (0.0)
-                output_line += " \t Anniv-total=%2.15f" % (v['anniversary']-v['total'])
-                print output_line
-            print
-        print 'AVERAGE DESIRED:'
-        for k in ['normal','talk']:
-            print '%10s' % (k),
-            for t in ['total', 'anniversary']:
-                l = accumulator[k][t]
-                print '\t %s %2.15f' % (t, average(l),),
-        print
-        print 'NORMAL'
-        for k in ['normal','talk']:
-            print '%10s' % (k),
-            for t in ['total', 'anniversary']:
-                print '\t %s %2.15f' % (t, self.counter_normal[k][t],),
-                                   
+             
     def get_average(self, value, anniversary):
         ## Check if the days passed since the considered date have already
         ## been computed. If so, avoid calculating them once again
@@ -257,34 +245,24 @@ class EventsProcessor:
         except ZeroDivisionError:
             return value
 
-    def get_data(self):
-        from django.core.paginator import EmptyPage, InvalidPage
-        pages = retrieve_pages(lang=self.lang)
-        print "TOTAL:", pages.count,
-        print "PAGES:", pages.num_pages
-        page = pages.page(1)
-        while True:
-            for e in page.object_list:
-                yield e
-            try:
-                page = pages.page(page.next_page_number())
-            except (EmptyPage, InvalidPage):
-                return
-
     def process(self):
         for r in self.get_data():
+            
             ## check whether the page is an archive or not
             ## if so, skip it!
             if is_archive(r.title):
                 continue
+            
             ## process and analyze the page
             self.__title = r.title
             self.__data = r.data
             self.__desired = self.is_desired()
             self.__type = 'normal' if not r.talk else 'talk'
+                        
             if self.__desired and self.__title not in self.count_desired:
-                print "PROCESSING DESIRED PAGE:", self.__title
+                #print "PROCESSING DESIRED PAGE:", self.__title
                 self.count_desired.append(self.__title)
+                
             self.process_page()
             del r
 
@@ -295,7 +273,7 @@ class EventsProcessor:
                         self.count_not_desired[type_]
                 except ZeroDivisionError:
                     continue
-
+        
     def process_page(self):
         title = self.__title
 
@@ -349,6 +327,41 @@ class EventsProcessor:
             print 'PAGES:', self.count_pages, 'REVS:', self.count, \
                   'DESIRED:', len(self.count_desired)
 
+    def print_out(self):
+        accumulator = {
+            'normal': {'total': [], 'anniversary': []}
+            ,'talk': {'total': [], 'anniversary': []}
+        }
+        from numpy import average
+        print 'PAGES:', self.count_pages, 'REVS:', self.count
+        print 'DESIRED'
+        for d, value in self.counter_desired.iteritems():
+            print '%s - http://%s.wikipedia.org/wiki/%s - Anniversary: %s' % (d, self.lang,d.replace(' ','_'), self.desired_pages[d])
+            for k in ['normal','talk']:
+                v = value[k]
+                accumulator[k]['total'].append(v['total'])
+                accumulator[k]['anniversary'].append(v['anniversary'])
+                output_line = "  %10s \t Total=%2.15f \t Anniversary=%2.15f \t " % (k,v['total'],v['anniversary'])
+                try:
+                    output_line += "Anniversary/Total=%2.15f " % (v['anniversary']/v['total'])
+                except ZeroDivisionError:
+                    output_line += "Anniversary/Total=%2.15f" % (0.0)
+                output_line += " \t Anniv-total=%2.15f" % (v['anniversary']-v['total'])
+                print output_line
+            print
+        print 'AVERAGE DESIRED:'
+        for k in ['normal','talk']:
+            print '%10s' % (k),
+            for t in ['total', 'anniversary']:
+                l = accumulator[k][t]
+                print '\t %s %2.15f' % (t, average(l),),
+        print
+        print 'NORMAL'
+        for k in ['normal','talk']:
+            print '%10s' % (k),
+            for t in ['total', 'anniversary']:
+                print '\t %s %2.15f' % (t, self.counter_normal[k][t],),
+                      
 
 def main():
     import optparse
@@ -361,9 +374,11 @@ def main():
                  default=10, type="int")
     p.add_option('-s', '--skip', action="store", dest="skip",
                  help="number of days to be skipped", default=180, type="int")
-
+    p.add_option('-d', '--desired-only', action="store_true", dest='desired', 
+                 default=False, help='analysis only of desired pages')
+    
     opts, files = p.parse_args()
-
+        
     if not files:
         p.error("Give me a file, please ;-)")
 
@@ -374,14 +389,16 @@ def main():
         lines = f.readlines()
 
     ## parsing and extracting desired pages from file
-    desired_pages = [l.decode('latin-1') for l in [
+    desired_pages = [l.decode('latin-1').replace('_',' ') for l in [
         l.strip() for l in lines] if l and not l[0] == '#']
     ## creating dump date object
     dump = date(int(dumpdate[:4]), int(dumpdate[4:6]), int(dumpdate[6:8]))
 
     ## creating processor
     processor = EventsProcessor(lang=opts.lang, range_=opts.range_,
-                                skip=opts.skip, dump_date=dump)
+                                skip=opts.skip, dump_date=dump,
+                                desired=opts.desired)
+
     ## set desired pages
     processor.set_desired(desired_pages)
     ## main process
