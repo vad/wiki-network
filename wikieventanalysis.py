@@ -15,20 +15,48 @@
 
 from __future__ import division
 from datetime import date, timedelta
-from calendar import isleap
 from sonet.mediawiki import is_archive
+import os
+import sys
+
+from sqlalchemy import select, Table, MetaData, create_engine, Column,\
+     Integer, String, Boolean, func
+from base64 import b64decode
+from zlib import decompress
+from wbin import deserialize
 
 
-def retrieve_pages(**kwargs):
-    import os, sys
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
-    sys.path.append('django_wikinetwork')
-    from django_wikinetwork.wikinetwork.models import WikiEvent
-    from django.core.paginator import Paginator
+def page_iter(lang = 'en', paginate=10000000, desired=None):
+    engine = create_engine(
+        'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki')
+    metadata = MetaData()
+    events = Table('wikinetwork_wikievent', metadata,
+                   Column('id', Integer, primary_key=True),
+                   Column('title', String),
+                   Column('lang', String),
+                   Column('desired', Boolean),
+                   Column('data', String),
+                   Column('talk', Boolean)
+                   )
+    metadata.bind = engine
+    conn = engine.connect()
 
-    return Paginator(
-        WikiEvent.objects.filter(**kwargs) \
-        .order_by('title','talk').defer('id','desired','lang'), 1000000)
+    count = conn.execute(
+        select([func.count(events.c.id)],
+               events.c.lang == lang)).fetchall()[0][0]
+
+    s = select([events.c.title, events.c.data, events.c.talk],
+                events.c.lang == lang).order_by(
+        events.c.title, events.c.talk).limit(paginate)
+    
+    if desired:
+        s = s.where(events.c.title.in_(desired))
+
+    for offset in xrange(0, count, paginate):
+        rs = conn.execute(s.offset(offset))
+        for row in rs:
+            yield (row[0], deserialize(decompress(b64decode(row[1]))), row[2])
+
 
 def get_days_since(s_date, end_date, range_=10, skipped_days=180,
                    is_anniversary=False):
@@ -160,11 +188,11 @@ class EventsProcessor:
         ,'talk': {'total': 0, 'anniversary': 0}
     }
     creation_accumulator = {}
+    desired_only = False
     desired_pages = {}
     dump_date = None
     initial_date = date(2000,1,1)
     lang = None
-    looked_pages = None
     range = None
     skipped_days = None
     __anniversary_date = None
@@ -180,27 +208,6 @@ class EventsProcessor:
         self.skipped_days = skip
         self.dump_date = dump_date
         self.desired_only = desired
-                            
-    def get_data(self):
-        from django.core.paginator import EmptyPage, InvalidPage
-
-        search_criteria = {}
-        search_criteria['lang'] = self.lang
-        if self.desired_only:
-            print self.desired_pages.keys()
-            search_criteria['title__in'] = self.desired_pages.keys()      
-        pages = retrieve_pages(**search_criteria)
-        
-        print "TOTAL:", pages.count,
-        print "PAGES:", pages.num_pages
-        page = pages.page(1)
-        while True:
-            for e in page.object_list:
-                yield e
-            try:
-                page = pages.page(page.next_page_number())
-            except (EmptyPage, InvalidPage):
-                return
 
     def set_desired(self, list_):
         for l in list_:
@@ -220,7 +227,7 @@ class EventsProcessor:
 
     def is_desired(self):
         return (self.__title in self.desired_pages)
-             
+
     def get_average(self, value, anniversary):
         ## Check if the days passed since the considered date have already
         ## been computed. If so, avoid calculating them once again
@@ -246,25 +253,20 @@ class EventsProcessor:
             return value
 
     def process(self):
-        for r in self.get_data():
-            
+        desired = self.desired_pages.keys() if self.desired_only else None
+        for title, data, talk in page_iter(lang=self.lang, desired=desired):
             ## check whether the page is an archive or not
             ## if so, skip it!
-            if is_archive(r.title):
+            if is_archive(title):
                 continue
-            
-            ## process and analyze the page
-            self.__title = r.title
-            self.__data = r.data
+            self.__title = title
+            self.__data = data
             self.__desired = self.is_desired()
-            self.__type = 'normal' if not r.talk else 'talk'
-                        
+            self.__type = 'normal' if not talk else 'talk'
             if self.__desired and self.__title not in self.count_desired:
-                #print "PROCESSING DESIRED PAGE:", self.__title
+                print "PROCESSING DESIRED PAGE:", self.__title
                 self.count_desired.append(self.__title)
-                
             self.process_page()
-            del r
 
         for type_ in ('normal', 'talk'):
             for t in ('anniversary', 'total'):
@@ -273,7 +275,7 @@ class EventsProcessor:
                         self.count_not_desired[type_]
                 except ZeroDivisionError:
                     continue
-        
+
     def process_page(self):
         title = self.__title
 
@@ -361,7 +363,7 @@ class EventsProcessor:
             print '%10s' % (k),
             for t in ['total', 'anniversary']:
                 print '\t %s %2.15f' % (t, self.counter_normal[k][t],),
-                      
+
 
 def main():
     import optparse
@@ -378,7 +380,7 @@ def main():
                  default=False, help='analysis only of desired pages')
     
     opts, files = p.parse_args()
-        
+
     if not files:
         p.error("Give me a file, please ;-)")
 
