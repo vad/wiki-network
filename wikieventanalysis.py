@@ -27,7 +27,7 @@ def retrieve_pages(**kwargs):
 
     return Paginator(
         WikiEvent.objects.filter(**kwargs) \
-        .order_by('title','talk','lang').defer('id','desired'), 1000000)
+        .order_by('title','talk').defer('id','desired','lang'), 1000000)
 
 def get_days_since(s_date, end_date, range_=10, skipped_days=180,
                    is_anniversary=False):
