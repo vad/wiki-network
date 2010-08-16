@@ -35,7 +35,7 @@ class WikiRunData(Model):
     modified = DateTimeField(auto_now = True)
 
     def __unicode__(self):
-        return "%s, %s" % (self.lang, self.date)
+        return u"%s, %s" % (self.lang, self.date)
 
 
 class WikiRunGroupData(Model):
@@ -83,7 +83,7 @@ class WikiRunGroupData(Model):
     modified = DateTimeField(auto_now = True)
 
     def __unicode__(self):
-        return "%s-%s created on: %s" % (self.lang, self.date, self.created.isoformat())
+        return u"%s-%s created on: %s" % (self.lang, self.date, self.created.isoformat())
 
 
 class WikiStat(Model):
@@ -105,7 +105,7 @@ class WikiStat(Model):
     modified = DateTimeField(auto_now = True)
 
     def __unicode__(self):
-        return "%s, stats of %s" % (self.lang, self.created.isoformat())
+        return u"%s, stats of %s" % (self.lang, self.created.isoformat())
 
 
 class WikiLang(Model):
@@ -153,13 +153,19 @@ class CeleryRun(Model):
 
 class WikiEvent(Model):
     """
-        Class used to store revisions per date per page in wiki history dump
+        Model used to store revisions per date per page in wiki history dump.
+         * desired is used as a flag for internal use
+         * talk tells us if this is a talk or a normal page
+
+        If you use postgresql, execute
+        CREATE INDEX wikinetwork_wikievent_title_talk_LANG ON
+            wikinetwork_wikievent (title, talk) WHERE lang='LANG';
+        and replace LANG with every language you want to store (eg. en, it, de)
     """
 
     title = TextField(db_index=True)
     lang = CharField(max_length=3, db_index=True)
     desired = BooleanField(default=False)
-    # pickle (aka dictionary)
     data = DictionaryField()
     talk = BooleanField(default=False)
 
@@ -167,7 +173,7 @@ class WikiEvent(Model):
         ordering = ('id',)
 
     def __unicode__(self):
-        return "%s: %s" % (self.lang, self.title)
+        return u"%s: %s" % (self.lang, self.title)
 
 class WikiWord(Model):
 
@@ -183,4 +189,4 @@ class WikiWord(Model):
         ordering = ('id',)
 
     def __unicode__(self):
-        return "%s: %s" % (self.lang, self.title)
+        return u"%s: %s" % (self.lang, self.title)

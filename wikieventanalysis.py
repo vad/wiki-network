@@ -15,20 +15,45 @@
 
 from __future__ import division
 from datetime import date, timedelta
-from calendar import isleap
 from sonet.mediawiki import is_archive
+import os
+import sys
+
+from sqlalchemy import select, Table, MetaData, create_engine, Column,\
+     Integer, String, Boolean, func
+from base64 import b64decode
+from zlib import decompress
+from wbin import deserialize
 
 
-def retrieve_pages(**kwargs):
-    import os, sys
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
-    sys.path.append('django_wikinetwork')
-    from django_wikinetwork.wikinetwork.models import WikiEvent
-    from django.core.paginator import Paginator
+def page_iter(lang = 'en', paginate=10000000, desired=None):
+    engine = create_engine(
+        'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki')
+    metadata = MetaData()
+    events = Table('wikinetwork_wikievent', metadata,
+                   Column('id', Integer, primary_key=True),
+                   Column('title', String),
+                   Column('lang', String),
+                   Column('desired', Boolean),
+                   Column('data', String),
+                   Column('talk', Boolean)
+                   )
+    metadata.bind = engine
+    conn = engine.connect()
 
-    return Paginator(
-        WikiEvent.objects.filter(**kwargs) \
-        .order_by('title','talk').defer('id','desired','lang'), 1000000)
+    count = conn.execute(
+        select([func.count(events.c.id)],
+               events.c.lang == lang)).fetchall()[0][0]
+
+    s = select([events.c.title, events.c.data, events.c.talk],
+               events.c.lang == lang).order_by(
+        events.c.title, events.c.talk).limit(paginate)
+
+    for offset in xrange(0, count, paginate):
+        rs = conn.execute(s.offset(offset))
+        for row in rs:
+            yield (row[0], deserialize(decompress(b64decode(row[1]))), row[2])
+
 
 def get_days_since(s_date, end_date, range_=10, skipped_days=180,
                    is_anniversary=False):
@@ -257,36 +282,17 @@ class EventsProcessor:
         except ZeroDivisionError:
             return value
 
-    def get_data(self):
-        from django.core.paginator import EmptyPage, InvalidPage
-        pages = retrieve_pages(lang=self.lang)
-        print "TOTAL:", pages.count,
-        print "PAGES:", pages.num_pages
-        page = pages.page(1)
-        while True:
-            for e in page.object_list:
-                yield e
-            try:
-                page = pages.page(page.next_page_number())
-            except (EmptyPage, InvalidPage):
-                return
 
     def process(self):
-        for r in self.get_data():
-            ## check whether the page is an archive or not
-            ## if so, skip it!
-            if is_archive(r.title):
-                continue
-            ## process and analyze the page
-            self.__title = r.title
-            self.__data = r.data
+        for title, data, talk in page_iter(lang=self.lang):
+            self.__title = title
+            self.__data = data
             self.__desired = self.is_desired()
-            self.__type = 'normal' if not r.talk else 'talk'
+            self.__type = 'normal' if not talk else 'talk'
             if self.__desired and self.__title not in self.count_desired:
                 print "PROCESSING DESIRED PAGE:", self.__title
                 self.count_desired.append(self.__title)
             self.process_page()
-            del r
 
         for type_ in ('normal', 'talk'):
             for t in ('anniversary', 'total'):
