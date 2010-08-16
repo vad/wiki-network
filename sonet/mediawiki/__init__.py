@@ -68,6 +68,21 @@ def isSoftRedirect(rawWikiText):
     rex = r'^[\n ]*{{[\n ]*softredirect[\n ]*\|[^}\n]*\}\}'
     return re.match(rex, rawWikiText) is not None
 
+def is_archive(pagetitle):
+    """
+    Test whether a page is an archive or not
+    (i.e. it contains a '/' in its title
+    
+    >>> is_archive('7_July_2005_London_bombings')
+    False
+    >>> is_archive('7_July_2005_London_bombings/Archive_2')
+    True
+    >>> is_archive('7_July_2005_London_bombings\/Archive_2')
+    True
+    >>> is_archive('7_July_2005_London_bombings/Archive_2/Some/thing/else')
+    True
+    """
+    return bool(pagetitle.count('/'))
 
 def isHardRedirect(rawWikiText):
     """
@@ -108,15 +123,9 @@ def getCollaborators(rawWikiText, search, lang=None, re_cache = {}):
                          ('Utente', 'User'))
     {u'Me': 2, u'You': 1}
     >>> getCollaborators('[[User:you', ('Utente', 'User'))
-<<<<<<< HEAD
     {}
     >>> getCollaborators('[[Utente:me/archive|archive]]', ('Utente', 'User'))
     {}
-=======
-    {}
-    >>> getCollaborators('[[Utente:me/archive|archive]]', ('Utente', 'User'))
-    {}
->>>>>>> morail/master
     >>> getCollaborators('[[:vec:Utente:me|or you]]', ('Utente', 'User'), \
             'vec')
     {u'Me': 1}
