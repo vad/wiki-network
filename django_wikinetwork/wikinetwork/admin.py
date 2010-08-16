@@ -50,8 +50,8 @@ class WikiStatAdmin(admin.ModelAdmin):
     date_hierarchy  = 'created'
 
 class WikiEventAdmin(admin.ModelAdmin):
-    fields          = ('lang', 'title', 'data', 'talk', 'desired')
-    list_display    = ('lang', 'title', 'talk')
+    fields          = ('title', 'lang', 'data', 'talk', 'desired')
+    list_display    = ('title', 'lang', 'talk')
     list_filter     = ('lang',)
     search_fields   = ('title',)
     readonly_fields = ('lang', 'title', 'desired')
