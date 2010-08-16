@@ -216,7 +216,7 @@ class EventsProcessor:
                 try:
                     output_line += "Anniversary/Total=%2.15f " % (v['anniversary']/v['total'])
                 except ZeroDivisionError:
-                    output_line += "Anniversary/Total=0"
+                    output_line += "Anniversary/Total=%2.15f" % (0.0)
                 output_line += " \t Anniv-total=%2.15f" % (v['anniversary']-v['total'])
                 print output_line
             print
@@ -225,13 +225,13 @@ class EventsProcessor:
             print '%10s' % (k),
             for t in ['total', 'anniversary']:
                 l = accumulator[k][t]
-                print '\t ', t, average(l),
+                print '\t %s %2.15f' % (t, average(l),),
             print
         print 'NORMAL'
         for k in ['normal','talk']:
             print '%10s' % (k),
             for t in ['total', 'anniversary']:
-                print '\t ', t, self.counter_normal[k][t],
+                print '\t %s %2.15f' % (t, self.counter_normal[k][t],),
             print
                        
     def get_average(self, value, anniversary):
