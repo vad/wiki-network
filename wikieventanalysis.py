@@ -16,6 +16,7 @@
 from __future__ import division
 from datetime import date, timedelta
 from calendar import isleap
+from sonet.mediawiki import is_archive
 
 
 def retrieve_pages(**kwargs):
@@ -198,12 +199,19 @@ class EventsProcessor:
         return (self.__title in self.desired_pages)
 
     def print_out(self):
+        accumulator = {
+            'normal': {'total': [], 'anniversary': []}
+            ,'talk': {'total': [], 'anniversary': []}
+        }
+        from numpy import average
         print 'PAGES:', self.count_pages, 'REVS:', self.count
         print 'DESIRED'
         for d, value in self.counter_desired.iteritems():
             print '%s - http://%s.wikipedia.org/wiki/%s - Anniversary: %s' % (d, self.lang,d.replace(' ','_'), self.desired_pages[d])
             for k in ['normal','talk']:
                 v = value[k]
+                accumulator[k]['total'].append(v['total'])
+                accumulator[k]['anniversary'].append(v['anniversary'])
                 output_line = "  %10s \t Total=%2.15f \t Anniversary=%2.15f \t " % (k,v['total'],v['anniversary'])
                 try:
                     output_line += "Anniversary/Total=%2.15f " % (v['anniversary']/v['total'])
@@ -212,9 +220,20 @@ class EventsProcessor:
                 output_line += " \t Anniv-total=%2.15f" % (v['anniversary']-v['total'])
                 print output_line
             print
+        print 'AVERAGE DESIRED:'
+        for k in ['normal','talk']:
+            print '%10s' % (k),
+            for t in ['total', 'anniversary']:
+                l = accumulator[k][t]
+                print '\t ', t, average(l),
+            print
         print 'NORMAL'
-        print self.counter_normal
-
+        for k in ['normal','talk']:
+            print '%10s' % (k),
+            for t in ['total', 'anniversary']:
+                print '\t ', t, self.counter_normal[k][t],
+            print
+                       
     def get_average(self, value, anniversary):
         ## Check if the days passed since the considered date have already
         ## been computed. If so, avoid calculating them once again
@@ -255,6 +274,11 @@ class EventsProcessor:
 
     def process(self):
         for r in self.get_data():
+            ## check whether the page is an archive or not
+            ## if so, skip it!
+            if is_archive(r.title):
+                continue
+            ## process and analyze the page
             self.__title = r.title
             self.__data = r.data
             self.__desired = self.is_desired()
