@@ -19,13 +19,11 @@ from lxml import etree
 from datetime import datetime
 
 ## PROJECT LIBS
-from edgecache import EdgeCache
-import mwlib
-from lib import SevenZipFileExt
-from mwlib import PageProcessor
+from sonet.edgecache import EdgeCache
+import sonet.mediawiki as mwlib
+from sonet.lib import SevenZipFileExt, find_open_for_this_file
 
-
-class HistoryPageProcessor(PageProcessor):
+class HistoryPageProcessor(mwlib.PageProcessor):
     # to limit the extraction to changes before a datetime
     end = None
     # to limit the extraction to changes after a datetime
@@ -61,10 +59,14 @@ class HistoryPageProcessor(PageProcessor):
                 not_skip = True
             else:
                 not_skip = False
-            revision_time = datetime.strptime(
-                child.find(tag['timestamp']).text,
-                "%Y-%m-%dT%H:%M:%SZ"
-            )
+            timestamp = child.find(tag['timestamp']).text
+            year = int(timestamp[:4])
+            month = int(timestamp[5:7])
+            day = int(timestamp[8:10])
+            hour = int(timestamp[11:13])
+            minutes = int(timestamp[14:16])
+            seconds = int(timestamp[17:19])
+            revision_time = datetime(year, month, day, hour, minutes, seconds)
             if ((end and revision_time > end) or
                 (start and revision_time < start)):
                 continue
@@ -82,7 +84,12 @@ class HistoryPageProcessor(PageProcessor):
 
             sender_tag = contributor.find(tag['username'])
             if sender_tag is None:
-                collaborator = contributor.find(tag['ip']).text
+                try:
+                    collaborator = contributor.find(tag['ip']).text
+                except AttributeError:
+                    ## user deleted
+                    continue
+
             else:
                 try:
                     collaborator = mwlib.capfirst(
@@ -95,7 +102,7 @@ class HistoryPageProcessor(PageProcessor):
                             {collaborator: [revision_time,]}
                             )
             self.count += 1
-            if not self.count % 500:
+            if not self.count % 5000:
                 print self.count
             del child, collaborator, contributor, sender_tag
 
@@ -104,23 +111,29 @@ def main():
     import optparse
 
     p = optparse.OptionParser(usage="usage: %prog [options] file")
-    _, files = p.parse_args()
+    _, args = p.parse_args()
 
-    if not files:
+    if len(args) != 1:
         p.error("Give me a file, please ;-)")
-    xml = files[0]
+    xml = args[0]
 
     en_user, en_user_talk = u"User", u"User talk"
 
     lang, date, type_ = mwlib.explode_dump_filename(xml)
 
     ecache = EdgeCache()
+    deflate, _lineno = find_open_for_this_file(xml)
 
-    src = SevenZipFileExt(xml, 51)
+    if _lineno:
+        src = deflate(xml, 51)
+    else:
+        src = deflate(xml)
 
-    tag = mwlib.getTags(src)
+    tag = mwlib.getTags(src,
+            tags='page,title,revision,text,timestamp,contributor,username,ip')
 
-    lang_user, lang_user_talk = mwlib.getTranslations(src)
+    translations = mwlib.getTranslations(src)
+    lang_user, lang_user_talk = translations['User'], translations['User talk']
 
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
@@ -130,15 +143,14 @@ def main():
 
     src.close()
     print "BEGIN PARSING"
-    src = SevenZipFileExt(xml)
+    src = deflate(xml)
 
     processor = HistoryPageProcessor(ecache=ecache, tag=tag,
                               user_talk_names=(lang_user_talk, en_user_talk),
                               search=(lang_user, en_user), lang=lang)
     processor.end = datetime(2009, 12, 31)
-    mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False,
-                                    events=('start',)),
-                    processor.null)
+    mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
+                    processor.process)
     print 'TOTAL UTP: ', processor.count
     print 'ARCHIVES: ', processor.count_archive
 
