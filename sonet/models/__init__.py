@@ -14,18 +14,20 @@
 ##########################################################################
 
 from sqlalchemy import Table, MetaData, create_engine, Column, Integer, \
-     String, Boolean
+     String, Boolean, Sequence
 
 def get_events_table(engine=None, metadata=None):
     if engine is None:
         engine = create_engine(
-            'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki')
+            'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki_test')
     if metadata is None:
         metadata = MetaData()
         metadata.bind = engine
 
     events = Table('wikinetwork_wikievent', metadata,
-                   Column('id', Integer, primary_key=True),
+                   Column('id', Integer,
+                          Sequence('wikinetwork_wikievent_id_seq'),
+                          primary_key=True),
                    Column('title', String),
                    Column('lang', String),
                    Column('desired', Boolean),

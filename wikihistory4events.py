@@ -23,36 +23,33 @@ from sonet.mediawiki import HistoryPageProcessor, explode_dump_filename, \
      getTranslations, getTags
 from sonet import lib
 
-## DJANGO
-os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(PROJECT_ROOT+'/django_wikinetwork')
-from django_wikinetwork.wikinetwork.models import WikiEvent
-from django.db import transaction
+from sonet.models import get_events_table
+from base64 import b64encode
+from zlib import compress
+from wbin import serialize
 
 class HistoryEventsPageProcessor(HistoryPageProcessor):
-    accumulator = None
+    queue = None
+    connection = None
+    insert = None
 
     def __init__(self, **kwargs):
         super(HistoryEventsPageProcessor, self).__init__(**kwargs)
-        self.accumulator = []
+        self.queue = []
 
-    @transaction.commit_manually
+        events, self.connection = get_events_table()
+        self.insert = events.insert()
+
     def flush(self):
-        for page in self.accumulator:
-            data = {'title': page['title'], 'lang': self.lang}
-            we = WikiEvent(title=page['title'],
-                           lang=self.lang,
-                           talk=(page['type'] == 'talk'),
-                           data=page['counter'],
-                           desired=page['desired'])
-            we.save()
-            del data, page, we
-        transaction.commit()
-        del self.accumulator
-        self.accumulator = []
+        data = [{'title': page['title'],
+                 'lang': self.lang,
+                 'talk': (page['type'] == 'talk'),
+                 'data': b64encode(compress(serialize(page['counter']))),
+                 'desired': page['desired']} for page in self.queue]
+        self.connection.execute(self.insert, data)
+        self.queue = []
 
-    def save_in_django_model(self):
+    def save(self):
         data = {
             'title': self._title,
             'type': self._type,
@@ -60,7 +57,7 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
             'counter': self._counter
         }
 
-        self.accumulator.append(data)
+        self.queue.append(data)
         self.counter_pages += 1
 
     def process_timestamp(self, elem):
@@ -79,7 +76,7 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
 
         del days, revision_time
         self.count += 1
-        if not self.count % 50000:
+        if not self.count % 500000:
             self.flush()
             print 'PAGES:', self.counter_pages, 'REVS:', self.count
 
