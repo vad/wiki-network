@@ -95,7 +95,7 @@ class HistoryPageProcessor(PageProcessor):
 
     def process_page(self, _):
         if not self._skip:
-            self.save_in_django_model()
+            self.save()
 
     def process_redirect(self, _):
         self._skip = True
