@@ -18,46 +18,36 @@ from datetime import date, timedelta
 from sonet.mediawiki import is_archive
 import os
 import sys
-
-from sqlalchemy import select, Table, MetaData, create_engine, Column,\
-     Integer, String, Boolean, func
+from sqlalchemy import select, func
 from base64 import b64decode
 from zlib import decompress
 from wbin import deserialize
 
+from sonet.models import get_events_table
+
 
 def page_iter(lang = 'en', paginate=10000000, desired=None):
-    engine = create_engine(
-        'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki')
-    metadata = MetaData()
-    events = Table('wikinetwork_wikievent', metadata,
-                   Column('id', Integer, primary_key=True),
-                   Column('title', String),
-                   Column('lang', String),
-                   Column('desired', Boolean),
-                   Column('data', String),
-                   Column('talk', Boolean)
-                   )
-    metadata.bind = engine
-    conn = engine.connect()
+    events, conn = get_events_table()
 
     count_query = select([func.count(events.c.id)],
                events.c.lang == lang)
     s = select([events.c.title, events.c.data, events.c.talk],
                 events.c.lang == lang).order_by(
         events.c.title, events.c.talk).limit(paginate)
-    
+
     ## searching only desired pages
     if desired:
         s = s.where(events.c.title.in_(desired))
         count_query = count_query.where(events.c.title.in_(desired))
-    
+
     count = conn.execute(count_query).fetchall()[0][0]
-        
+
     for offset in xrange(0, count, paginate):
         rs = conn.execute(s.offset(offset))
         for row in rs:
-            yield (row[0], deserialize(decompress(b64decode(row[1]))), row[2])
+            yield (row[0],
+                   deserialize(decompress(b64decode(row[1]))),
+                   row[2])
 
 
 def get_days_since(s_date, end_date, range_=10, skipped_days=180,
@@ -377,9 +367,9 @@ def main():
                  default=10, type="int")
     p.add_option('-s', '--skip', action="store", dest="skip",
                  help="number of days to be skipped", default=180, type="int")
-    p.add_option('-d', '--desired-only', action="store_true", dest='desired', 
+    p.add_option('-d', '--desired-only', action="store_true", dest='desired',
                  default=False, help='analysis only of desired pages')
-    
+
     opts, files = p.parse_args()
 
     if not files:
