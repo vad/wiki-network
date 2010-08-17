@@ -41,17 +41,19 @@ def page_iter(lang = 'en', paginate=10000000, desired=None):
     metadata.bind = engine
     conn = engine.connect()
 
-    count = conn.execute(
-        select([func.count(events.c.id)],
-               events.c.lang == lang)).fetchall()[0][0]
-
+    count_query = select([func.count(events.c.id)],
+               events.c.lang == lang)
     s = select([events.c.title, events.c.data, events.c.talk],
                 events.c.lang == lang).order_by(
         events.c.title, events.c.talk).limit(paginate)
     
+    ## searching only desired pages
     if desired:
         s = s.where(events.c.title.in_(desired))
-
+        count_query = count_query.where(events.c.title.in_(desired))
+    
+    count = conn.execute(count_query).fetchall()[0][0]
+        
     for offset in xrange(0, count, paginate):
         rs = conn.execute(s.offset(offset))
         for row in rs:
@@ -89,7 +91,6 @@ def get_days_since(s_date, end_date, range_=10, skipped_days=180,
         try:
             ad = date(i, s_date.month, s_date.day)
         except ValueError:
-            # print e, creation, revision
             ad = date(i, s_date.month, (s_date.day-1))
         if (ad - s_date).days < skipped_days:
             continue
@@ -188,7 +189,7 @@ class EventsProcessor:
         ,'talk': {'total': 0, 'anniversary': 0}
     }
     creation_accumulator = {}
-    desired_only = False
+    desired_only = False ## search desired pages only
     desired_pages = {}
     dump_date = None
     initial_date = date(2000,1,1)
