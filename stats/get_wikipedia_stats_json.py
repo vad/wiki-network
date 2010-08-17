@@ -25,7 +25,7 @@ def get_stats_wikipedia(link):
     wikipedia_base_url = "/w/api.php?action=query&meta=siteinfo&siprop=statistics&format=json"
     url = link+wikipedia_base_url
 
-    print "Get stats for ", link #, " at ", url
+    print link
 
     opener = urllib2.build_opener()
     opener.addheaders = [('User-agent', AGENT)]
