@@ -25,86 +25,88 @@ from sonet.lib import SevenZipFileExt, find_open_for_this_file
 
 class HistoryPageProcessor(mwlib.PageProcessor):
     # to limit the extraction to changes before a datetime
-    end = None
+    time_end = None
     # to limit the extraction to changes after a datetime
-    start = None
+    time_start = None
+    _receiver = None
+    _sender = None
+    _skip = False
+    _skip_revision = False
+    _time = None ## time of this revision
 
-    def null(self, elem):
-        pass
+    def process_title(self, elem):
+        if self._skip or self._skip_revision: return
 
-    def process(self, elem):
-        tag = self.tag
-        user = None
-        first_revision = True
-        title = elem.find(tag['title']).text
+        title = elem.text
         a_title = title.split(':')
-        start, end = self.start, self.end
 
         if len(a_title) > 1 and a_title[0] in self.user_talk_names:
-            user = a_title[1]
+            self._receiver = a_title[1]
         else:
+            self._skip = True
             return
 
         try:
             title.index('/')
             self.count_archive += 1
-            return
+            self._skip = True
         except ValueError:
             pass
-        del a_title
 
-        for child in elem.findall(tag['revision']):
-            if first_revision:
-                first_revision = False
-                not_skip = True
-            else:
-                not_skip = False
-            timestamp = child.find(tag['timestamp']).text
-            year = int(timestamp[:4])
-            month = int(timestamp[5:7])
-            day = int(timestamp[8:10])
-            hour = int(timestamp[11:13])
-            minutes = int(timestamp[14:16])
-            seconds = int(timestamp[17:19])
-            revision_time = datetime(year, month, day, hour, minutes, seconds)
-            if ((end and revision_time > end) or
-                (start and revision_time < start)):
-                continue
+    def process_timestamp(self, elem):
+        if self._skip or self._skip_revision: return
 
-            #if (not not_skip) and child.find(tag['minor']) is not None:
-            #    self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
-            #                    {})
-            #    continue
+        timestamp = elem.text
+        year = int(timestamp[:4])
+        month = int(timestamp[5:7])
+        day = int(timestamp[8:10])
+        hour = int(timestamp[11:13])
+        minutes = int(timestamp[14:16])
+        seconds = int(timestamp[17:19])
+        revision_time = datetime(year, month, day, hour, minutes, seconds)
+        if ((self.time_end and revision_time > self.time_end) or
+            (self.time_start and revision_time < self.time_start)):
+            self._skip_revision = True
+        else:
+            self._time = revision_time
 
-            contributor = child.find(tag['contributor'])
-            if contributor is None:
-                continue
+    def process_contributor(self, contributor):
+        if self._skip or self._skip_revision: return
 
-            assert user, "User still not defined"
+        if contributor is None:
+            self._skip_revision = True
 
-            sender_tag = contributor.find(tag['username'])
-            if sender_tag is None:
-                try:
-                    collaborator = contributor.find(tag['ip']).text
-                except AttributeError:
-                    ## user deleted
-                    continue
+        assert user, "User still not defined"
 
-            else:
-                try:
-                    collaborator = mwlib.capfirst(
-                        sender_tag.text.replace('_', ' ')
-                    )
-                except AttributeError:
-                    collaborator = contributor.find(tag['id']).text
+        sender_tag = contributor.find(self.tag['username'])
+        if sender_tag is None:
+            try:
+                self._sender = contributor.find(self.tag['ip']).text
+            except AttributeError:
+                ## user deleted
+                self._skip_revision = True
+        else:
+            try:
+                self._sender = mwlib.capfirst(
+                    sender_tag.text.replace('_', ' ')
+                )
+            except AttributeError:
+                self._sender = contributor.find(self.tag['id']).text
 
-            self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
-                            {collaborator: [revision_time,]}
-                            )
-            self.count += 1
-            if not self.count % 5000:
-                print self.count
-            del child, collaborator, contributor, sender_tag
+    def process_revision(self, elem):
+        skip = self._skip_revision or self._skip
+        self._skip_revision = False
+        if skip: return
+
+        self.ecache.add(mwlib.capfirst(self._receiver.replace('_', ' ')),
+                        {self._sender: [self._time,]}
+                        )
+        self.count += 1
+        if not self.count % 5000:
+            print self.count
+
+    def process_page(self, _):
+        self._skip = False
 
 
 def main():
@@ -119,7 +121,7 @@ def main():
 
     en_user, en_user_talk = u"User", u"User talk"
 
-    lang, date, type_ = mwlib.explode_dump_filename(xml)
+    lang, date_, type_ = mwlib.explode_dump_filename(xml)
 
     ecache = EdgeCache()
     deflate, _lineno = find_open_for_this_file(xml)
@@ -148,9 +150,8 @@ def main():
     processor = HistoryPageProcessor(ecache=ecache, tag=tag,
                               user_talk_names=(lang_user_talk, en_user_talk),
                               search=(lang_user, en_user), lang=lang)
-    processor.end = datetime(2009, 12, 31)
-    mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
-                    processor.process)
+    processor.time_end = datetime(2009, 12, 31)
+    processor.start(src)
     print 'TOTAL UTP: ', processor.count
     print 'ARCHIVES: ', processor.count_archive
 
@@ -163,8 +164,8 @@ def main():
     for e in g.es:
         e['weight'] = len(e['timestamp'])
         #e['timestamp'] = str(e['timestamp'])
-    g.write("%swiki-%s%s.pickle" % (lang, date, type_), format="pickle")
-    g.write("%swiki-%s%s.graphml" % (lang, date, type_), format="graphml")
+    g.write("%swiki-%s%s.pickle" % (lang, date_, type_), format="pickle")
+    g.write("%swiki-%s%s.graphml" % (lang, date_, type_), format="graphml")
 
 
 if __name__ == "__main__":

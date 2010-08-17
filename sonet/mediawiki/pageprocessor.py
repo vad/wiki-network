@@ -32,7 +32,8 @@ class PageProcessor(object):
             dfunc[self.tag[member_name[8:]]] = member
 
         context = etree.iterparse(f)
-        for elem in (elem for _, elem in context if elem.tag in dfunc):
+        for elem in (elem for _, elem in context if elem.tag in dfunc and
+                     (elem.tag == self.tag['page'] or not self._skip)):
             dfunc[elem.tag](elem)
             elem.clear()
             while elem.getprevious() is not None:
@@ -70,7 +71,6 @@ class HistoryPageProcessor(PageProcessor):
 
     def process_title(self, elem):
         self.delattr(("_counter", "_type", "_title", "_skip"))
-        self._skip = False
 
         a_title = elem.text.split(':')
         if len(a_title) == 1:
@@ -96,6 +96,7 @@ class HistoryPageProcessor(PageProcessor):
     def process_page(self, _):
         if not self._skip:
             self.save()
+        self._skip = False
 
     def process_redirect(self, _):
         self._skip = True
