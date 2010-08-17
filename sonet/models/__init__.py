@@ -16,10 +16,14 @@
 from sqlalchemy import Table, MetaData, create_engine, Column, Integer, \
      String, Boolean, Sequence
 
+def get_engine():
+    return create_engine(
+        'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki_test'
+    )
+
 def get_events_table(engine=None, metadata=None):
     if engine is None:
-        engine = create_engine(
-            'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki_test')
+        engine = get_engine()
     if metadata is None:
         metadata = MetaData()
         metadata.bind = engine
