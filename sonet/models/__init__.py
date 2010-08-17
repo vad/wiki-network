@@ -18,7 +18,7 @@ from sqlalchemy import Table, MetaData, create_engine, Column, Integer, \
 
 def get_engine():
     return create_engine(
-        'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki_test'
+        'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki'
     )
 
 def get_events_table(engine=None, metadata=None):
