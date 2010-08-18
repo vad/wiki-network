@@ -151,6 +151,7 @@ class HistoryPageProcessor(mwlib.PageProcessor):
         print 'ARCHIVES: ', self.count_archive
         print 'DELETED: ', self.counter_deleted
 
+
 def yyyymmdd_optparse_callback(option, opt, value, parser):
     from optparse import OptionValueError
 
@@ -219,8 +220,8 @@ def main():
     processor = HistoryPageProcessor(tag=tag,
         user_talk_names=(lang_user_talk, en_user_talk),
         search=(lang_user, en_user))
-    processor.time_start = opts.start if getattr(opts, 'start', False) else None
-    processor.time_end = opts.end if getattr(opts, 'end', False) else None
+    processor.time_start = getattr(opts, 'start', None)
+    processor.time_end = getattr(opts, 'end', None)
     processor.start(src)
 
     g = processor.get_network()
