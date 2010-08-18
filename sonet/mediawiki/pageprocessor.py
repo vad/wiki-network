@@ -40,6 +40,11 @@ class PageProcessor(object):
                 del elem.getparent()[0]
         del context
 
+        self.end()
+
+    def end(self):
+        pass
+
 
 class HistoryPageProcessor(PageProcessor):
     counter_pages = 0
