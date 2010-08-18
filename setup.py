@@ -11,7 +11,8 @@ setup(
     description = 'Wikipedia Social Network Analysis',
     version = "0.1",
     install_requires = ('lxml', 'celery', 'django-celery', 'django_evolution',
-                        'django', 'django_extensions', 'wirebin', 'nltk')
+                        'django', 'django_extensions', 'wirebin', 'nltk',
+                        'sqlalchemy')
     #cmdclass = {'build_ext': build_ext},
     #ext_modules = ext_modules
 )

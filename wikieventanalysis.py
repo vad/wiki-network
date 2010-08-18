@@ -16,8 +16,6 @@
 from __future__ import division
 from datetime import date, timedelta
 from sonet.mediawiki import is_archive
-import os
-import sys
 from sqlalchemy import select, func
 from base64 import b64decode
 from zlib import decompress
@@ -329,17 +327,22 @@ class EventsProcessor:
         print 'PAGES:', self.count_pages, 'REVS:', self.count
         print 'DESIRED'
         for d, value in self.counter_desired.iteritems():
-            print '%s - http://%s.wikipedia.org/wiki/%s - Anniversary: %s' % (d, self.lang,d.replace(' ','_'), self.desired_pages[d])
+            print '%s - http://%s.wikipedia.org/wiki/%s - Anniversary: %s' % (
+                d, self.lang,d.replace(' ','_'), self.desired_pages[d])
             for k in ['normal','talk']:
                 v = value[k]
                 accumulator[k]['total'].append(v['total'])
                 accumulator[k]['anniversary'].append(v['anniversary'])
-                output_line = "  %10s \t Total=%2.15f \t Anniversary=%2.15f \t " % (k,v['total'],v['anniversary'])
+                output_line = \
+                        "  %10s \t Total=%2.15f \t Anniversary=%2.15f \t " \
+                        % (k, v['total'], v['anniversary'])
                 try:
-                    output_line += "Anniversary/Total=%2.15f " % (v['anniversary']/v['total'])
+                    output_line += "Anniversary/Total=%2.15f " % (
+                        v['anniversary'] / v['total'])
                 except ZeroDivisionError:
-                    output_line += "Anniversary/Total=%2.15f" % (0.0)
-                output_line += " \t Anniv-total=%2.15f" % (v['anniversary']-v['total'])
+                    output_line += "Anniversary/Total=%2.15f" % (0.)
+                output_line += " \t Anniv-total=%2.15f" % (
+                    v['anniversary'] - v['total'])
                 print output_line
             print
         print 'AVERAGE DESIRED:'
