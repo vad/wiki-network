@@ -2,5 +2,11 @@
 *.pyo
 *.dat
 *.graphmlz
+*.swp
+*.wpr
 /*.png
 /_site
+/django_wikinetwork/settings_local.py
+/old
+/build
+/*.egg-info
