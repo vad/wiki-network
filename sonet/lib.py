@@ -1,6 +1,17 @@
 import os
 import sys
 import csv
+from datetime import datetime
+
+def yyyymmdd_to_datetime(yyyymmdd):
+    """
+    Given a string containing a date in YYYYMMDD format, returns a datetime
+    object.
+
+    >>> yyyymmdd_to_datetime("20091231")
+    datetime.datetime(2009, 12, 31, 0, 0)
+    """
+    return datetime.strptime(yyyymmdd, "%Y%m%d")
 
 
 def find_executable(executable, path=None):
@@ -14,14 +25,14 @@ def find_executable(executable, path=None):
     paths = path.split(os.pathsep)
     extlist = ['']
     if os.name == 'os2':
-        (base, ext) = os.path.splitext(executable)
+        (_, ext) = os.path.splitext(executable)
         # executable files on OS/2 can have an arbitrary extension, but
         # .exe is automatically appended if no dot is present in the name
         if not ext:
             executable = executable + ".exe"
     elif sys.platform == 'win32':
         pathext = os.environ['PATHEXT'].lower().split(os.pathsep)
-        (base, ext) = os.path.splitext(executable)
+        (_, ext) = os.path.splitext(executable)
         if ext.lower() not in pathext:
             extlist = pathext
     for ext in extlist:
@@ -41,7 +52,8 @@ def GzipFileExt(fn, lines=None):
     from subprocess import Popen, PIPE
 
     executable = 'gzip'
-    unzip_process = Popen([executable, '-c', '-d', fn], stdout=PIPE)
+    unzip_process = Popen([executable, '-c', '-d', fn], stdout=PIPE,
+                          stderr=PIPE)
     stdout = unzip_process.stdout
 
     if not lines:
@@ -49,7 +61,7 @@ def GzipFileExt(fn, lines=None):
     else:
         import mmap
         m = mmap.mmap(-1, 16*1024)
-        for i in xrange(lines):
+        for _ in xrange(lines):
             line = stdout.readline()
             if not line: break
             m.write(line)
@@ -70,7 +82,7 @@ def BZ2FileExt(fn, lines=None):
     else:
         import mmap
         m = mmap.mmap(-1, 16*1024)
-        for i in xrange(lines):
+        for _ in xrange(lines):
             line = stdout.readline()
             if not line: break
             m.write(line)
@@ -96,7 +108,7 @@ def SevenZipFileExt(fn, lines=None):
     else:
         import mmap
         m = mmap.mmap(-1, 16*1024)
-        for i in xrange(lines):
+        for _ in xrange(lines):
             line = stdout.readline()
             if not line: break
             m.write(line)
@@ -121,7 +133,7 @@ def print_csv(d, filename, header=None, delimiter=","):
 
             if header is not None:
                 wr.writerow(header)
-            for k, v in d.iteritems():
+            for v in d.itervalues():
                 ls = []
                 if header is not None:
                     for h in header:

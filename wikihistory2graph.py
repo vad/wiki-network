@@ -19,7 +19,7 @@ import os
 ## PROJECT LIBS
 from sonet.edgecache import EdgeCache
 import sonet.mediawiki as mwlib
-from sonet.lib import SevenZipFileExt, find_open_for_this_file
+from sonet.lib import find_open_for_this_file, yyyymmdd_to_datetime
 
 class HistoryPageProcessor(mwlib.PageProcessor):
     """
@@ -40,7 +40,7 @@ class HistoryPageProcessor(mwlib.PageProcessor):
             <timestamp>...<timestamp>
             <contributor>...</contributor>
         </revision>
-        (... more revision)
+        (... more revisions ...)
     </page>
     """
     # to limit the extraction to changes before a datetime
@@ -53,6 +53,11 @@ class HistoryPageProcessor(mwlib.PageProcessor):
     _skip_revision = False
     _time = None ## time of this revision
     counter_deleted = 0
+
+    def __init__(self, **kwargs):
+        if 'ecache' not in kwargs:
+            kwargs['ecache'] = EdgeCache()
+        super(HistoryPageProcessor, self).__init__(**kwargs)
 
     def process_title(self, elem):
         if self._skip_revision: return
@@ -113,7 +118,7 @@ class HistoryPageProcessor(mwlib.PageProcessor):
                 ## if username is defined but empty, look for id tag
                 self._sender = contributor.find(self.tag['id']).text
 
-    def process_revision(self, elem):
+    def process_revision(self, _):
         skip = self._skip_revision
         self._skip_revision = False
         if skip: return
@@ -137,25 +142,59 @@ class HistoryPageProcessor(mwlib.PageProcessor):
         if not self.count % 500:
             print self.count
 
+    def get_network(self):
+        self.ecache.flush()
+        return self.ecache.get_network(edge_label='timestamp')
 
-def main():
+    def end(self):
+        print 'TOTAL UTP: ', self.count
+        print 'ARCHIVES: ', self.count_archive
+        print 'DELETED: ', self.counter_deleted
+
+def yyyymmdd_optparse_callback(option, opt, value, parser):
+    from optparse import OptionValueError
+
+    if value is not None:
+        try:
+            setattr(parser.values, option.dest,
+                    yyyymmdd_to_datetime(value))
+        except ValueError:
+            raise OptionValueError, 'option %s: invalid date' % (opt,)
+    else:
+        raise OptionValueError, 'option %s: this option requires a value' % (
+            opt,)
+
+
+def opt_parse():
     from optparse import OptionParser
 
-    p = OptionParser(usage="usage: %prog [options] file")
-    p.add_option('-l', '--lang', action="store", dest="lang",
-                 help="wikipedia language", default="en")
-    _, args = p.parse_args()
+    p = OptionParser(usage="usage: %prog [options] dumpfile")
+    #p.add_option('-s', '--start', action="store", dest="start",
+    #    help="Look for revisions starting from this date", metavar="YYYYMMDD")
+    p.add_option('-s', '--start', action="callback",
+        callback=yyyymmdd_optparse_callback, dest='start', type="string",
+        help="Look for revisions starting from this date", metavar="YYYYMMDD")
+    p.add_option('-e', '--end', action="callback",
+        callback=yyyymmdd_optparse_callback, dest='end', type="string",
+        help="Look for revisions until this date", metavar="YYYYMMDD")
+    return p
 
-    if len(args) != 1: p.error("Give me a file, please ;-)")
+
+def main():
+    p = opt_parse()
+    opts, args = p.parse_args()
+
+    ## CHECK IF OPTIONS ARE OK
+    if len(args) != 1: p.error("Wrong number of arguments")
     xml = args[0]
     if not os.path.exists(xml):
         p.error("Dump file does not exist (%s)" % (xml,))
 
+    ## SET UP FOR PROCESSING
     en_user, en_user_talk = u"User", u"User talk"
 
     lang, date_, type_ = mwlib.explode_dump_filename(xml)
 
-    ecache = EdgeCache()
     deflate, _lineno = find_open_for_this_file(xml)
 
     if _lineno:
@@ -167,37 +206,33 @@ def main():
             tags='page,title,revision,text,timestamp,contributor,username,ip')
 
     translations = mwlib.getTranslations(src)
-    lang_user, lang_user_talk = translations['User'], translations['User talk']
+    lang_user = unicode(translations['User'])
+    lang_user_talk = unicode(translations['User talk'])
 
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
-
-    lang_user = unicode(lang_user)
-    en_user = unicode(en_user)
 
     src.close()
     print "BEGIN PARSING"
     src = deflate(xml)
 
-    processor = HistoryPageProcessor(ecache=ecache, tag=tag,
-                              user_talk_names=(lang_user_talk, en_user_talk),
-                              search=(lang_user, en_user), lang=lang)
+    processor = HistoryPageProcessor(tag=tag,
+        user_talk_names=(lang_user_talk, en_user_talk),
+        search=(lang_user, en_user))
+    processor.time_start = opts.start if getattr(opts, 'start', False) else None
+    processor.time_end = opts.end if getattr(opts, 'end', False) else None
     processor.start(src)
-    print 'TOTAL UTP: ', processor.count
-    print 'ARCHIVES: ', processor.count_archive
-    print 'DELETED: ', processor.counter_deleted
 
-    ecache.flush()
-    g = ecache.get_network(edge_label='timestamp')
+    g = processor.get_network()
 
-    print "Len:", len(g.vs)
+    print "Nodes:", len(g.vs)
     print "Edges:", len(g.es)
 
     for e in g.es:
         e['weight'] = len(e['timestamp'])
         #e['timestamp'] = str(e['timestamp'])
     g.write("%swiki-%s%s.pickle" % (lang, date_, type_), format="pickle")
-    g.write("%swiki-%s%s.graphml" % (lang, date_, type_), format="graphml")
+    #g.write("%swiki-%s%s.graphmlz" % (lang, date_, type_), format="graphmlz")
 
 
 if __name__ == "__main__":
