@@ -22,6 +22,7 @@ from zlib import decompress
 from wbin import deserialize
 
 from sonet.models import get_events_table
+from sonet.lib import yyyymmdd_to_datetime
 
 
 def page_iter(lang = 'en', paginate=10000000, desired=None):
@@ -387,8 +388,9 @@ def main():
     ## parsing and extracting desired pages from file
     desired_pages = [l.decode('latin-1').replace('_',' ') for l in [
         l.strip() for l in lines] if l and not l[0] == '#']
+
     ## creating dump date object
-    dump = date(int(dumpdate[:4]), int(dumpdate[4:6]), int(dumpdate[6:8]))
+    dump = yyyymmdd_to_datetime(dumpdate).date()
 
     ## creating processor
     processor = EventsProcessor(lang=opts.lang, range_=opts.range_,
