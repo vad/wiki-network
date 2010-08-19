@@ -175,6 +175,13 @@ class WikiEvent(Model):
     def __unicode__(self):
         return u"%s: %s" % (self.lang, self.title)
 
+    def get_absolute_url(self):
+        return "http://%(lang)s.wikipedia.org/wiki/%(talk)s%(title)s" % {
+            'lang': self.lang,
+            'title': self.title,
+            'talk': 'Talk:' if self.talk else ''
+        }
+
 class WikiWord(Model):
 
     title = TextField(db_index=True)
@@ -190,3 +197,11 @@ class WikiWord(Model):
 
     def __unicode__(self):
         return u"%s: %s" % (self.lang, self.title)
+
+    def get_absolute_url(self):
+        return "http://%(lang)s.wikipedia.org/wiki/%(talk)s%(title)s" % {
+            'lang': self.lang,
+            'title': self.title,
+            'talk': 'Talk:' if self.talk else ''
+        }
+
