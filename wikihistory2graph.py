@@ -178,22 +178,21 @@ def opt_parse():
     p.add_option('-e', '--end', action="callback",
         callback=yyyymmdd_optparse_callback, dest='end', type="string",
         help="Look for revisions until this date", metavar="YYYYMMDD")
-    return p
-
-
-def main():
-    p = opt_parse()
     opts, args = p.parse_args()
 
     ## CHECK IF OPTIONS ARE OK
-    if len(args) != 1: p.error("Wrong number of arguments")
-    xml = args[0]
-    if not os.path.exists(xml):
+    if len(args) != 1:
+        p.error("Wrong number of arguments")
+    if not os.path.exists(args[0]):
         p.error("Dump file does not exist (%s)" % (xml,))
+    return (opts, args)
+
+
+def main():
+    opts, args = opt_parse()
+    xml = args[0]
 
     ## SET UP FOR PROCESSING
-    en_user, en_user_talk = u"User", u"User talk"
-
     lang, date_, type_ = mwlib.explode_dump_filename(xml)
 
     deflate, _lineno = find_open_for_this_file(xml)
@@ -218,11 +217,11 @@ def main():
     src = deflate(xml)
 
     processor = HistoryPageProcessor(tag=tag,
-        user_talk_names=(lang_user_talk, en_user_talk),
-        search=(lang_user, en_user))
+        user_talk_names=(lang_user_talk, u"User talk"),
+        search=(lang_user, u"User"))
     processor.time_start = getattr(opts, 'start', None)
     processor.time_end = getattr(opts, 'end', None)
-    processor.start(src)
+    processor.start(src) ## PROCESSING
 
     g = processor.get_network()
 
