@@ -198,3 +198,4 @@ def find_open_for_this_file(fn):
         assert False, 'Wrong data file (unknown extension)'
 
     return (deflate, _lineno)
+

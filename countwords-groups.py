@@ -143,7 +143,7 @@ def main():
         path += '/'
     rich_fn = "%s%swiki-%s_rich.pickle" % (path,
                                             lang, date)
-    user_classes = dict(sg_load(rich_fn).getUserClass('username',
+    user_classes = dict(sg_load(rich_fn).get_user_class('username',
                                   ('anonymous', 'bot', 'bureaucrat','sysop')))
     
     p = Process(target=get_freq_dist, args=(queue, done_queue))

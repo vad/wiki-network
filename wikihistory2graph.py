@@ -170,8 +170,6 @@ def opt_parse():
     from optparse import OptionParser
 
     p = OptionParser(usage="usage: %prog [options] dumpfile")
-    #p.add_option('-s', '--start', action="store", dest="start",
-    #    help="Look for revisions starting from this date", metavar="YYYYMMDD")
     p.add_option('-s', '--start', action="callback",
         callback=yyyymmdd_optparse_callback, dest='start', type="string",
         help="Look for revisions starting from this date", metavar="YYYYMMDD")
@@ -203,7 +201,7 @@ def main():
         src = deflate(xml)
 
     tag = mwlib.getTags(src,
-            tags='page,title,revision,text,timestamp,contributor,username,ip')
+            tags='page,title,revision,timestamp,contributor,username,ip')
 
     translations = mwlib.getTranslations(src)
     lang_user = unicode(translations['User'])
