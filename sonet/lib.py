@@ -14,6 +14,31 @@ def yyyymmdd_to_datetime(yyyymmdd):
     return datetime.strptime(yyyymmdd, "%Y%m%d")
 
 
+def yyyymmdd_optparse_callback(option, opt, value, parser):
+    """
+    Used as a callback function for optparse options.
+
+    You must supply to the add_option:
+     * dest parameter
+     * type="string" parameter
+
+    You can then access the result (a datetime object) through the dest
+    attribute of opts. For example, if dest="start" the result will be in
+    opts.start
+    """
+    from optparse import OptionValueError
+
+    if value is not None:
+        try:
+            setattr(parser.values, option.dest,
+                    yyyymmdd_to_datetime(value))
+        except ValueError:
+            raise OptionValueError, 'option %s: invalid date' % (opt,)
+    else:
+        raise OptionValueError, 'option %s: this option requires a value' % (
+            opt,)
+
+
 def find_executable(executable, path=None):
     """Try to find 'executable' in the directories listed in 'path' (a
     string listing directories separated by 'os.pathsep'; defaults to

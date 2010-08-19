@@ -19,7 +19,7 @@ import os
 ## PROJECT LIBS
 from sonet.edgecache import EdgeCache
 import sonet.mediawiki as mwlib
-from sonet.lib import find_open_for_this_file, yyyymmdd_to_datetime
+from sonet.lib import find_open_for_this_file, yyyymmdd_optparse_callback
 
 class HistoryPageProcessor(mwlib.PageProcessor):
     """
@@ -150,20 +150,6 @@ class HistoryPageProcessor(mwlib.PageProcessor):
         print 'TOTAL UTP: ', self.count
         print 'ARCHIVES: ', self.count_archive
         print 'DELETED: ', self.counter_deleted
-
-
-def yyyymmdd_optparse_callback(option, opt, value, parser):
-    from optparse import OptionValueError
-
-    if value is not None:
-        try:
-            setattr(parser.values, option.dest,
-                    yyyymmdd_to_datetime(value))
-        except ValueError:
-            raise OptionValueError, 'option %s: invalid date' % (opt,)
-    else:
-        raise OptionValueError, 'option %s: this option requires a value' % (
-            opt,)
 
 
 def opt_parse():
