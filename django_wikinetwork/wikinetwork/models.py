@@ -151,7 +151,31 @@ class CeleryRun(Model):
     created = DateTimeField(auto_now_add = True)
     modified = DateTimeField(auto_now = True)
 
-class WikiEvent(Model):
+
+class WikiPage(Model):
+    """
+    Abstract Model to store generic information about a Wikipedia Page (article
+    or talk page)
+    """
+    title = TextField(db_index=True)
+    lang = CharField(max_length=3, db_index=True)
+    talk = BooleanField(default=False)
+
+    class Meta:
+        abstract = True
+
+    def __unicode__(self):
+        return u"%s: %s" % (self.lang, self.title)
+
+    def get_absolute_url(self):
+        return "http://%(lang)s.wikipedia.org/wiki/%(talk)s%(title)s" % {
+            'lang': self.lang,
+            'title': self.title,
+            'talk': 'Talk:' if self.talk else ''
+        }
+
+
+class WikiEvent(WikiPage):
     """
         Model used to store revisions per date per page in wiki history dump.
          * desired is used as a flag for internal use
@@ -163,45 +187,11 @@ class WikiEvent(Model):
         and replace LANG with every language you want to store (eg. en, it, de)
     """
 
-    title = TextField(db_index=True)
-    lang = CharField(max_length=3, db_index=True)
     desired = BooleanField(default=False)
     data = DictionaryField()
-    talk = BooleanField(default=False)
 
-    class Meta:
-        ordering = ('id',)
 
-    def __unicode__(self):
-        return u"%s: %s" % (self.lang, self.title)
-
-    def get_absolute_url(self):
-        return "http://%(lang)s.wikipedia.org/wiki/%(talk)s%(title)s" % {
-            'lang': self.lang,
-            'title': self.title,
-            'talk': 'Talk:' if self.talk else ''
-        }
-
-class WikiWord(Model):
-
-    title = TextField(db_index=True)
-    lang = CharField(max_length=3, db_index=True)
+class WikiWord(WikiPage):
     desired = BooleanField(default=False)
-    # pickle (aka dictionary)
     data = DictionaryField(null=True)
     data_first = DictionaryField(null=True)
-    talk = BooleanField(default=False)
-
-    class Meta:
-        ordering = ('id',)
-
-    def __unicode__(self):
-        return u"%s: %s" % (self.lang, self.title)
-
-    def get_absolute_url(self):
-        return "http://%(lang)s.wikipedia.org/wiki/%(talk)s%(title)s" % {
-            'lang': self.lang,
-            'title': self.title,
-            'talk': 'Talk:' if self.talk else ''
-        }
-

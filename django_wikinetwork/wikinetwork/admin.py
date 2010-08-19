@@ -55,6 +55,7 @@ class WikiEventAdmin(admin.ModelAdmin):
     list_filter     = ('lang',)
     search_fields   = ('title',)
     readonly_fields = ('lang', 'title', 'desired')
+    ordering        = ('lang', 'title', 'talk')
 
     def formfield_for_dbfield(self, db_field, **kwargs):
         if db_field.name in ('data'):
@@ -69,6 +70,7 @@ class WikiWordAdmin(admin.ModelAdmin):
     list_filter     = ('lang',)
     search_fields   = ('title',)
     readonly_fields = ('lang', 'title', 'desired')
+    ordering        = ('lang', 'title', 'talk')
 
     def formfield_for_dbfield(self, db_field, **kwargs):
         if db_field.name in ('data_first', 'data'):
