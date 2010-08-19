@@ -256,7 +256,7 @@ def main():
     g = sg.load(pickle) #pickle loading
     
     # Saving users' roles in a dictionary with "username, role" as "key, value"
-    user_roles = dict([e for e in g.getUserClass('username', \
+    user_roles = dict([e for e in g.get_user_class('username', \
                        ('anonymous', 'bot', 'bureaucrat', 'sysop'))])
 
     # copy inside a dictionary and enrich!

@@ -5,9 +5,8 @@ def load(fn):
     return Graph(ig.load(fn))
 
 
-
 class Graph(object):
-    #g = attr(ig.Graph)
+    g = None
 
     def __init__(self, g):
         self.g = g
@@ -15,7 +14,6 @@ class Graph(object):
 
     def invert_edge_attr(self, source, dest):
         self.g.es[dest] = 1./numpy.array(self.g.es[source])
-
 
     def efficiency(self, weight=None):
         r"""Returns the efficiency of the graph
@@ -26,7 +24,7 @@ class Graph(object):
         effSum = 0.
         step = 100
         n = len(self.g.vs)
-        for i in range(0, n, step):
+        for i in xrange(0, n, step):
             #if not i % 100:
             #    print 'Step:', i
             #    print 1.*dSum*step/i
@@ -34,7 +32,8 @@ class Graph(object):
 
             # distances from nodes in range (i, i+step) to all the other nodes
             if weight:
-                aDistances = self.g.shortest_paths(range(i, uplimit), weights=weight)
+                aDistances = self.g.shortest_paths(range(i, uplimit),
+                                                   weights=weight)
             else:
                 aDistances = self.g.shortest_paths(range(i, uplimit))
 
@@ -42,9 +41,9 @@ class Graph(object):
 
             effSum += (1./aDistances[aDistances.nonzero()]).sum()
 
-        efficiency = effSum/(1.*n*(n-1)) # maybe there should be a factor of 2 somewhere (directed graph)
+        #TODO: maybe there should be a factor of 2 somewhere (directed graph)
+        efficiency = effSum/(1.*n*(n-1))
         return efficiency
-
 
     def set_weighted_degree(self, type=ig.IN):
         #todo: improve self-loops check
@@ -55,8 +54,6 @@ class Graph(object):
             edges = self.g.adjacent(node.index, type=type)
             g_edges = (e for e in edges if not self.g.is_loop(e))
             node[k] = sum(self.g.es[eid]['weight'] for eid in g_edges)
-
-
 
     def averageDistance(self, weight=None):
         r"""Returns the average shortest path length of the graph
@@ -75,7 +72,8 @@ class Graph(object):
 
             # distances from nodes in range (i, i+step) to all the other nodes
             if weight:
-                aDistances = self.g.shortest_paths(range(i, uplimit), weights=weight)
+                aDistances = self.g.shortest_paths(range(i, uplimit),
+                                                   weights=weight)
             else:
                 aDistances = self.g.shortest_paths(range(i, uplimit))
 
@@ -86,11 +84,9 @@ class Graph(object):
         avg_dist = 1.*dSum / len(range(0, n, step))
         return avg_dist
 
-
     def defineClass(self, cls, attr):
         # maybe it's better to store attr only (and not the whole VertexSet)
         self.classes[cls] = self.g.vs.select(**attr)
-
 
     def writeAdjacencyMatrix(self, fn, label, weight='weight'):
         """
@@ -111,7 +107,7 @@ class Graph(object):
         matrix = self.g.get_adjacency(ig.GET_ADJACENCY_BOTH, weight, 0)
         vs = self.g.vs
         with open(fn, 'w') as f:
-            usernames = vs['username']
+            usernames = vs[label]
 
             accumulate = ["",]
             print >>f, ','.join(['',]+ usernames +['TOTAL',])
@@ -127,13 +123,14 @@ class Graph(object):
             # write TOTAL line
             accumulate = ['TOTAL',]
 
-            msgs = [sum([matrix[(j, i)] for j in range(len(vs))]) for i in range(len(vs))]
+            msgs = [sum([matrix[(j, i)] for j in range(len(vs))]) for i in
+                    range(len(vs))]
             accumulate += [str(e) for e in msgs]
             accumulate.append(str(sum(msgs)))
             print >>f, ','.join(accumulate)
 
 
-    def writeReciprocityMatrix(self, label, fn=None, weight='weight'):
+    def writeReciprocityMatrix(self, label, fn=None):
         """
         writes the matrix like:
 
@@ -174,7 +171,7 @@ class Graph(object):
                 if matrix[(i,j)] and matrix[(j,i)]:
                     rmatrix_data[i][j] = rmatrix_data[j][i] = 1
 
-        if fn == None:
+        if fn is None:
             import sys
             f = sys.stdout
         else:
@@ -182,12 +179,11 @@ class Graph(object):
 
         labels = vs[label]
 
-        accumulate = ["",]
         print >>f, ','.join(['',]+ labels +['TOTAL',])
 
         rmatrix = ig.datatypes.Matrix(rmatrix_data)
-        for i in range(len(vs)):
-            accumulate = [labels[i],]
+        for i, label in enumerate(labels):
+            accumulate = [label,]
 
             msgs = rmatrix[i]
             accumulate += [str(e) for e in msgs]
@@ -197,25 +193,26 @@ class Graph(object):
         # write TOTAL line
         accumulate = ['TOTAL',]
 
-        msgs = [sum([rmatrix[(j, i)] for j in range(len(vs))]) for i in range(len(vs))]
+        msgs = [sum(rmatrix[(j, i)] for j in range(len(vs))) for i in
+                range(len(vs))]
         accumulate += [str(e) for e in msgs]
         accumulate.append(str(sum(msgs)))
         print >>f, ','.join(accumulate)
-
 
     def getTopIndegree(self, lb=15, label='username'):
         self.getTopDegree(type=ig.IN, lb=lb, label=label)
 
     def getTopDegree(self, type=ig.IN, limit=None, lb=1, label='username'):
+        from operator import itemgetter
         stype = 'weighted_%sdegree' % ('in' if type == ig.IN else 'out',)
         kwargs = {stype+'_gt': lb}
-        ##TODO: use itemgetter
-        for v in sorted(self.g.vs(**kwargs), key=lambda x: x[stype],
-                        reverse=True)[0:limit]:
-            print v.index, v[stype], v[label]
-            #TODO: aggiungere ruolo
 
-    def getUserClass(self, label, classes=None):
+        nodes = self.g.vs(**kwargs)
+        for v in sorted(nodes, cmp=itemgetter(stype), reverse=True)[0:limit]:
+            print v.index, v[stype], v[label]
+            #TODO: add role
+
+    def get_user_class(self, label, classes=None):
         if not classes:
             classes = self.classes.keys()
 
@@ -234,4 +231,3 @@ class Graph(object):
     def remove_if(self, attrs):
         kwargs = dict([(attr+'_ne', True) for attr in attrs])
         self.g = self.g.subgraph(self.g.vs.select(**kwargs))
-        pass

@@ -40,10 +40,11 @@ def top(l, nelem=5, accuracy=10):
 
     if not len(l):
         return 'nan'
-    elif type(l[0]) in (types.IntType, numpy.int64, numpy.int32):
-        return ', '.join('%d' % e for e in sorted(l, reverse=True)[:nelem])
     else:
-        format = '%%.%df' % (accuracy,)
+        if type(l[0]) in (types.IntType, numpy.int64, numpy.int32):
+            format = "%d"
+        else:
+            format = '%%.%df' % (accuracy,)
         return ', '.join(format % e for e in sorted(l, reverse=True)[:nelem])
 
 def create_option_parser():
@@ -106,7 +107,7 @@ def main():
         tablr = Tablr()
         tablr.start(1024*32, lang)
 
-    if options.group:
+    if options.group or options.users_role:
         for group_name, group_attr in groups.iteritems():
             g.defineClass(group_name, group_attr)
             print ' * %s : nodes number : %d' % (group_name,
@@ -385,23 +386,27 @@ def main():
 
     if options.adjacency:
         giant = g.g.clusters().giant()
-        destAdj = "%s/%swiki-%s-adj.csv" % (os.path.split(fn)[0], lang, date)
-        destRec = "%s/%swiki-%s-rec.csv" % (os.path.split(fn)[0], lang, date)
+        #destAdj = "%s/%swiki-%s-adj.csv" % (os.path.split(fn)[0], lang, date)
+        destAdj = "%swiki-%s-adj.csv" % (lang, date)
+        #destRec = "%s/%swiki-%s-rec.csv" % (os.path.split(fn)[0], lang, date)
+        destRec = "%swiki-%s-rec.csv" % (lang, date)
         sg.Graph(giant).writeAdjacencyMatrix(destAdj, 'username')
         sg.Graph(giant).writeReciprocityMatrix('username', destRec)
 
 
     if options.users_role:
-        l = g.getUserClass('username', ('anonymous', 'bot', 'bureaucrat',
+        l = g.get_user_class('username', ('anonymous', 'bot', 'bureaucrat',
                                         'sysop'))
 
-        destUR = "%s/%swiki-%s-ur.csv" % (os.path.split(fn)[0], lang, date)
+        #destUR = "%s/%swiki-%s-ur.csv" % (os.path.split(fn)[0], lang, date)
+        destUR = "%swiki-%s-ur.csv" % (lang, date)
         with open(destUR, 'w') as f:
             for username, role in sorted(l):
                 print >> f, "%s,%s" % (username, role)
 
         from random import shuffle
-        destCls = "%s/%swiki-%s-%%s.csv" % (os.path.split(fn)[0], lang, date)
+        #destCls = "%s/%swiki-%s-%%s.csv" % (os.path.split(fn)[0], lang, date)
+        destCls = "%swiki-%s-%%s.csv" % (lang, date)
         for cls in ('anonymous', 'bot', 'bureaucrat', 'sysop', 'normal_user'):
             users = g.classes[cls]['username']
             shuffle(users)
