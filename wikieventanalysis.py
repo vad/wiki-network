@@ -48,61 +48,52 @@ def page_iter(lang = 'en', paginate=10000000, desired=None):
                    deserialize(decompress(b64decode(row[1]))),
                    row[2])
 
-
-def get_days_since(s_date, end_date, range_=10, skipped_days=180,
-                   is_anniversary=False):
+            
+def get_days_since(start_date, end_date, anniversary_date=None, range_=10):
     """
-    Returns the number of days passed between two dates minus the number of days to be skipped (if any).
-    If the considered date is an anniversary, count the number of days in the range around the anniversary
-    for each year
+    Returns the number of days passed between two dates. If the considered date
+    is an anniversary, count the number of days in the range around the 
+    anniversary for each year
 
-    >>> get_days_since(date(2001, 9, 11), date(2005, 9, 19), 10, 180, False)
-    1289
-    >>> get_days_since(date(2001, 1, 1), date(2005, 12, 30), 10, 180, True)
-    86
-    >>> get_days_since(date(2001, 12, 31), date(2005, 1, 1), 10, 0, False)
-    1097
-    >>> get_days_since(date(2005, 7, 7), date(2010, 7, 2), 10, 180, True)
-    89
-    >>> get_days_since(date(2005, 7, 7), date(2010, 7, 15), 10, 180, True)
-    103
-    >>> get_days_since(date(2005, 7, 7), date(2006, 7, 7), 10, 180, True)
+    >>> get_days_since(date(2001, 9, 11), date(2005, 9, 19), None, 10)
+    1470
+    >>> get_days_since(date(2010, 9, 11), date(2005, 9, 19), None, 10)
+    0
+    >>> get_days_since(date(2005, 9, 16), date(2005, 9, 19), None, 10)
+    4
+    >>> get_days_since(date(2001,9,11),date(2010,7,29),date(2001,9,11),10)
+    179
+    >>> get_days_since(date(2001,9,22),date(2010,7,29),date(2001,9,11),10)
+    168
+    >>> get_days_since(date(2001,12,30),date(2002,1,1),date(2001,12,30),50)
+    3
+    >>> get_days_since(date(2001,1,1),date(2001,12,31),date(2001,6,15),20)
+    41
+    >>> get_days_since(date(2001,1,1),date(2003,1,1),date(2001,6,15),5)
+    22
+    >>> get_days_since(date(2006,1,7),date(2006,7,7),date(2005,7,7),10)
     11
-    >>> get_days_since(date(2005, 8, 4), date(2010, 7, 29), 10, 180, True)
-    90
+    >>> get_days_since(date(2010,2,4),date(2010,7,29),date(1952,8,4),10)
+    5
     """
-    if not is_anniversary:
-        return (end_date - s_date).days - skipped_days
-
-    ## counter for days
-    days = 0
-    for i in range(s_date.year+1, end_date.year+2):
+    if start_date > end_date:
+        return 0
+    if not anniversary_date:
+        return (end_date - start_date).days + 1
+    
+    counter = 0
+    for year in range(start_date.year, end_date.year + 1):
         try:
-            ad = date(i, s_date.month, s_date.day)
+            ad = date(year, anniversary_date.month,anniversary_date.day)
         except ValueError:
-            ad = date(i, s_date.month, (s_date.day-1))
-        if (ad - s_date).days < skipped_days:
-            continue
-        if (ad - timedelta(range_)) > end_date:
-            break
-        ## difference in days between the checked date - which is ad - and the creation
-        ## of the page
-        delta = (end_date - ad).days
-        ## if delta is greater than two times the considered range, then the range doubled
-        ## elsewhere, if delta is postive means that the dump date is still greater then the anniversary
-        ## date in the considered year - i -, hence add the range plus the difference in days.
-        ## last case, dump date felt in the range for the considered date, but less than that date. Hence
-        ## add the difference between range and delta
-        if delta > (range_ * 2):
-            days += (range_ * 2) + 1
-        elif not delta:
-            days += range_ + 1
-        elif delta > 0:
-            days += range_ + 1 + delta
-        else:
-            days += abs(delta)
-
-    return days
+            ad = date(year, anniversary_date.month,anniversary_date.day - 1)
+            
+        ## TODO: introduce dateutil.rrule.between ?
+        counter += sum(1 for d in (ad + timedelta(i) 
+                        for i in range(-range_,range_+1)) 
+                        if (d >= start_date and d <= end_date))
+        
+    return counter
 
 def is_near_anniversary(creation, revision, range_):
     """
@@ -164,10 +155,6 @@ def get_first_revision(start_date, data):
         return
 
 class EventsProcessor:
-    accumulator = {
-        'anniversary': {}
-        ,'creation': {}
-    }
     count = 0
     count_desired = []
     count_not_desired = {'normal': 0, 'talk': 0}
@@ -183,7 +170,7 @@ class EventsProcessor:
     dump_date = None
     initial_date = date(2000,1,1)
     lang = None
-    range = None
+    range_ = None
     skipped_days = None
     __anniversary_date = None
     __creation = None
@@ -194,7 +181,7 @@ class EventsProcessor:
 
     def __init__(self, lang, range_, skip, dump_date, desired):
         self.lang = lang
-        self.range = range_
+        self.range_ = range_
         self.skipped_days = skip
         self.dump_date = dump_date
         self.desired_only = desired
@@ -219,28 +206,16 @@ class EventsProcessor:
         return (self.__title in self.desired_pages)
 
     def get_average(self, value, anniversary):
-        ## Check if the days passed since the considered date have already
-        ## been computed. If so, avoid calculating them once again
-        try:
-            days = self.accumulator['anniversary'][self.__anniversary_date] if anniversary \
-                 else self.accumulator['creation'][self.__creation]
-        except KeyError:
-            accumulator = self.accumulator['anniversary'] if anniversary \
-                        else self.accumulator['creation']
-            date_ = date(self.__creation.year,
-                         self.__anniversary_date.month,
-                         self.__anniversary_date.day) \
-                  if anniversary else self.__creation
-            days = get_days_since(s_date=date_, end_date=self.dump_date,
-                                  range_=self.range,
-                                  skipped_days=self.skipped_days,
-                                  is_anniversary=anniversary)
-            accumulator[date_] = days
-
+        
+        s_date = self.__creation + timedelta(self.skipped_days)
+        a_date = self.__anniversary_date if anniversary else None
+        
+        days = get_days_since(start_date=s_date, end_date=self.dump_date,
+                              anniversary_date=a_date, range_=self.range_)
         try:
             return value / days
         except ZeroDivisionError:
-            return value
+            return 0
 
     def process(self):
         desired = self.desired_pages.keys() if self.desired_only else None
@@ -254,7 +229,7 @@ class EventsProcessor:
             self.__desired = self.is_desired()
             self.__type = 'normal' if not talk else 'talk'
             if self.__desired and self.__title not in self.count_desired:
-                print "PROCESSING DESIRED PAGE:", self.__title
+                #print "PROCESSING DESIRED PAGE:", self.__title
                 self.count_desired.append(self.__title)
             self.process_page()
 
@@ -302,7 +277,7 @@ class EventsProcessor:
             if (revision - self.__creation).days < self.skipped_days:
                 continue
             if is_near_anniversary(self.__anniversary_date, revision,
-                                   self.range):
+                                   self.range_):
                 anniversary += v
             total += v
         self.count += total
@@ -373,6 +348,8 @@ def main():
                  help="number of days to be skipped", default=180, type="int")
     p.add_option('-d', '--desired-only', action="store_true", dest='desired',
                  default=False, help='analysis only of desired pages')
+    p.add_option('-S', '--silent', action="store_false", dest='verbose',
+                 default=True, help='do not print output')
 
     opts, files = p.parse_args()
 
@@ -401,12 +378,13 @@ def main():
     processor.set_desired(desired_pages)
     ## main process
     processor.process()
-    ## print stats and final output
-    processor.print_out()
+    if opts.verbose:
+        ## print stats and final output
+        processor.print_out()
 
 if __name__ == "__main__":
     #import cProfile as profile
-    #profile.run('main()', '/tmp/itprof')
+    #profile.run('main()', '/tmp/itprof.morail')
     main()
     #import timeit
     #print timeit.timeit("main.is_near_anniversary(date(2001, 9, 11), date(2005, 9, 19), 10)",
