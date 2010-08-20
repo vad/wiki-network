@@ -2,6 +2,8 @@ import os
 import sys
 import csv
 from datetime import datetime
+from optparse import Option
+from copy import copy
 
 def yyyymmdd_to_datetime(yyyymmdd):
     """
@@ -14,29 +16,22 @@ def yyyymmdd_to_datetime(yyyymmdd):
     return datetime.strptime(yyyymmdd, "%Y%m%d")
 
 
-def yyyymmdd_optparse_callback(option, opt, value, parser):
-    """
-    Used as a callback function for optparse options.
-
-    You must supply to the add_option:
-     * dest parameter
-     * type="string" parameter
-
-    You can then access the result (a datetime object) through the dest
-    attribute of opts. For example, if dest="start" the result will be in
-    opts.start
-    """
+def yyyymmdd_check(option, opt, value):
     from optparse import OptionValueError
 
-    if value is not None:
-        try:
-            setattr(parser.values, option.dest,
-                    yyyymmdd_to_datetime(value))
-        except ValueError:
-            raise OptionValueError, 'option %s: invalid date' % (opt,)
-    else:
+    if value is None:
         raise OptionValueError, 'option %s: this option requires a value' % (
             opt,)
+    try:
+        return yyyymmdd_to_datetime(value)
+    except ValueError:
+        raise OptionValueError, 'option %s: invalid date' % (opt,)
+
+
+class SonetOption(Option):
+    TYPES = Option.TYPES + ("yyyymmdd",)
+    TYPE_CHECKER = copy(Option.TYPE_CHECKER)
+    TYPE_CHECKER["yyyymmdd"] = yyyymmdd_check
 
 
 def find_executable(executable, path=None):

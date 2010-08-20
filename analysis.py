@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 ## SYSTEM
-from optparse import OptionParser
 import os
 import sys
 import numpy
@@ -48,7 +47,20 @@ def top(l, nelem=5, accuracy=10):
         return ', '.join(format % e for e in sorted(l, reverse=True)[:nelem])
 
 def create_option_parser():
-    op = OptionParser('%prog [options] graph')
+    from optparse import OptionParser, OptionGroup
+    from sonet.lib import SonetOption
+
+    op = OptionParser('%prog [options] graph', option_class=SonetOption)
+
+    time_group = OptionGroup(op, 'Time related options')
+    time_group.add_option('-S', '--start', action="store", dest='start',
+                          type="yyyymmdd", default=None, metavar="YYYYMMDD",
+                          help="Look for revisions starting from this date")
+    time_group.add_option('-E', '--end', action="store", dest='end',
+                          type="yyyymmdd", default=None, metavar="YYYYMMDD",
+                          help="Look for revisions until this date"
+                          )
+    op.add_option_group(time_group)
 
     op.add_option('--as-table', action="store_true", dest="as_table",
         help="Format output as a table row")
@@ -67,7 +79,9 @@ def create_option_parser():
     op.add_option('-i', '--distance', action="store_true", dest="distance")
     op.add_option('-f', '--efficiency', action="store_true", dest="efficiency")
     op.add_option('-s', '--summary', action="store_true", dest="summary")
-    op.add_option('-c', '--centrality', action="store_true", dest="centrality")
+    op.add_option('-c', '--centrality', action="store", dest="centrality",
+                  type="string", metavar="all|pagerank|betweenness|degree",
+                  help="Compute the specified centrality measures")
     op.add_option('-p', '--plot', action="store_true", dest="plot")
     op.add_option('--histogram', action="store_true", dest="histogram")
     op.add_option('-g', '--gnuplot', action="store_true", dest="gnuplot")
@@ -94,9 +108,8 @@ def main():
     lang, date, type_ = mwlib.explode_dump_filename(fn)
 
     g = sg.load(fn)
-    ##print 'loaded'
+    g.time_slice_subgraph(start=options.start, end=options.end)
     g.invert_edge_attr('weight', 'length')
-    ##print 'inverted'
 
     vn = len(g.g.vs) # number of vertexes
     en = len(g.g.es) # number of edges
@@ -212,6 +225,7 @@ def main():
             print " * efficiency: %f" % g.efficiency(weight='length')
 
 
+    ##TODO: compute for centrality only if "all" or "degree"
     if (options.plot or options.histogram or options.power_law or
         options.centrality):
         with Timr('set weighted indegree'):
@@ -220,16 +234,23 @@ def main():
 
     if options.centrality:
         timr.start('centrality')
+        centralities = options.centrality.split(',')
+        if 'all' in centralities:
+            centralities = 'betweenness,pagerank,degree'.split(',')
 
-        print >> sys.stderr, "betweenness"
-        g.g.vs['bw'] = g.g.betweenness(weights='length', directed = True)
+        if "betweenness" in centralities:
+            print >> sys.stderr, "betweenness"
+            g.g.vs['bw'] = g.g.betweenness(weights='length', directed = True)
+
         #g.g.vs['ev'] = g.g.evcent(weights='weight') # eigenvector centrality
 
-        print >> sys.stderr, "pagerank"
-        g.g.vs['pr'] = g.g.pagerank(weights='weight') # pagerank
+        if 'pagerank' in centralities:
+            print >> sys.stderr, "pagerank"
+            g.g.vs['pr'] = g.g.pagerank(weights='weight') # pagerank
 
-        print >> sys.stderr, "outdegree"
-        g.set_weighted_degree(type=ig.OUT)
+        if 'degree' in centralities:
+            print >> sys.stderr, "outdegree"
+            g.set_weighted_degree(type=ig.OUT)
         #total_weights = sum(g.g.es['weight'])
         max_edges = vn*(vn-1)
 
@@ -237,41 +258,43 @@ def main():
             if not vs:
                 continue
 
-            norm_betweenness = numpy.array(g.classes[cls]['bw'])/max_edges
-            print " * %s : average betweenness : %.10f" % (
-                cls, numpy.average(norm_betweenness))
-            print " * %s : stddev betweenness : %.10f" % (
-                cls, numpy.sqrt(numpy.var(norm_betweenness)))
-            print " * %s : max betweenness: %s" % (
-                cls, top(numpy.array(g.classes[cls]['bw'])/max_edges))
+            if "betweenness" in centralities:
+                norm_betweenness = numpy.array(g.classes[cls]['bw'])/max_edges
+                print " * %s : average betweenness : %.10f" % (
+                    cls, numpy.average(norm_betweenness))
+                print " * %s : stddev betweenness : %.10f" % (
+                    cls, numpy.sqrt(numpy.var(norm_betweenness)))
+                print " * %s : max betweenness: %s" % (
+                    cls, top(numpy.array(g.classes[cls]['bw'])/max_edges))
 
             #print " * Average eigenvector centrality : %6f" % numpy.average(
             #    g.vs['ev'])
+            if 'pagerank' in centralities:
+                print " * %s : average pagerank : %.10f" % (
+                    cls, numpy.average(g.classes[cls]['pr']))
+                print " * %s : stddev pagerank : %.10f" % (
+                    cls, numpy.sqrt(numpy.var(g.classes[cls]['pr'])))
+                print " * %s : max pagerank: %s" % (
+                    cls, top(g.classes[cls]['pr']))
 
-            print " * %s : average pagerank : %.10f" % (
-                cls, numpy.average(g.classes[cls]['pr']))
-            print " * %s : stddev pagerank : %.10f" % (
-                cls, numpy.sqrt(numpy.var(g.classes[cls]['pr'])))
-            print " * %s : max pagerank: %s" % (
-                cls, top(g.classes[cls]['pr']))
+            if 'degree' in centralities:
+                wi = g.classes[cls]['weighted_indegree']
+                print " * %s : average IN degree centrality (weighted): %.10f" % (
+                    cls, numpy.average(wi))
+                print " * %s : stddev IN degree centrality (weighted): %.10f" % (
+                    cls, numpy.sqrt(numpy.var(wi)))
+                print " * %s : max IN degrees centrality (weighted): %s" % (
+                    cls, top(wi))
+                del wi
 
-            wi = g.classes[cls]['weighted_indegree']
-            print " * %s : average IN degree centrality (weighted): %.10f" % (
-                cls, numpy.average(wi))
-            print " * %s : stddev IN degree centrality (weighted): %.10f" % (
-                cls, numpy.sqrt(numpy.var(wi)))
-            print " * %s : max IN degrees centrality (weighted): %s" % (
-                cls, top(wi))
-            del wi
-
-            wo = g.classes[cls]['weighted_outdegree']
-            print " * %s : average OUT degree centrality (weighted) : %.10f" %\
-                  (cls, numpy.average(wo))
-            print " * %s : stddev OUT degree centrality (weighted) : %.10f" % \
-                  (cls, numpy.sqrt(numpy.var(wo)))
-            print " * %s : max OUT degrees centrality (weighted): %s" % (
-                cls, top(wo))
-            del wo
+                wo = g.classes[cls]['weighted_outdegree']
+                print " * %s : average OUT degree centrality (weighted) : %.10f" %\
+                      (cls, numpy.average(wo))
+                print " * %s : stddev OUT degree centrality (weighted) : %.10f" % \
+                      (cls, numpy.sqrt(numpy.var(wo)))
+                print " * %s : max OUT degrees centrality (weighted): %s" % (
+                    cls, top(wo))
+                del wo
 
         timr.stop('centrality')
 
@@ -416,7 +439,6 @@ def main():
                           ("%s,http://vec.wikipedia.org/w/index.php?title="+\
                           "Discussion_utente:%s&action=history&offset="+\
                           "20100000000001") % (username, username)
-
 
 
 if __name__ == '__main__':

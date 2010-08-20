@@ -44,7 +44,8 @@ class Tablr:
         if groupTable:
             print "GROUP TABLES:"
             for group_name, group_values in sorted(groupTable.iteritems()):
-                print "||'''%s_%s'''||%s||" % (group_name, self.identifier, '||'.join(group_values))
+                print "||'''%s_%s'''||%s||" % (group_name, self.identifier,
+                                               '||'.join(group_values))
 
 
     def printHeader(self):
@@ -73,15 +74,16 @@ class Tablr:
         if groupTable:
             print "GROUP TABLES HEADER:"
             print "||'''id'''||'''%s'''||" % ("'''||'''".join(groupTable),)
-            
-    
+
+
     def saveInDjangoModel(self):
         import os
         os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
-        from django_wikinetwork.wikinetwork.models import WikiRunData, WikiRunGroupData
-        
+        from django_wikinetwork.wikinetwork.models import WikiRunData, \
+             WikiRunGroupData
+
         self.cache.seek(0)
-        
+
         data = {}
         groupTable = {}
         while self.cache.tell() < self.end_pos:
@@ -94,12 +96,16 @@ class Tablr:
             if len(tmp) == 3:
                 #format: " * GROUP : data : value"
                 group_values = groupTable.setdefault(tmp[0].strip(), {})
-                group_values[tmp[1].strip().replace(' ', '_').replace('(', '').replace(')', '')] = tmp[2].split('(')[0].strip()
+                group_values[
+                    tmp[1].strip().replace(
+                        ' ', '_').replace('(', '').replace(')', '')
+                    ] = tmp[2].split('(')[0].strip()
             else:
                 #format: " * data : value"
-                data[tmp[0].strip().replace(' ', '_')] = tmp[1].split('(')[0].strip()
+                data[tmp[0].strip().replace(' ', '_')
+                     ] = tmp[1].split('(')[0].strip()
 
-        
+
         data_model = WikiRunData(**data)
         data_model.save()
 
@@ -109,7 +115,7 @@ class Tablr:
                 group_values['group'] = group_name
                 group_values['lang'] = data_model.lang
                 group_values['date'] = data_model.date
-                
+
                 groupdata_model = WikiRunGroupData(**group_values)
                 groupdata_model.save()
-        
+
