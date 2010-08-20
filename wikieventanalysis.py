@@ -155,6 +155,7 @@ def get_first_revision(start_date, data):
         return
 
 class EventsProcessor:
+    accumulator = {}
     count = 0
     count_desired = []
     count_not_desired = {'normal': 0, 'talk': 0}
@@ -207,11 +208,16 @@ class EventsProcessor:
 
     def get_average(self, value, anniversary):
         
-        s_date = self.__creation + timedelta(self.skipped_days)
-        a_date = self.__anniversary_date if anniversary else None
+        if not anniversary and self.__creation in self.accumulator:
+            days = self.accumulator[self.__creation]
+        else:
+            s_date = self.__creation + timedelta(self.skipped_days)
+            a_date = self.__anniversary_date if anniversary else None
         
-        days = get_days_since(start_date=s_date, end_date=self.dump_date,
+            days = get_days_since(start_date=s_date, end_date=self.dump_date,
                               anniversary_date=a_date, range_=self.range_)
+            if not anniversary:
+                self.accumulator[self.__creation] = days
         try:
             return value / days
         except ZeroDivisionError:
@@ -221,7 +227,7 @@ class EventsProcessor:
         desired = self.desired_pages.keys() if self.desired_only else None
         for title, data, talk in page_iter(lang=self.lang, desired=desired):
             ## check whether the page is an archive or not
-            ## if so, skip it!
+            ## if it is a link, skip it!
             if is_archive(title):
                 continue
             self.__title = title
@@ -229,7 +235,7 @@ class EventsProcessor:
             self.__desired = self.is_desired()
             self.__type = 'normal' if not talk else 'talk'
             if self.__desired and self.__title not in self.count_desired:
-                #print "PROCESSING DESIRED PAGE:", self.__title
+                print "PROCESSING DESIRED PAGE:", self.__title
                 self.count_desired.append(self.__title)
             self.process_page()
 
