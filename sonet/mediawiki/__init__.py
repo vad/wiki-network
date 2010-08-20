@@ -16,6 +16,7 @@ import re
 import sys
 from socket import inet_ntoa, inet_aton, error
 from urllib import urlopen
+from collections import namedtuple
 
 from pageprocessor import PageProcessor, HistoryPageProcessor
 
@@ -72,7 +73,7 @@ def is_archive(pagetitle):
     """
     Test whether a page is an archive or not
     (i.e. it contains a '/' in its title
-    
+
     >>> is_archive('7_July_2005_London_bombings')
     False
     >>> is_archive('7_July_2005_London_bombings/Archive_2')
@@ -333,3 +334,5 @@ def count_renames(lang):
         print counter
 
     return counter
+
+Message = namedtuple('Message', 'time welcome')

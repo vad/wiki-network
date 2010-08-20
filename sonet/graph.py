@@ -231,3 +231,16 @@ class Graph(object):
     def remove_if(self, attrs):
         kwargs = dict([(attr+'_ne', True) for attr in attrs])
         self.g = self.g.subgraph(self.g.vs.select(**kwargs))
+
+    ##TODO: remove isolated nodes?
+    ##TODO: create a new graph or change self.g
+    def time_slice_subgraph(self, start=None, end=None):
+        g = self.g
+        isinstance(g, ig.Graph)
+        if start is None and end is None:
+            return
+        for e in g.es:
+            e['timestamp'] = [message for message in e['timestamp']
+                              if (start is None or start < message.time)
+                              and (end is None or end > message.time)]
+            ## TODO: remove edge if len(e['timestamp']) == 0

@@ -18,7 +18,7 @@ class EdgeCache:
     temp_edges = None # a dict of dicts : {'recipient': {'sender1': 20,
                       #                    'sender2': 2}}
     nodes = None      # a dict of {'username': vertex_id}
-    
+
     def __init__(self):
         self.edges = []
         self.temp_edges = {}
@@ -43,11 +43,12 @@ class EdgeCache:
                     d[speaker].extend(msgs)
                 except KeyError:
                     d[speaker] = msgs
-                
+
     def flush(self):
         """
         This function assumes that all edges directed to the same node are
-        present.
+        already in self.temp_edges. You can't add other edges to these nodes
+        after calling flush().
 
         For example you can call cumulate_edge twice with the same user, but in
         the meanwhile you can't call flush()

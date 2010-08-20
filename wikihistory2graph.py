@@ -15,11 +15,13 @@
 
 from datetime import datetime
 import os
+import sys
+import re
 
 ## PROJECT LIBS
 from sonet.edgecache import EdgeCache
 import sonet.mediawiki as mwlib
-from sonet.lib import find_open_for_this_file, yyyymmdd_optparse_callback
+from sonet.lib import find_open_for_this_file
 
 class HistoryPageProcessor(mwlib.PageProcessor):
     """
@@ -47,12 +49,28 @@ class HistoryPageProcessor(mwlib.PageProcessor):
     time_end = None
     # to limit the extraction to changes after a datetime
     time_start = None
+    counter_deleted = 0
+    _re_welcome = None
+    __welcome_pattern = None
+
+    @property
+    def welcome_pattern(self):
+        return self.__welcome_pattern
+
+    @welcome_pattern.setter
+    def welcome_pattern(self, value):
+        self.__welcome_pattern = value
+        self._re_welcome = re.compile(value, flags=re.IGNORECASE)
+
+    ## PAGE RELATED VARIABLES
     _receiver = None
-    _sender = None
     _skip = False
+
+    ## REVISION RELATED VARIABLES
+    _sender = None
     _skip_revision = False
     _time = None ## time of this revision
-    counter_deleted = 0
+    _welcome = False
 
     def __init__(self, **kwargs):
         if 'ecache' not in kwargs:
@@ -66,7 +84,7 @@ class HistoryPageProcessor(mwlib.PageProcessor):
         a_title = title.split(':')
 
         if len(a_title) > 1 and a_title[0] in self.user_talk_names:
-            self._receiver = a_title[1]
+            self._receiver = mwlib.capfirst(a_title[1].replace('_', ' '))
         else:
             self._skip = True
             return
@@ -121,14 +139,14 @@ class HistoryPageProcessor(mwlib.PageProcessor):
     def process_revision(self, _):
         skip = self._skip_revision
         self._skip_revision = False
+        welcome, self._welcome = self._welcome, False
         if skip: return
 
         assert self._sender is not None, "Sender still not defined"
         assert self._receiver is not None, "Receiver still not defined"
-
-        self.ecache.add(mwlib.capfirst(self._receiver.replace('_', ' ')),
-                        {self._sender: [self._time,]}
-                        )
+        self.ecache.add(self._receiver, {
+            self._sender: [mwlib.Message(self._time, welcome),]
+                           })
         self._sender = None
 
     def process_page(self, _):
@@ -140,28 +158,38 @@ class HistoryPageProcessor(mwlib.PageProcessor):
 
         self.count += 1
         if not self.count % 500:
-            print self.count
+            print >>sys.stderr, self.count
+
+    def process_comment(self, elem):
+        if self._skip_revision: return
+        assert self._welcome == False, 'processor._welcome is True!'
+        #print elem.text.encode('utf-8')
+        if not elem.text: return
+        if self._re_welcome.search(elem.text):
+            self._welcome = True
 
     def get_network(self):
         self.ecache.flush()
         return self.ecache.get_network(edge_label='timestamp')
 
     def end(self):
-        print 'TOTAL UTP: ', self.count
-        print 'ARCHIVES: ', self.count_archive
-        print 'DELETED: ', self.counter_deleted
+        print >>sys.stderr, 'TOTAL UTP: ', self.count
+        print >>sys.stderr, 'ARCHIVES: ', self.count_archive
+        print >>sys.stderr, 'DELETED: ', self.counter_deleted
 
 
 def opt_parse():
     from optparse import OptionParser
+    from sonet.lib import SonetOption
 
-    p = OptionParser(usage="usage: %prog [options] dumpfile")
-    p.add_option('-s', '--start', action="callback",
-        callback=yyyymmdd_optparse_callback, dest='start', type="string",
-        help="Look for revisions starting from this date", metavar="YYYYMMDD")
-    p.add_option('-e', '--end', action="callback",
-        callback=yyyymmdd_optparse_callback, dest='end', type="string",
-        help="Look for revisions until this date", metavar="YYYYMMDD")
+    p = OptionParser(usage="usage: %prog [options] dumpfile",
+                     option_class=SonetOption)
+    p.add_option('-s', '--start', action="store",
+        dest='start', type="yyyymmdd", metavar="YYYYMMDD", default=None,
+        help="Look for revisions starting from this date")
+    p.add_option('-e', '--end', action="store",
+        dest='end', type="yyyymmdd", metavar="YYYYMMDD", default=None,
+        help="Look for revisions until this date")
     opts, args = p.parse_args()
 
     ## CHECK IF OPTIONS ARE OK
@@ -187,7 +215,7 @@ def main():
         src = deflate(xml)
 
     tag = mwlib.getTags(src,
-            tags='page,title,revision,timestamp,contributor,username,ip')
+        tags='page,title,revision,timestamp,contributor,username,ip,comment')
 
     translations = mwlib.getTranslations(src)
     lang_user = unicode(translations['User'])
@@ -197,20 +225,24 @@ def main():
     assert lang_user_talk, "User Talk namespace not found"
 
     src.close()
-    print "BEGIN PARSING"
+    print >>sys.stderr, "BEGIN PARSING"
     src = deflate(xml)
 
     processor = HistoryPageProcessor(tag=tag,
         user_talk_names=(lang_user_talk, u"User talk"),
         search=(lang_user, u"User"))
-    processor.time_start = getattr(opts, 'start', None)
-    processor.time_end = getattr(opts, 'end', None)
+    processor.time_start = opts.start
+    processor.time_end = opts.end
+    ##TODO: only works on vec.wikipedia.org! :-)
+    processor.welcome_pattern = r'Benvenut'
     processor.start(src) ## PROCESSING
 
     g = processor.get_network()
+    import igraph as ig
+    isinstance(g, ig.Graph)
 
-    print "Nodes:", len(g.vs)
-    print "Edges:", len(g.es)
+    print >>sys.stderr, "Nodes:", len(g.vs)
+    print >>sys.stderr, "Edges:", len(g.es)
 
     for e in g.es:
         e['weight'] = len(e['timestamp'])
