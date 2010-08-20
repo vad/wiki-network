@@ -49,7 +49,7 @@ def page_iter(lang = 'en', paginate=10000000, desired=None):
                    row[2])
 
             
-def get_days_since(start_date, end_date, anniversary_date=None, range_=10):
+def get_days_since(start_date, end_date, anniversary_date, td_list):
     """
     Returns the number of days passed between two dates. If the considered date
     is an anniversary, count the number of days in the range around the 
@@ -82,6 +82,7 @@ def get_days_since(start_date, end_date, anniversary_date=None, range_=10):
         return (end_date - start_date).days + 1
     
     counter = 0
+    
     for year in range(start_date.year, end_date.year + 1):
         try:
             ad = date(year, anniversary_date.month,anniversary_date.day)
@@ -89,9 +90,9 @@ def get_days_since(start_date, end_date, anniversary_date=None, range_=10):
             ad = date(year, anniversary_date.month,anniversary_date.day - 1)
             
         ## TODO: introduce dateutil.rrule.between ?
-        counter += sum(1 for d in (ad + timedelta(i) 
-                        for i in range(-range_,range_+1)) 
-                        if (d >= start_date and d <= end_date))
+        counter += len([1 for d in (ad + td 
+                        for td in td_list) 
+                        if (d >= start_date and d <= end_date)])
         
     return counter
 
@@ -173,6 +174,7 @@ class EventsProcessor:
     lang = None
     range_ = None
     skipped_days = None
+    td_list = None
     __anniversary_date = None
     __creation = None
     __data = None
@@ -186,6 +188,7 @@ class EventsProcessor:
         self.skipped_days = skip
         self.dump_date = dump_date
         self.desired_only = desired
+        self.td_list = [timedelta(i) for i in range(-range_,range_+1)]
 
     def set_desired(self, list_):
         for l in list_:
@@ -215,7 +218,7 @@ class EventsProcessor:
             a_date = self.__anniversary_date if anniversary else None
         
             days = get_days_since(start_date=s_date, end_date=self.dump_date,
-                              anniversary_date=a_date, range_=self.range_)
+                              anniversary_date=a_date, td_list=self.td_list)
             if not anniversary:
                 self.accumulator[self.__creation] = days
         try:
@@ -376,7 +379,7 @@ def main():
 
     ## creating dump date object
     dump = yyyymmdd_to_datetime(dumpdate).date()
-
+    
     ## creating processor
     processor = EventsProcessor(lang=opts.lang, range_=opts.range_,
                                 skip=opts.skip, dump_date=dump,
