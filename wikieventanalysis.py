@@ -218,7 +218,7 @@ class EventsProcessor:
             a_date = self.__anniversary_date if anniversary else None
         
             days = get_days_since(start_date=s_date, end_date=self.dump_date,
-                              anniversary_date=a_date, td_list=self.td_list)
+                                  anniversary_date=a_date, td_list=self.td_list)
             if not anniversary:
                 self.accumulator[self.__creation] = days
         try:
@@ -344,24 +344,29 @@ class EventsProcessor:
             for t in ['total', 'anniversary']:
                 print '\t %s %2.15f' % (t, self.counter_normal[k][t],),
             print
+            
+def create_option_parser():
+    from optparse import OptionParser, OptionGroup
+    from sonet.lib import SonetOption
 
-
-def main():
-    import optparse
-
-    p = optparse.OptionParser(usage="usage: %prog [options] file dump-date")
-    p.add_option('-l', '--lang', action="store", dest="lang",
+    op = OptionParser('%prog [options] file dump-date', option_class=SonetOption)
+    op.add_option('-l', '--lang', action="store", dest="lang",
                  help="wikipedia language", default="en")
-    p.add_option('-r', '--range', action="store", dest="range_",
+    op.add_option('-r', '--range', action="store", dest="range_",
                  help="number of days before and after anniversary date",
                  default=10, type="int")
-    p.add_option('-s', '--skip', action="store", dest="skip",
+    op.add_option('-s', '--skip', action="store", dest="skip",
                  help="number of days to be skipped", default=180, type="int")
-    p.add_option('-d', '--desired-only', action="store_true", dest='desired',
+    op.add_option('-d', '--desired-only', action="store_true", dest='desired',
                  default=False, help='analysis only of desired pages')
-    p.add_option('-S', '--silent', action="store_false", dest='verbose',
+    op.add_option('-S', '--silent', action="store_false", dest='verbose',
                  default=True, help='do not print output')
+    
+    return op
 
+def main():
+
+    p = create_option_parser()
     opts, files = p.parse_args()
 
     if not files:
