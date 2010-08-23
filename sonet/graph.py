@@ -45,15 +45,19 @@ class Graph(object):
         efficiency = effSum/(1.*n*(n-1))
         return efficiency
 
-    def set_weighted_degree(self, type=ig.IN):
+    def set_weighted_degree(self, type=ig.IN, remove_loops=True):
         #todo: improve self-loops check
         stype = type == ig.IN and "in" or "out"
         k = 'weighted_%sdegree' % stype
 
         for node in self.g.vs:
-            edges = self.g.adjacent(node.index, type=type)
-            g_edges = (e for e in edges if not self.g.is_loop(e))
-            node[k] = sum(self.g.es[eid]['weight'] for eid in g_edges)
+            if remove_loops:
+                edges = (e for e in self.g.adjacent(node.index, type=type)
+                         if not self.g.is_loop(e))
+            else:
+                edges = self.g.adjacent(node.index, type=type)
+
+            node[k] = sum(self.g.es[eid]['weight'] for eid in edges)
 
     def averageDistance(self, weight=None):
         r"""Returns the average shortest path length of the graph
@@ -232,15 +236,21 @@ class Graph(object):
         kwargs = dict([(attr+'_ne', True) for attr in attrs])
         self.g = self.g.subgraph(self.g.vs.select(**kwargs))
 
-    ##TODO: remove isolated nodes?
-    ##TODO: create a new graph or change self.g
-    def time_slice_subgraph(self, start=None, end=None):
+    def time_slice_subgraph(self, start=None, end=None,
+                            time_label='timestamp', weight_label='weight',
+                            remove_empty_edges=True,
+                            remove_isolated_nodes=True):
         g = self.g
         isinstance(g, ig.Graph)
         if start is None and end is None:
             return
         for e in g.es:
-            e['timestamp'] = [message for message in e['timestamp']
+            e[time_label] = [message for message in e[time_label]
                               if (start is None or start < message.time)
                               and (end is None or end > message.time)]
-            ## TODO: remove edge if len(e['timestamp']) == 0
+            e[weight_label] = len(e[time_label])
+        if remove_empty_edges:
+            kwargs = {weight_label: 0}
+            g.delete_edges(**kwargs)
+        if remove_isolated_nodes:
+            g.delete_vertices(g.vs.select(_indegree=0, _outdegree=0))

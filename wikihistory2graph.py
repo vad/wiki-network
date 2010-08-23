@@ -22,6 +22,7 @@ import re
 from sonet.edgecache import EdgeCache
 import sonet.mediawiki as mwlib
 from sonet.lib import find_open_for_this_file
+from sonet.timr import Timr
 
 class HistoryPageProcessor(mwlib.PageProcessor):
     """
@@ -233,13 +234,12 @@ def main():
         search=(lang_user, u"User"))
     processor.time_start = opts.start
     processor.time_end = opts.end
-    ##TODO: only works on vec.wikipedia.org! :-)
+    ##TODO: only works on it.wikipedia.org! :-)
     processor.welcome_pattern = r'Benvenut'
     processor.start(src) ## PROCESSING
 
-    g = processor.get_network()
-    import igraph as ig
-    isinstance(g, ig.Graph)
+    with Timr('EdgeCache.get_network()'):
+        g = processor.get_network()
 
     print >>sys.stderr, "Nodes:", len(g.vs)
     print >>sys.stderr, "Edges:", len(g.es)
@@ -247,7 +247,8 @@ def main():
     for e in g.es:
         e['weight'] = len(e['timestamp'])
         #e['timestamp'] = str(e['timestamp'])
-    g.write("%swiki-%s%s.pickle" % (lang, date_, type_), format="pickle")
+    with Timr('Pickling'):
+        g.write("%swiki-%s%s.pickle" % (lang, date_, type_), format="pickle")
     #g.write("%swiki-%s%s.graphmlz" % (lang, date_, type_), format="graphmlz")
 
 
