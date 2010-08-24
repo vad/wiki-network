@@ -69,6 +69,9 @@ class EdgeCache:
         """
         Get the resulting network and clean cached data
         """
+        ##TODO: replace with igraph.Graph.DictList()
+        ## see https://mulcyber.toulouse.inra.fr/scm/viewvc.php/pyrocleaner/\
+        ##       duplicat_analyze.py?root=pyrocleaner&view=markup
         from operator import itemgetter
 
         g = ig.Graph(n = len(self.nodes), directed=True)
