@@ -21,6 +21,8 @@ from base64 import b64decode
 from zlib import decompress
 from wbin import deserialize
 
+from django.utils.encoding import smart_str
+
 from sonet.models import get_events_table
 from sonet.lib import yyyymmdd_to_datetime
 
@@ -156,39 +158,46 @@ def get_first_revision(start_date, data):
         return
 
 class EventsProcessor:
-    accumulator = {}
-    count = 0
     count_desired = []
-    count_not_desired = {'normal': 0, 'talk': 0}
     count_pages = 0
-    counter_desired = {}
-    counter_normal = {
-        'normal': {'total': 0, 'anniversary': 0}
-        ,'talk': {'total': 0, 'anniversary': 0}
-    }
+    count_revisions = 0
     creation_accumulator = {}
     desired_only = False ## search desired pages only
     desired_pages = {}
     dump_date = None
     initial_date = date(2000,1,1)
     lang = None
+    keys = ['article','type_of_page','desired','total_edits',
+            'anniversary_edits','n_of_anniversaries',
+            'anniversary_edits/total_edits','non_anniversary_edits/total_edits',
+            'event_date','first_edit_date','first_edit_date-event_date_in_days']
+    last_page = None
+    output_file = None
+    pages = []
     range_ = None
     skipped_days = None
     td_list = None
-    __anniversary_date = None
-    __creation = None
+    threshold = None
+    __event_date = None
+    __first_edit_date = None
     __data = None
     __desired = None
+    __n_of_anniversaries = None
     __title = None
     __type = None
 
-    def __init__(self, lang, range_, skip, dump_date, desired):
-        self.lang = lang
-        self.range_ = range_
-        self.skipped_days = skip
-        self.dump_date = dump_date
-        self.desired_only = desired
-        self.td_list = [timedelta(i) for i in range(-range_,range_+1)]
+    def __init__(self, **kwargs):
+        
+        self.lang = kwargs['lang']
+        self.range_ = kwargs['range_']
+        self.skipped_days = kwargs['skip']
+        self.dump_date = kwargs['dump_date']
+        self.desired_only = kwargs['desired']
+        self.output_file = kwargs['output_file']
+                
+        # timedelta list, used in get_days_since
+        self.td_list = [timedelta(i) for i in
+                        range(-self.range_,self.range_+1)]
 
     def set_desired(self, list_):
         for l in list_:
@@ -200,158 +209,187 @@ class EventsProcessor:
                     date(int(s[:4]),int(s[5:7]),int(s[8:10]))
             else:
                 self.desired_pages[page[0]] = None
-            # populate counter_desired dict
-            self.counter_desired[page[0]] = {
-                'normal': {'total': 0, 'anniversary': 0}
-                ,'talk': {'total': 0, 'anniversary': 0}
-            }
 
     def is_desired(self):
         return (self.__title in self.desired_pages)
 
-    def get_average(self, value, anniversary):
+    def get_days_since(self):
         
-        if not anniversary and self.__creation in self.accumulator:
-            days = self.accumulator[self.__creation]
+        sd = timedelta(self.skipped_days)
+        
+        if self.__first_edit_date == self.__event_date:
+            s_date = self.__event_date + sd
+            
+        elif self.__event_date + sd > self.__first_edit_date:
+            s_date = self.__event_date + sd
+            
         else:
-            s_date = self.__creation + timedelta(self.skipped_days)
-            a_date = self.__anniversary_date if anniversary else None
+            s_date = self.__first_edit_date
         
-            days = get_days_since(start_date=s_date, end_date=self.dump_date,
-                                  anniversary_date=a_date, td_list=self.td_list)
-            if not anniversary:
-                self.accumulator[self.__creation] = days
-        try:
-            return value / days
-        except ZeroDivisionError:
-            return 0
+        return get_days_since(start_date=s_date, end_date=self.dump_date,
+                                  anniversary_date=self.__event_date, 
+                                  td_list=self.td_list)
 
-    def process(self):
+    def process(self, threshold=1.):
+        from random import random
+                
         desired = self.desired_pages.keys() if self.desired_only else None
+        
         for title, data, talk in page_iter(lang=self.lang, desired=desired):
             ## check whether the page is an archive or not
             ## if it is a link, skip it!
             if is_archive(title):
                 continue
+            
+            ## page's attributes
             self.__title = title
             self.__data = data
             self.__desired = self.is_desired()
-            self.__type = 'normal' if not talk else 'talk'
+            self.__type_of_page = talk ## 0 = article, 1 = talk
             if self.__desired and self.__title not in self.count_desired:
                 print "PROCESSING DESIRED PAGE:", self.__title
                 self.count_desired.append(self.__title)
-            self.process_page()
-
-        for type_ in ('normal', 'talk'):
-            for t in ('anniversary', 'total'):
-                try:
-                    self.counter_normal[type_][t] /= \
-                        self.count_not_desired[type_]
-                except ZeroDivisionError:
-                    continue
+                
+            if not self.__desired and self.threshold < 1.:
+                if threshold == 0. or random() > threshold:
+                    self.__skip = True
+                else:
+                    self.__skip = False
+            else:
+                self.__skip = False
+                
+            ## process page
+            if not self.__skip: 
+                self.process_page()
+        
+        self.flush()
 
     def process_page(self):
+        
+        ## page's (and last page as well) attributes
         title = self.__title
+        type_ = 'talk' if self.__type_of_page else 'normal'
+        if self.last_page:
+            lp_title = self.last_page['article']
+            lp_type = 'normal' if self.last_page['type_of_page'] else 'talk'
+            lp_edits = self.last_page['total_edits']
+        else:
+            lp_title = None 
+            lp_type = None
+            lp_edits = None       
 
         ## creation date
-        if self.__type == 'normal' or title not in self.creation_accumulator:
-            self.__creation = get_first_revision(self.initial_date,
+        self.__first_edit_date = get_first_revision(self.initial_date,
                                                  self.__data)
-            ## clear accumulator, previous stored data are not more needed
-            ## since pages are ordered by title and talk (hence, if a page has talk
-            ## page, then the talk page follows the article page)
-            self.creation_accumulator = {title: self.__creation}
-        else:
-            self.__creation = self.creation_accumulator[title]
+            
+        ## remove pages without talk
+        try:
+            if type_ == lp_type:
+                self.last_page = None
+        except IndexError:
+            pass
 
         if self.__desired:
             if self.desired_pages[title] is not None:
-                self.__anniversary_date = self.desired_pages[title]
+                self.__event_date = self.desired_pages[title]
             else:
-                self.__anniversary_date = self.__creation
-                self.desired_pages[title] = self.__anniversary_date
+                self.__event_date = self.__first_edit_date
         else:
-            self.__anniversary_date = self.__creation
-
+            self.__event_date = self.__first_edit_date
+            
         ## if the page has been created less than one year ago, skip
         ## TODO: 365 - range??
-        if (self.dump_date - self.__creation).days < 365:
+        if (self.dump_date - self.__first_edit_date).days < 365:
+            ## if it is a talk, remove the article page as well
+            if type_ == 'talk':
+                try:
+                    self.last_page = None
+                except IndexError:
+                    pass
             return
 
         anniversary = 0
         total = 0
+        in_skipped = 0
 
         for d, v in self.__data.iteritems():
             revision = self.initial_date + timedelta(d)
-            if (revision - self.__creation).days < self.skipped_days:
+            if (revision - self.__event_date).days < self.skipped_days:
+                in_skipped += v
                 continue
-            if is_near_anniversary(self.__anniversary_date, revision,
-                                   self.range_):
+            if is_near_anniversary(self.__event_date, revision, self.range_):
                 anniversary += v
             total += v
-        self.count += total
-
-        page_counter = self.counter_desired[title][self.__type] if \
-                     self.__desired else self.counter_normal[self.__type]
-        page_counter['anniversary'] += self.get_average(anniversary, True)
-        page_counter['total'] += self.get_average(total, False)
-        if not self.__desired:
-            self.count_not_desired[self.__type] += 1
-
-        self.count_pages += 1
-        if not self.count_pages % 50000:
-            print 'PAGES:', self.count_pages, 'REVS:', self.count, \
-                  'DESIRED:', len(self.count_desired)
-
-    def print_out(self):
-        accumulator = {
-            'normal': {'total': [], 'anniversary': []}
-            ,'talk': {'total': [], 'anniversary': []}
+        
+        try:
+            ann_total_edits = anniversary / total
+            not_ann_total_edits = (total - anniversary) / total
+        except ZeroDivisionError:
+            ann_total_edits = 0.
+            not_ann_total_edits = 0.
+                    
+        dict_ = {
+            'article': self.__title,
+            'type_of_page': int(not self.__type_of_page),
+            'desired': int(self.__desired),
+            'total_edits': total,
+            'anniversary_edits': anniversary,
+            'n_of_anniversaries': self.get_days_since(),
+            'anniversary_edits/total_edits': ann_total_edits,
+            'non_anniversary_edits/total_edits': not_ann_total_edits,
+            'event_date': self.__event_date,
+            'first_edit_date': self.__first_edit_date,
+            'first_edit_date-event_date_in_days': (self.__first_edit_date - 
+                                                    self.__event_date).days
         }
-        from numpy import average
-        print 'PAGES:', self.count_pages, 'REVS:', self.count
-        print 'DESIRED'
-        for d, value in self.counter_desired.iteritems():
-            print '%s - http://%s.wikipedia.org/wiki/%s - Anniversary: %s' % (
-                d, self.lang,d.replace(' ','_'), self.desired_pages[d])
-            for k in ['normal','talk']:
-                v = value[k]
-                accumulator[k]['total'].append(v['total'])
-                accumulator[k]['anniversary'].append(v['anniversary'])
-                output_line = \
-                        "  %10s \t Total=%2.15f \t Anniversary=%2.15f \t " \
-                        % (k, v['total'], v['anniversary'])
+
+        if self.last_page and (title == lp_title):
+            self.pages.append(self.last_page)
+            self.pages.append(dict_)
+            self.count_pages += 2
+            self.count_revisions += (total + lp_edits)
+            self.last_page = None
+            if not self.count_pages % 50000:
+                self.flush()
+        else:
+            self.last_page = dict_
+        
+
+    def flush(self):
+        
+        mode_ = 'a'
+        
+        print 'PAGES:', self.count_pages, 'REVS:', self.count_revisions, \
+                  'DESIRED:', len(self.count_desired)
+        with open(self.output_file, mode_) as f:
+            for page in self.pages:
                 try:
-                    output_line += "Anniversary/Total=%2.15f " % (
-                        v['anniversary'] / v['total'])
-                except ZeroDivisionError:
-                    output_line += "Anniversary/Total=%2.15f" % (0.)
-                output_line += " \t Anniv-total=%2.15f" % (
-                    v['anniversary'] - v['total'])
-                print output_line
-            print
-        print 'AVERAGE DESIRED:'
-        for k in ['normal','talk']:
-            print '%10s' % (k),
-            for t in ['total', 'anniversary']:
-                l = accumulator[k][t]
-                print '\t %s %2.15f' % (t, average(l),),
-            print
-        print
-        print 'NORMAL'
-        for k in ['normal','talk']:
-            print '%10s' % (k),
-            for t in ['total', 'anniversary']:
-                print '\t %s %2.15f' % (t, self.counter_normal[k][t],),
-            print
+                    ## TODO: use another saperator rather than comma
+                    print >>f, '%s,%d,%d,%d,%d,%d,%2.16f,%2.16f,%s,%s,%d' % \
+                      (smart_str(page['article']),page['type_of_page'],
+                       page['desired'],page['total_edits'],
+                       page['anniversary_edits'],page['n_of_anniversaries'],
+                       page['anniversary_edits/total_edits'],
+                       page['non_anniversary_edits/total_edits'],
+                       page['event_date'],page['first_edit_date'],
+                       page['first_edit_date-event_date_in_days'])
+                except UnicodeEncodeError, e:
+                    print e, page['article']
+                    continue
+                del page
+        self.pages = []
+        return
+
             
 def create_option_parser():
     from optparse import OptionParser, OptionGroup
     from sonet.lib import SonetOption
 
-    op = OptionParser('%prog [options] file dump-date', option_class=SonetOption)
+    op = OptionParser('%prog [options] file dump-date output-file ratio', 
+                      option_class=SonetOption)
+    
     op.add_option('-l', '--lang', action="store", dest="lang",
-                 help="wikipedia language", default="en")
+                 help="Wikipedia language (en, it, vec, ...)", default="en")
     op.add_option('-r', '--range', action="store", dest="range_",
                  help="number of days before and after anniversary date",
                  default=10, type="int")
@@ -359,8 +397,6 @@ def create_option_parser():
                  help="number of days to be skipped", default=180, type="int")
     op.add_option('-d', '--desired-only', action="store_true", dest='desired',
                  default=False, help='analysis only of desired pages')
-    op.add_option('-S', '--silent', action="store_false", dest='verbose',
-                 default=True, help='do not print output')
     
     return op
 
@@ -369,11 +405,13 @@ def main():
     p = create_option_parser()
     opts, files = p.parse_args()
 
-    if not files:
-        p.error("Give me a file, please ;-)")
+    if len(files) < 4:
+        p.error("Bad number of arguments!")
 
     desired_pages_fn = files[0]
     dumpdate = files[1]
+    out_file = files[2]
+    threshold = float(files[3])
 
     with open(desired_pages_fn) as f:
         lines = f.readlines()
@@ -388,15 +426,12 @@ def main():
     ## creating processor
     processor = EventsProcessor(lang=opts.lang, range_=opts.range_,
                                 skip=opts.skip, dump_date=dump,
-                                desired=opts.desired)
+                                desired=opts.desired, output_file=files[2])
 
     ## set desired pages
     processor.set_desired(desired_pages)
     ## main process
-    processor.process()
-    if opts.verbose:
-        ## print stats and final output
-        processor.print_out()
+    processor.process(threshold=threshold)
 
 if __name__ == "__main__":
     #import cProfile as profile
