@@ -26,14 +26,22 @@ from sonet.lib import find_open_for_this_file
 from sonet.timr import Timr
 
 class UserContrib(object):
-    #__slots__ = ['namespace_count',]
-    normal_count = 0
-    namespace_count = None
-    first_time = None
-    last_time = None
+    __slots__ = ['namespace_count', 'normal_count', 'first_time', 'last_time',
+                 '__length_sum', '__length_count', 'minor', 'welcome',
+                 'npov', 'thanks', 'revert']
 
     def __init__(self, attr_len):
         self.namespace_count = np.zeros((attr_len,), dtype=np.int)
+        self.normal_count = 0
+        self.first_time = None
+        self.last_time = None
+        self.__length_sum = 0
+        self.__length_count = 0
+        self.minor = 0
+        self.welcome = 0
+        self.npov = 0
+        self.thanks = 0
+        self.revert = 0
     def inc_normal(self):
         self.normal_count += 1
     def inc_namespace(self, idx):
@@ -43,6 +51,19 @@ class UserContrib(object):
             self.first_time = time_
         if self.last_time is None or self.last_time < time_:
             self.last_time = time_
+    @property
+    def comment_length(self):
+        try:
+            return 1.*self.__length_sum/self.__length_count
+        except ZeroDivisionError:
+            return 0.
+    @comment_length.setter
+    def comment_length(self, length):
+        self.__length_sum += length
+        self.__length_count += 1
+    @property
+    def comment_count(self):
+        return self.__length_count
 
 class ContribDict(dict):
     def __init__(self, namespaces):
@@ -50,9 +71,11 @@ class ContribDict(dict):
         self._namespaces = namespaces
         self._d_namespaces = dict([(name.decode('utf-8'), idx) for idx, (key,
             name) in enumerate(namespaces)])
-        print self._d_namespaces
-
-    def append(self, user, page_title, time_):
+        self._re_welcome = re.compile(r'well?come', flags=re.IGNORECASE)
+        self._re_npov = re.compile(r'[ n]pov', flags=re.IGNORECASE)
+        self._re_thanks = re.compile(r'thank', flags=re.IGNORECASE)
+        self._re_revert = re.compile(r'(revert| rev )', flags=re.IGNORECASE)
+    def append(self, user, page_title, time_, comment, minor):
         try:
             contrib = self[user]
         except:
@@ -71,6 +94,22 @@ class ContribDict(dict):
 
         ## Time
         contrib.time(time_)
+
+        ## Minor
+        if minor:
+            contrib.minor += 1
+
+        ## Comment
+        if not comment: return
+        contrib.comment_length = len(comment)
+        if self._re_welcome.search(comment) is not None:
+            contrib.welcome += 1
+        if self._re_npov.search(comment) is not None:
+            contrib.npov += 1
+        if self._re_thanks.search(comment) is not None:
+            contrib.thanks += 1
+        if self._re_revert.search(comment) is not None:
+            contrib.revert += 1
 
 class UserContributionsPageProcessor(mwlib.PageProcessor):
     """
@@ -129,9 +168,10 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
 
     ## REVISION RELATED VARIABLES
     _time = None ## time of this revision
-    _welcome = False
+    _comment = None
     _skip_revision = False
     _sender = None
+    _minor = False
 
     def process_title(self, elem):
         self._title = elem.text
@@ -172,23 +212,25 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
                 self._sender = contributor.find(self.tag['id']).text
 
     def process_comment(self, elem):
-        if self._skip_revision: return
-        assert self._welcome == False, 'processor._welcome is True!'
-        #print elem.text.encode('utf-8')
-        if not elem.text: return
-        if self._re_welcome.search(elem.text):
-            self._welcome = True
+        if self._skip_revision or not elem.text:
+            return
+        self._comment = elem.text
+
+    def process_minor(self, elem):
+        self._minor = True
 
     def process_revision(self, _):
         skip, self._skip_revision = self._skip_revision or self._skip, False
-        welcome, self._welcome = self._welcome, False
+        comment, self._comment = self._comment, None
+        minor, self._minor = self._minor, False
         if skip: return
 
         assert self._sender is not None, "Sender still not defined"
         assert self._title is not None, "Page title not defined"
         assert self._time is not None, "time not defined"
 
-        self.contribution.append(self._sender, self._title, self._time)
+        self.contribution.append(self._sender, self._title, self._time,
+                self._comment, minor)
 
         self._sender = None
 
@@ -244,7 +286,8 @@ def main():
         src = deflate(xml)
 
     tag = mwlib.getTags(src,
-        tags='page,title,revision,timestamp,contributor,username,ip,comment,id')
+        tags='page,title,revision,timestamp,contributor,username,ip'+ \
+             ',comment,id,minor')
 
     namespaces = mwlib.getNamespaces(src)
 
