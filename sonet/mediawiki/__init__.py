@@ -266,8 +266,9 @@ def getTranslations(src):
         while 1:
             line = src.readline()
             if not line: break
-            keys = re.findall(r'<namespace key="(\d+)"[^>]*>([^<]*)</namespace>',
-                              line)
+            keys = re.findall(
+                r'<namespace key="(\d+)"[^>]*>([^<]*)</namespace>',
+                line)
             for key, ns in keys:
                 if key == '1':
                     translation['Talk'] = unicode(ns, 'utf-8')
@@ -275,6 +276,8 @@ def getTranslations(src):
                     translation['User'] = unicode(ns, 'utf-8')
                 elif key == '3':
                     translation['User talk'] = unicode(ns, 'utf-8')
+                elif key == '4':
+                    translation['Wikipedia'] = unicode(ns, 'utf-8')
 
             counter += 1
             if counter > 50:
@@ -283,6 +286,27 @@ def getTranslations(src):
         src.seek(0)
 
     return translation
+
+def getNamespaces(src):
+    try:
+        counter = 0
+        namespaces = []
+
+        while 1:
+            line = src.readline()
+            if not line: break
+            keys = re.findall(r'<namespace key="(\d+)"[^>]*>([^<]*)</namespace>',
+                              line)
+            for key, ns in keys:
+                namespaces.append((key, ns))
+
+            counter += 1
+            if counter > 40:
+                break
+    finally:
+        src.seek(0)
+
+    return namespaces
 
 
 def explode_dump_filename(fn):

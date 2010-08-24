@@ -17,16 +17,64 @@ from datetime import datetime
 import os
 import sys
 import re
+import numpy as np
+import guppy
 
 ## PROJECT LIBS
-from sonet.edgecache import EdgeCache
 import sonet.mediawiki as mwlib
 from sonet.lib import find_open_for_this_file
 from sonet.timr import Timr
 
-class HistoryPageProcessor(mwlib.PageProcessor):
+class UserContrib(object):
+    #__slots__ = ['namespace_count',]
+    normal_count = 0
+    namespace_count = None
+    first_time = None
+    last_time = None
+
+    def __init__(self, attr_len):
+        self.namespace_count = np.zeros((attr_len,), dtype=np.int)
+    def inc_normal(self):
+        self.normal_count += 1
+    def inc_namespace(self, idx):
+        self.namespace_count[idx] += 1
+    def time(self, time_):
+        if self.first_time is None or self.first_time > time_:
+            self.first_time = time_
+        if self.last_time is None or self.last_time < time_:
+            self.last_time = time_
+
+class ContribDict(dict):
+    def __init__(self, namespaces):
+        super(ContribDict, self).__init__()
+        self._namespaces = namespaces
+        self._d_namespaces = dict([(name.decode('utf-8'), idx) for idx, (key,
+            name) in enumerate(namespaces)])
+        print self._d_namespaces
+
+    def append(self, user, page_title, time_):
+        try:
+            contrib = self[user]
+        except:
+            contrib = UserContrib(len(self._namespaces))
+            self[user] = contrib
+
+        ## Namespace
+        a_title = page_title.split(':')
+        if len(a_title) == 1:
+            contrib.inc_normal()
+        else:
+            try:
+                contrib.inc_namespace(self._d_namespaces[a_title[0]])
+            except KeyError:
+                contrib.inc_normal()
+
+        ## Time
+        contrib.time(time_)
+
+class UserContributionsPageProcessor(mwlib.PageProcessor):
     """
-    HistoryPageProcessor extracts a graph from a meta-history or a
+    UserContributionsPageProcessor extracts a graph from a meta-history or a
     stub-meta-history dump.
 
     A state-machine-like approach is used to parse the file.
@@ -46,13 +94,25 @@ class HistoryPageProcessor(mwlib.PageProcessor):
         (... more revisions ...)
     </page>
     """
+    __slots__ = tuple()
     # to limit the extraction to changes before a datetime
     time_end = None
     # to limit the extraction to changes after a datetime
     time_start = None
-    counter_deleted = 0
     _re_welcome = None
     __welcome_pattern = None
+    contribution = None
+    __namespaces = None
+    counter_deleted = 0
+
+    @property
+    def namespaces(self):
+        return self.__namespaces
+
+    @namespaces.setter
+    def namespaces(self, namespaces):
+        self.__namespaces = namespaces
+        self.contribution = ContribDict(namespaces)
 
     @property
     def welcome_pattern(self):
@@ -64,42 +124,19 @@ class HistoryPageProcessor(mwlib.PageProcessor):
         self._re_welcome = re.compile(value, flags=re.IGNORECASE)
 
     ## PAGE RELATED VARIABLES
-    _receiver = None
     _skip = False
+    _title = None
 
     ## REVISION RELATED VARIABLES
-    _sender = None
-    _skip_revision = False
     _time = None ## time of this revision
     _welcome = False
-
-    def __init__(self, **kwargs):
-        if 'ecache' not in kwargs:
-            kwargs['ecache'] = EdgeCache()
-        super(HistoryPageProcessor, self).__init__(**kwargs)
+    _skip_revision = False
+    _sender = None
 
     def process_title(self, elem):
-        if self._skip_revision: return
-
-        title = elem.text
-        a_title = title.split(':')
-
-        if len(a_title) > 1 and a_title[0] in self.user_talk_names:
-            self._receiver = mwlib.capfirst(a_title[1].replace('_', ' '))
-        else:
-            self._skip = True
-            return
-
-        try:
-            title.index('/')
-            self.count_archive += 1
-            self._skip = True
-        except ValueError:
-            pass
+        self._title = elem.text
 
     def process_timestamp(self, elem):
-        if self._skip_revision: return
-
         timestamp = elem.text
         year = int(timestamp[:4])
         month = int(timestamp[5:7])
@@ -107,23 +144,20 @@ class HistoryPageProcessor(mwlib.PageProcessor):
         hour = int(timestamp[11:13])
         minutes = int(timestamp[14:16])
         seconds = int(timestamp[17:19])
-        revision_time = datetime(year, month, day, hour, minutes, seconds)
-        if ((self.time_end and revision_time > self.time_end) or
-            (self.time_start and revision_time < self.time_start)):
-            self._skip_revision = True
-        else:
-            self._time = revision_time
+        self._time = datetime(year, month, day, hour, minutes, seconds)
 
     def process_contributor(self, contributor):
         if self._skip_revision: return
 
         if contributor is None:
+            print 'contributor is None'
             self._skip_revision = True
 
         sender_tag = contributor.find(self.tag['username'])
         if sender_tag is None:
             try:
                 self._sender = contributor.find(self.tag['ip']).text
+                if self._sender is None: self._skip_revision = True
             except AttributeError:
                 ## user deleted
                 self._skip_revision = True
@@ -137,30 +171,6 @@ class HistoryPageProcessor(mwlib.PageProcessor):
                 ## if username is defined but empty, look for id tag
                 self._sender = contributor.find(self.tag['id']).text
 
-    def process_revision(self, _):
-        skip = self._skip_revision
-        self._skip_revision = False
-        welcome, self._welcome = self._welcome, False
-        if skip: return
-
-        assert self._sender is not None, "Sender still not defined"
-        assert self._receiver is not None, "Receiver still not defined"
-        self.ecache.add(self._receiver, {
-            self._sender: [mwlib.Message(self._time, welcome),]
-                           })
-        self._sender = None
-
-    def process_page(self, _):
-        if self._skip:
-            self._skip = False
-            return
-
-        self._receiver = None
-
-        self.count += 1
-        if not self.count % 500:
-            print >>sys.stderr, self.count
-
     def process_comment(self, elem):
         if self._skip_revision: return
         assert self._welcome == False, 'processor._welcome is True!'
@@ -169,14 +179,32 @@ class HistoryPageProcessor(mwlib.PageProcessor):
         if self._re_welcome.search(elem.text):
             self._welcome = True
 
-    def get_network(self):
-        self.ecache.flush()
-        return self.ecache.get_network(edge_label='timestamp')
+    def process_revision(self, _):
+        skip, self._skip_revision = self._skip_revision or self._skip, False
+        welcome, self._welcome = self._welcome, False
+        if skip: return
+
+        assert self._sender is not None, "Sender still not defined"
+        assert self._title is not None, "Page title not defined"
+        assert self._time is not None, "time not defined"
+
+        self.contribution.append(self._sender, self._title, self._time)
+
+        self._sender = None
+
+    def process_page(self, _):
+        if self._skip:
+            self._skip = False
+            return
+
+        self._title = None
+
+        self.count += 1
+        if not self.count % 500:
+            print >>sys.stderr, self.count
 
     def end(self):
-        print >>sys.stderr, 'TOTAL UTP: ', self.count
-        print >>sys.stderr, 'ARCHIVES: ', self.count_archive
-        print >>sys.stderr, 'DELETED: ', self.counter_deleted
+        print 'END'
 
 
 def opt_parse():
@@ -216,42 +244,25 @@ def main():
         src = deflate(xml)
 
     tag = mwlib.getTags(src,
-        tags='page,title,revision,timestamp,contributor,username,ip,comment')
+        tags='page,title,revision,timestamp,contributor,username,ip,comment,id')
 
-    translations = mwlib.getTranslations(src)
-    lang_user = unicode(translations['User'])
-    lang_user_talk = unicode(translations['User talk'])
-
-    assert lang_user, "User namespace not found"
-    assert lang_user_talk, "User Talk namespace not found"
+    namespaces = mwlib.getNamespaces(src)
 
     src.close()
     print >>sys.stderr, "BEGIN PARSING"
     src = deflate(xml)
 
-    processor = HistoryPageProcessor(tag=tag,
-        user_talk_names=(lang_user_talk, u"User talk"))
-    processor.time_start = opts.start
-    processor.time_end = opts.end
+    processor = UserContributionsPageProcessor(tag=tag)
+    processor.namespaces = namespaces
     ##TODO: only works on it.wikipedia.org! :-)
     processor.welcome_pattern = r'Benvenut'
     processor.start(src) ## PROCESSING
 
-    with Timr('EdgeCache.get_network()'):
-        g = processor.get_network()
-
-    print >>sys.stderr, "Nodes:", len(g.vs)
-    print >>sys.stderr, "Edges:", len(g.es)
-
-    for e in g.es:
-        e['weight'] = len(e['timestamp'])
-        #e['timestamp'] = str(e['timestamp'])
-    with Timr('Pickling'):
-        g.write("%swiki-%s%s.pickle" % (lang, date_, type_), format="pickle")
-    #g.write("%swiki-%s%s.graphmlz" % (lang, date_, type_), format="graphmlz")
 
 
 if __name__ == "__main__":
     #import cProfile as profile
     #profile.run('main()', 'mainprof')
     main()
+    h = guppy.hpy()
+    print h.heap()
