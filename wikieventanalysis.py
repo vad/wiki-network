@@ -20,11 +20,12 @@ from sqlalchemy import select, func
 from base64 import b64decode
 from zlib import decompress
 from wbin import deserialize
+import sys
 
 from django.utils.encoding import smart_str
 
 from sonet.models import get_events_table
-from sonet.lib import yyyymmdd_to_datetime
+from sonet import lib
 
 
 def page_iter(lang = 'en', paginate=10000000, desired=None):
@@ -175,6 +176,7 @@ class EventsProcessor:
     output_file = None
     pages = []
     range_ = None
+    sevenzip_process = None
     skipped_days = None
     td_list = None
     threshold = None
@@ -188,6 +190,8 @@ class EventsProcessor:
 
     def __init__(self, **kwargs):
         
+        from subprocess import Popen, PIPE        
+        
         self.lang = kwargs['lang']
         self.range_ = kwargs['range_']
         self.skipped_days = kwargs['skip']
@@ -198,6 +202,12 @@ class EventsProcessor:
         # timedelta list, used in get_days_since
         self.td_list = [timedelta(i) for i in
                         range(-self.range_,self.range_+1)]
+        
+                
+        self.sevenzip_process = Popen(['7z', 'a', '-si', self.output_file + '.7z'],
+                              stdin=PIPE, stderr=None)
+        
+        sys.stdout = self.sevenzip_process.stdin
 
     def set_desired(self, list_):
         for l in list_:
@@ -247,7 +257,7 @@ class EventsProcessor:
             self.__desired = self.is_desired()
             self.__type_of_page = talk ## 0 = article, 1 = talk
             if self.__desired and self.__title not in self.count_desired:
-                print "PROCESSING DESIRED PAGE:", self.__title
+                print >> sys.stderr, "PROCESSING DESIRED PAGE:", self.__title
                 self.count_desired.append(self.__title)
                 
             if not self.__desired and self.threshold < 1.:
@@ -263,6 +273,7 @@ class EventsProcessor:
                 self.process_page()
         
         self.flush()
+        self.sevenzip_process.terminate()
 
     def process_page(self):
         
@@ -357,30 +368,28 @@ class EventsProcessor:
 
     def flush(self):
         
-        mode_ = 'a'
+        print >> sys.stderr, 'PAGES:', self.count_pages, 'REVS:', \
+              self.count_revisions, 'DESIRED:', len(self.count_desired)
         
-        print 'PAGES:', self.count_pages, 'REVS:', self.count_revisions, \
-                  'DESIRED:', len(self.count_desired)
-        with open(self.output_file, mode_) as f:
-            for page in self.pages:
-                try:
-                    ## TODO: use another saperator rather than comma
-                    print >>f, '%s,%d,%d,%d,%d,%d,%2.16f,%2.16f,%s,%s,%d' % \
+        for page in self.pages:
+            try:
+                print '%s>%d>%d>%d>%d>%d>%2.16f>%2.16f>%s>%s>%d' % \
                       (smart_str(page['article']),page['type_of_page'],
-                       page['desired'],page['total_edits'],
-                       page['anniversary_edits'],page['n_of_anniversaries'],
-                       page['anniversary_edits/total_edits'],
-                       page['non_anniversary_edits/total_edits'],
-                       page['event_date'],page['first_edit_date'],
-                       page['first_edit_date-event_date_in_days'])
-                except UnicodeEncodeError, e:
-                    print e, page['article']
-                    continue
-                del page
+                      page['desired'],page['total_edits'],
+                      page['anniversary_edits'],page['n_of_anniversaries'],
+                      page['anniversary_edits/total_edits'],
+                      page['non_anniversary_edits/total_edits'],
+                      page['event_date'],page['first_edit_date'],
+                      page['first_edit_date-event_date_in_days'])
+            except UnicodeEncodeError, e:
+                print >> sys.stderr, e, page['article']
+                continue
+            del page
+            
         self.pages = []
         return
 
-            
+    
 def create_option_parser():
     from optparse import OptionParser, OptionGroup
     from sonet.lib import SonetOption
@@ -421,7 +430,7 @@ def main():
         l.strip() for l in lines] if l and not l[0] == '#']
 
     ## creating dump date object
-    dump = yyyymmdd_to_datetime(dumpdate).date()
+    dump = lib.yyyymmdd_to_datetime(dumpdate).date()
     
     ## creating processor
     processor = EventsProcessor(lang=opts.lang, range_=opts.range_,
