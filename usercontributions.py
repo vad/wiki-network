@@ -23,7 +23,6 @@ import numpy as np
 ## PROJECT LIBS
 import sonet.mediawiki as mwlib
 from sonet.lib import find_open_for_this_file
-from sonet.timr import Timr
 
 ## DATABASE
 from sonet.models import get_contributions_table
@@ -34,7 +33,7 @@ from wbin import serialize
 class UserContrib(object):
     __slots__ = ['namespace_count', 'normal_count', 'first_time', 'last_time',
                  '__length_sum', '__length_count', 'minor', 'welcome',
-                 'npov', 'thanks', 'revert']
+                 'npov', 'please', 'thanks', 'revert']
 
     def __init__(self, attr_len):
         self.namespace_count = np.zeros((attr_len,), dtype=np.int)
@@ -46,6 +45,7 @@ class UserContrib(object):
         self.minor = 0
         self.welcome = 0
         self.npov = 0
+        self.please = 0
         self.thanks = 0
         self.revert = 0
     def inc_normal(self):
@@ -75,11 +75,12 @@ class ContribDict(dict):
     def __init__(self, namespaces):
         super(ContribDict, self).__init__()
         self._namespaces = namespaces
-        self._d_namespaces = dict([(name.decode('utf-8'), idx) for idx, (key,
+        self._d_namespaces = dict([(name.decode('utf-8'), idx) for idx, (_,
             name) in enumerate(namespaces)])
         self._re_welcome = re.compile(r'well?come', flags=re.IGNORECASE)
         self._re_npov = re.compile(r'[ n]pov', flags=re.IGNORECASE)
-        self._re_thanks = re.compile(r'thank', flags=re.IGNORECASE)
+        self._re_please = re.compile(r'pl(s|z|ease)', flags=re.IGNORECASE)
+        self._re_thanks = re.compile(r'th(ank|anx|x)', flags=re.IGNORECASE)
         self._re_revert = re.compile(r'(revert| rev )', flags=re.IGNORECASE)
 
         contributions, self.connection = get_contributions_table()
@@ -89,7 +90,7 @@ class ContribDict(dict):
     def append(self, user, page_title, time_, comment, minor):
         try:
             contrib = self[user]
-        except:
+        except KeyError:
             contrib = UserContrib(len(self._namespaces))
             self[user] = contrib
 
@@ -117,6 +118,8 @@ class ContribDict(dict):
             contrib.welcome += 1
         if self._re_npov.search(comment) is not None:
             contrib.npov += 1
+        if self._re_please.search(comment) is not None:
+            contrib.please += 1
         if self._re_thanks.search(comment) is not None:
             contrib.thanks += 1
         if self._re_revert.search(comment) is not None:
@@ -140,6 +143,7 @@ class ContribDict(dict):
                  'minor': d.minor,
                  'welcome': d.welcome,
                  'npov': d.npov,
+                 'please': d.please,
                  'thanks': d.thanks,
                  'revert': d.revert
                  }
@@ -253,7 +257,7 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
             return
         self._comment = elem.text
 
-    def process_minor(self, elem):
+    def process_minor(self, _):
         self._minor = True
 
     def process_revision(self, _):
@@ -306,16 +310,16 @@ def opt_parse():
     if len(args) != 1:
         p.error("Wrong number of arguments")
     if not os.path.exists(args[0]):
-        p.error("Dump file does not exist (%s)" % (xml,))
+        p.error("Dump file does not exist (%s)" % (args[0],))
     return (opts, args)
 
 
 def main():
-    opts, args = opt_parse()
+    _, args = opt_parse()
     xml = args[0]
 
     ## SET UP FOR PROCESSING
-    lang, date_, type_ = mwlib.explode_dump_filename(xml)
+    lang, _, _ = mwlib.explode_dump_filename(xml)
 
     deflate, _lineno = find_open_for_this_file(xml)
 
@@ -334,7 +338,7 @@ def main():
     print >>sys.stderr, "BEGIN PARSING"
     src = deflate(xml)
 
-    processor = UserContributionsPageProcessor(tag=tag)
+    processor = UserContributionsPageProcessor(tag=tag, lang=lang)
     processor.namespaces = namespaces
     ##TODO: only works on it.wikipedia.org! :-)
     processor.welcome_pattern = r'Benvenut'
