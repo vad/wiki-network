@@ -205,7 +205,9 @@ class EventsProcessor:
         self.td_list = [timedelta(i) for i in
                         range(-self.range_,self.range_+1)]
         
-                
+        if not lib.find_executable('7z'):
+            raise Exception, 'Cannot find 7zip executable (7z)'
+        
         self.sevenzip_process = Popen(['7z', 'a', '-si', self.output_file + '.7z'],
                               stdin=PIPE, stderr=None)
         
@@ -251,7 +253,7 @@ class EventsProcessor:
         n = 0
         s_date = self.get_start_date()
         
-        for y in range(s_date.year + 1, self.dump_date.year + 1):
+        for y in range(s_date.year, self.dump_date.year + 1):
             try: 
                 d = date(y, self.__event_date.month, self.__event_date.day)
             except ValueError: 
