@@ -18,12 +18,18 @@ import os
 import sys
 import re
 import numpy as np
-import guppy
+#import guppy
 
 ## PROJECT LIBS
 import sonet.mediawiki as mwlib
 from sonet.lib import find_open_for_this_file
 from sonet.timr import Timr
+
+## DATABASE
+from sonet.models import get_contributions_table
+from base64 import b64encode
+from zlib import compress
+from wbin import serialize
 
 class UserContrib(object):
     __slots__ = ['namespace_count', 'normal_count', 'first_time', 'last_time',
@@ -75,6 +81,11 @@ class ContribDict(dict):
         self._re_npov = re.compile(r'[ n]pov', flags=re.IGNORECASE)
         self._re_thanks = re.compile(r'thank', flags=re.IGNORECASE)
         self._re_revert = re.compile(r'(revert| rev )', flags=re.IGNORECASE)
+
+        contributions, self.connection = get_contributions_table()
+        self.insert = contributions.insert()
+
+    #----------------------------------------------------------------------
     def append(self, user, page_title, time_, comment, minor):
         try:
             contrib = self[user]
@@ -111,6 +122,30 @@ class ContribDict(dict):
         if self._re_revert.search(comment) is not None:
             contrib.revert += 1
 
+    #----------------------------------------------------------------------
+    def save(self, lang):
+        """
+        Save the accumulated data into DB
+        """
+        #isinstance(d, UserContrib)
+        data = [{'user': user,
+                 'lang': lang,
+                 'normal_edits': d.normal_count,
+                 'namespace_edits': b64encode(
+                     compress(serialize(d.namespace_count.tolist()))),
+                 'first_edit': d.first_time,
+                 'last_edit': d.last_time,
+                 'comments_count': d.comment_count,
+                 'comments_avg': d.comment_length,
+                 'minor': d.minor,
+                 'welcome': d.welcome,
+                 'npov': d.npov,
+                 'thanks': d.thanks,
+                 'revert': d.revert
+                 }
+                for user, d in self.iteritems()]
+        self.connection.execute(self.insert, data)
+
 class UserContributionsPageProcessor(mwlib.PageProcessor):
     """
     UserContributionsPageProcessor extracts a graph from a meta-history or a
@@ -143,6 +178,7 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
     contribution = None
     __namespaces = None
     counter_deleted = 0
+    count_revision = 0
 
     @property
     def namespaces(self):
@@ -177,6 +213,7 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
         self._title = elem.text
 
     def process_timestamp(self, elem):
+        if self._skip_revision: return
         timestamp = elem.text
         year = int(timestamp[:4])
         month = int(timestamp[5:7])
@@ -225,12 +262,13 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
         minor, self._minor = self._minor, False
         if skip: return
 
+        self.count_revision += 1
         assert self._sender is not None, "Sender still not defined"
         assert self._title is not None, "Page title not defined"
         assert self._time is not None, "time not defined"
 
         self.contribution.append(self._sender, self._title, self._time,
-                self._comment, minor)
+                comment, minor)
 
         self._sender = None
 
@@ -243,10 +281,11 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
 
         self.count += 1
         if not self.count % 500:
-            print >>sys.stderr, self.count
+            print >>sys.stderr, self.count, self.count_revision
+            #print guppy.hpy().heap()
 
     def end(self):
-        print 'END'
+        self.contribution.save(self.lang)
 
 
 def opt_parse():
@@ -307,5 +346,5 @@ if __name__ == "__main__":
     #import cProfile as profile
     #profile.run('main()', 'mainprof')
     main()
-    h = guppy.hpy()
-    print h.heap()
+    #h = guppy.hpy()
+    #print h.heap()

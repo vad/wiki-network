@@ -365,7 +365,6 @@ def main():
         os.rename('hist.png', '%swiki-%s-hist.png' % (lang, date))
         os.rename('hist.dat', '%swiki-%s-hist.dat' % (lang, date))
 
-
     if options.plot:
         ## TODO: evaluate if this can be done with
         ## http://bazaar.launchpad.net/~igraph/igraph/0.6-main/revision/2018

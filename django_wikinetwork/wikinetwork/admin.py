@@ -49,6 +49,11 @@ class WikiStatAdmin(admin.ModelAdmin):
     list_filter     = ('lang',)
     date_hierarchy  = 'created'
 
+class BigWikiStatAdmin(admin.ModelAdmin):
+    list_display    = ('name', 'created')
+    list_filter     = ('name',)
+    date_hierarchy  = 'created'
+
 class WikiEventAdmin(admin.ModelAdmin):
     fields          = ('title', 'lang', 'data', 'talk', 'desired')
     list_display    = ('title', 'lang', 'talk')
@@ -83,7 +88,7 @@ admin.site.register(WikiRunData, WikiRunDataAdmin)
 admin.site.register(WikiRunGroupData, WikiRunGroupDataAdmin)
 admin.site.register(WikiStat, WikiStatAdmin)
 admin.site.register(WikiLang)
-admin.site.register(BigWikiStat)
+admin.site.register(BigWikiStat, BigWikiStatAdmin)
 admin.site.register(CeleryRun)
 admin.site.register(WikiEvent, WikiEventAdmin)
 admin.site.register(WikiWord, WikiWordAdmin)
