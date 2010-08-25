@@ -20,7 +20,7 @@ from sqlalchemy import select, func
 from base64 import b64decode
 from zlib import decompress
 from wbin import deserialize
-import sys
+import sys, csv
 
 from django.utils.encoding import smart_str
 
@@ -165,6 +165,7 @@ class EventsProcessor:
     count_pages = 0
     count_revisions = 0
     creation_accumulator = {}
+    csv_writer = None
     desired_only = False ## search desired pages only
     desired_pages = {}
     dump_date = None
@@ -176,7 +177,6 @@ class EventsProcessor:
             'event_date','first_edit_date','first_edit_date-event_date_in_days']
     pages = []
     range_ = None
-    sevenzip_process = None
     skipped_days = None
     td_list = None
     threshold = None
@@ -206,11 +206,14 @@ class EventsProcessor:
         if not lib.find_executable('7z'):
             raise Exception, 'Cannot find 7zip executable (7z)'
         
-        self.sevenzip_process = Popen(['7z', 'a', '-si', kwargs['output_file']
+        sevenzip_process = Popen(['7z', 'a', '-si', kwargs['output_file']
                                        + '.7z'], stdin=PIPE, stderr=None)
         
-        sys.stdout = self.sevenzip_process.stdin
-        print ">".join(self.keys_)
+        self.csv_writer = csv.DictWriter(sevenzip_process.stdin, 
+                                   fieldnames = self.keys_, delimiter='>', 
+                                   quotechar='"', quoting=csv.QUOTE_ALL)
+        
+        self.csv_writer.writerow(dict((k,k) for k in self.keys_))
 
     def set_desired(self, list_):
         for l in list_:
@@ -339,7 +342,7 @@ class EventsProcessor:
             not_ann_total_edits = 0.
                     
         dict_ = {
-            'article': self.__title,
+            'article': smart_str(self.__title),
             'type_of_page': int(not self.__type_of_page),
             'desired': int(self.__desired),
             'total_edits': total,
@@ -365,21 +368,8 @@ class EventsProcessor:
         print >> sys.stderr, 'PAGES:', self.count_pages, 'REVS:', \
               self.count_revisions, 'DESIRED:', len(self.count_desired)
         
-        for page in self.pages:
-            try:
-                print '%s>%d>%d>%d>%d>%d>%2.16f>%2.16f>%s>%s>%d' % \
-                      (smart_str(page['article']),page['type_of_page'],
-                      page['desired'],page['total_edits'],
-                      page['anniversary_edits'],page['n_of_anniversaries'],
-                      page['anniversary_edits/total_edits'],
-                      page['non_anniversary_edits/total_edits'],
-                      page['event_date'],page['first_edit_date'],
-                      page['first_edit_date-event_date_in_days'])
-            except UnicodeEncodeError, e:
-                print >> sys.stderr, e, page['article']
-                continue
-            del page
-            
+        self.csv_writer.writerows(self.pages)
+                   
         self.pages = []
         return
 
