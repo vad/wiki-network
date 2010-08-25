@@ -174,8 +174,6 @@ class EventsProcessor:
             'anniversary_edits','n_of_anniversaries',
             'anniversary_edits/total_edits','non_anniversary_edits/total_edits',
             'event_date','first_edit_date','first_edit_date-event_date_in_days']
-    last_page = None
-    output_file = None
     pages = []
     range_ = None
     sevenzip_process = None
@@ -186,6 +184,7 @@ class EventsProcessor:
     __first_edit_date = None
     __data = None
     __desired = None
+    __id = None
     __n_of_anniversaries = None
     __title = None
     __type = None
@@ -199,7 +198,6 @@ class EventsProcessor:
         self.skipped_days = kwargs['skip']
         self.dump_date = kwargs['dump_date']
         self.desired_only = kwargs['desired']
-        self.output_file = kwargs['output_file']
                 
         # timedelta list, used in get_days_since
         self.td_list = [timedelta(i) for i in
@@ -208,8 +206,8 @@ class EventsProcessor:
         if not lib.find_executable('7z'):
             raise Exception, 'Cannot find 7zip executable (7z)'
         
-        self.sevenzip_process = Popen(['7z', 'a', '-si', self.output_file + '.7z'],
-                              stdin=PIPE, stderr=None)
+        self.sevenzip_process = Popen(['7z', 'a', '-si', kwargs['output_file']
+                                       + '.7z'], stdin=PIPE, stderr=None)
         
         sys.stdout = self.sevenzip_process.stdin
         print ">".join(self.keys_)
@@ -303,26 +301,10 @@ class EventsProcessor:
         ## page's (and last page as well) attributes
         title = self.__title
         type_ = 'talk' if self.__type_of_page else 'normal'
-        if self.last_page:
-            lp_title = self.last_page['article']
-            lp_type = 'normal' if self.last_page['type_of_page'] else 'talk'
-            lp_edits = self.last_page['total_edits']
-        else:
-            lp_title = None 
-            lp_type = None
-            lp_edits = None       
 
         ## creation date
         self.__first_edit_date = get_first_revision(self.initial_date,
                                                  self.__data)
-            
-        ## remove pages without talk
-        try:
-            if type_ == lp_type:
-                self.last_page = None
-        except IndexError:
-            pass
-
         if self.__desired:
             if self.desired_pages[title] is not None:
                 self.__event_date = self.desired_pages[title]
@@ -334,12 +316,6 @@ class EventsProcessor:
         ## if the page has been created less than one year ago, skip
         ## TODO: 365 - range??
         if (self.dump_date - self.__first_edit_date).days < 365:
-            ## if it is a talk, remove the article page as well
-            if type_ == 'talk':
-                try:
-                    self.last_page = None
-                except IndexError:
-                    pass
             return
 
         anniversary = 0
@@ -377,17 +353,12 @@ class EventsProcessor:
                                                    self.__event_date).days
         }
 
-        if self.last_page and (title == lp_title):
-            self.pages.append(self.last_page)
-            self.pages.append(dict_)
-            self.count_pages += 2
-            self.count_revisions += (total + lp_edits)
-            self.last_page = None
-            if not self.count_pages % 50000:
-                self.flush()
-        else:
-            self.last_page = dict_
-        
+        self.pages.append(dict_)
+        self.count_pages += 1
+        self.count_revisions += total
+
+        if not self.count_pages % 50000:
+            self.flush()       
 
     def flush(self):
         
