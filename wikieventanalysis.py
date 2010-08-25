@@ -43,6 +43,8 @@ def page_iter(lang = 'en', paginate=10000000, desired=None):
         count_query = count_query.where(events.c.title.in_(desired))
 
     count = conn.execute(count_query).fetchall()[0][0]
+    
+    print >>sys.stderr, 'PAGES:', count
 
     for offset in xrange(0, count, paginate):
         rs = conn.execute(s.offset(offset))
@@ -273,7 +275,6 @@ class EventsProcessor:
                 self.process_page()
         
         self.flush()
-        self.sevenzip_process.terminate()
 
     def process_page(self):
         
