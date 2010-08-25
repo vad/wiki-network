@@ -170,7 +170,7 @@ class EventsProcessor:
     dump_date = None
     initial_date = date(2000,1,1)
     lang = None
-    keys = ['article','type_of_page','desired','total_edits',
+    keys_ = ['article','type_of_page','desired','total_edits',
             'anniversary_edits','n_of_anniversaries',
             'anniversary_edits/total_edits','non_anniversary_edits/total_edits',
             'event_date','first_edit_date','first_edit_date-event_date_in_days']
@@ -210,6 +210,7 @@ class EventsProcessor:
                               stdin=PIPE, stderr=None)
         
         sys.stdout = self.sevenzip_process.stdin
+        print ">".join(self.keys_)
 
     def set_desired(self, list_):
         for l in list_:
@@ -225,7 +226,7 @@ class EventsProcessor:
     def is_desired(self):
         return (self.__title in self.desired_pages)
 
-    def get_days_since(self):
+    def get_start_date(self):
         
         sd = timedelta(self.skipped_days)
         
@@ -238,9 +239,28 @@ class EventsProcessor:
         else:
             s_date = self.__first_edit_date
         
+        return s_date
+
+    def get_days_since(self):
+        s_date = self.get_start_date()
         return get_days_since(start_date=s_date, end_date=self.dump_date,
                                   anniversary_date=self.__event_date, 
                                   td_list=self.td_list)
+    
+    def get_n_anniversaries(self):
+        n = 0
+        s_date = self.get_start_date()
+        
+        for y in range(s_date.year + 1, self.dump_date.year + 1):
+            try: 
+                d = date(y, self.__event_date.month, self.__event_date.day)
+            except ValueError: 
+                d = date(y, self.__event_date.month, self.__event_date.day - 1)
+    
+            if (d >= s_date and d <= self.dump_date):
+                n += 1
+        
+        return n
 
     def process(self, threshold=1.):
         from random import random
@@ -346,13 +366,13 @@ class EventsProcessor:
             'desired': int(self.__desired),
             'total_edits': total,
             'anniversary_edits': anniversary,
-            'n_of_anniversaries': self.get_days_since(),
+            'n_of_anniversaries': self.get_n_anniversaries(),
             'anniversary_edits/total_edits': ann_total_edits,
             'non_anniversary_edits/total_edits': not_ann_total_edits,
             'event_date': self.__event_date,
             'first_edit_date': self.__first_edit_date,
             'first_edit_date-event_date_in_days': (self.__first_edit_date - 
-                                                    self.__event_date).days
+                                                   self.__event_date).days
         }
 
         if self.last_page and (title == lp_title):
