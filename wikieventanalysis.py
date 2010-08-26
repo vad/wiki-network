@@ -60,26 +60,34 @@ def get_days_since(start_date, end_date, anniversary_date, td_list):
     is an anniversary, count the number of days in the range around the 
     anniversary for each year
 
-    >>> get_days_since(date(2001, 9, 11), date(2005, 9, 19), None, 10)
+    >>> td = [timedelta(i) for i in range(-10,11)]
+    >>> get_days_since(date(2001, 9, 11), date(2005, 9, 19), None, td)
     1470
-    >>> get_days_since(date(2010, 9, 11), date(2005, 9, 19), None, 10)
+    >>> get_days_since(date(2010, 9, 11), date(2005, 9, 19), None, td)
     0
-    >>> get_days_since(date(2005, 9, 16), date(2005, 9, 19), None, 10)
+    >>> get_days_since(date(2005, 9, 16), date(2005, 9, 19), None, td)
     4
-    >>> get_days_since(date(2001,9,11),date(2010,7,29),date(2001,9,11),10)
+    >>> get_days_since(date(2001,9,11),date(2010,7,29),date(2001,9,11),td)
     179
-    >>> get_days_since(date(2001,9,22),date(2010,7,29),date(2001,9,11),10)
+    >>> get_days_since(date(2001,9,22),date(2010,7,29),date(2001,9,11),td)
     168
-    >>> get_days_since(date(2001,12,30),date(2002,1,1),date(2001,12,30),50)
-    3
-    >>> get_days_since(date(2001,1,1),date(2001,12,31),date(2001,6,15),20)
-    41
-    >>> get_days_since(date(2001,1,1),date(2003,1,1),date(2001,6,15),5)
-    22
-    >>> get_days_since(date(2006,1,7),date(2006,7,7),date(2005,7,7),10)
+    >>> get_days_since(date(2006,1,7),date(2006,7,7),date(2005,7,7),td)
     11
-    >>> get_days_since(date(2010,2,4),date(2010,7,29),date(1952,8,4),10)
+    >>> get_days_since(date(2010,2,4),date(2010,7,29),date(1952,8,4),td)
     5
+    >>> td = [timedelta(i) for i in range(-50,51)]
+    >>> get_days_since(date(2001,12,30),date(2002,1,1),date(2001,12,30),td)
+    3
+    >>> td = [timedelta(i) for i in range(-20,21)]
+    >>> get_days_since(date(2001,1,1),date(2001,12,31),date(2001,6,15),td)
+    41
+    >>> td = [timedelta(i) for i in range(-5,6)]
+    >>> get_days_since(date(2001,1,1),date(2003,1,1),date(2001,6,15),td)
+    22
+    >>> get_days_since(date(2001,9,22),date(2010,7,29),date(2001,9,11),None)
+    8
+    >>> get_days_since(date(2004,2,29),date(2010,7,29),date(2000,2,29),None)
+    7
     """
     if start_date > end_date:
         return 0
@@ -95,9 +103,12 @@ def get_days_since(start_date, end_date, anniversary_date, td_list):
             ad = date(year, anniversary_date.month,anniversary_date.day - 1)
             
         ## TODO: introduce dateutil.rrule.between ?
-        counter += len([1 for d in (ad + td 
+        if td_list:
+            counter += len([1 for d in (ad + td 
                         for td in td_list) 
                         if (d >= start_date and d <= end_date)])
+        else:
+            counter += int(ad >= start_date and ad <= end_date)
         
     return counter
 
@@ -251,19 +262,10 @@ class EventsProcessor:
                                   td_list=self.td_list)
     
     def get_n_anniversaries(self):
-        n = 0
         s_date = self.get_start_date()
-        
-        for y in range(s_date.year, self.dump_date.year + 1):
-            try: 
-                d = date(y, self.__event_date.month, self.__event_date.day)
-            except ValueError: 
-                d = date(y, self.__event_date.month, self.__event_date.day - 1)
-    
-            if (d >= s_date and d <= self.dump_date):
-                n += 1
-        
-        return n
+        return get_days_since(start_date=s_date, end_date=self.dump_date,
+                                  anniversary_date=self.__event_date, 
+                                  td_list=None)
 
     def process(self, threshold=1.):
         from random import random
