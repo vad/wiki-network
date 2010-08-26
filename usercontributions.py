@@ -13,14 +13,13 @@
 #                                                                        #
 ##########################################################################
 
-from datetime import datetime
 import os
 import sys
 import re
 import time
-import numpy as np
-import guppy
-import collections
+#import guppy
+from array import array
+from datetime import datetime
 
 ## PROJECT LIBS
 import sonet.mediawiki as mwlib
@@ -33,59 +32,113 @@ from base64 import b64encode
 from zlib import compress
 from wbin import serialize
 
-class UserContrib(object):
-    __slots__ = ['namespace_count', 'normal_count', 'first_time', 'last_time',
-                 'comments', 'minor', 'welcome',
-                 'npov', 'please', 'thanks', 'revert', '_attr_len']
+ATTR_LEN = None
 
-    def __init__(self, attr_len):
+class UserContrib(object):
+    __slots__ = ['comments_length', 'namespace_count', 'normal_count', 'data']
+
+    def __init__(self):
         ##TODO: maybe attr_len contains unneeded namespace? like key=0
         ##self.namespace_count = np.zeros((attr_len,), dtype=np.int)
         ## TODO: class wide attribute
-        self._attr_len = attr_len
-        #self.namespace_count = None
         self.normal_count = 0
-        self.first_time = None
-        self.last_time = None
-        #self.__length_sum = 0
-        #self.__length_count = 0
-        self.minor = 0
-        self.welcome = 0
-        self.npov = 0
-        self.please = 0
-        self.thanks = 0
-        self.revert = 0
+        ## data = [comments_count, minor, welcome, npov,
+        ##         please, thanks, revert, first_time, last_time]
+
+        ## 4 bytes for item on 64bit pc
+        self.data = array('I', (0,)*9)
+
+        ## this can be very large, in this way it uses python bigints
+        self.comments_length = 0
+
     def inc_normal(self):
         self.normal_count += 1
+
     def inc_namespace(self, idx):
         if not hasattr(self, 'namespace_count'):
-            self.namespace_count = np.zeros((self._attr_len,), dtype=np.int)
+            self.namespace_count = array('I', (0,)*ATTR_LEN)
         self.namespace_count[idx] += 1
+
+    @property
+    def first_time(self):
+        return datetime.fromtimestamp(self.data[7])
+
+    @property
+    def last_time(self):
+        return datetime.fromtimestamp(self.data[8])
+
     def time(self, time_):
         epoch = int(time.mktime(time_.timetuple()))
-        if self.first_time is None or self.first_time > epoch:
-            self.first_time = epoch
-        if self.last_time is None or self.last_time < epoch:
-            self.last_time = epoch
+        if self.data[7] == 0 or self.data[7] > epoch:
+            self.data[7] = epoch
+        if self.data[8] == 0 or self.data[8] < epoch:
+            self.data[8] = epoch
+
     @property
     def comment_length(self):
-        if not hasattr(self, 'comments'):
+        try:
+            return 1.*self.comments_length/self.data[0]
+        except ZeroDivisionError:
             return 0.
-        return 1.*self.__length_sum/self.__length_count
+
     @comment_length.setter
     def comment_length(self, length):
-        if not hasattr(self, 'comments'):
-            self.comments = np.zeros((2,), dtype=np.int)
-        self.comments[0] += length
-        self.comments[1] += 1
+        self.comments_length += length
+        self.data[0] += 1
+
     @property
     def comment_count(self):
-        return self.comments[1]
+        return self.data[0]
+
+    @property
+    def minor(self):
+        return self.data[1]
+
+    def inc_minor(self):
+        self.data[1] += 1
+
+    @property
+    def welcome(self):
+        return self.data[2]
+
+    def inc_welcome(self):
+        self.data[2] += 1
+
+    @property
+    def npov(self):
+        return self.data[3]
+
+    def inc_npov(self):
+        self.data[3] += 1
+
+    @property
+    def please(self):
+        return self.data[4]
+
+    def inc_please(self):
+        self.data[4] += 1
+
+    @property
+    def thanks(self):
+        return self.data[5]
+
+    def inc_thanks(self):
+        self.data[5] += 1
+
+    @property
+    def revert(self):
+        return self.data[6]
+
+    def inc_revert(self):
+        self.data[6] += 1
+
 
 class ContribDict(dict):
     def __init__(self, namespaces):
+        global ATTR_LEN
         super(ContribDict, self).__init__()
         self._namespaces = namespaces
+        ATTR_LEN = len(namespaces)
         self._d_namespaces = dict([(name.decode('utf-8'), idx) for idx, (_,
             name) in enumerate(namespaces)])
         self._re_welcome = re.compile(r'well?come', flags=re.IGNORECASE)
@@ -102,7 +155,7 @@ class ContribDict(dict):
         try:
             contrib = self[user]
         except KeyError:
-            contrib = UserContrib(len(self._namespaces))
+            contrib = UserContrib()
             self[user] = contrib
 
         ## Namespace
@@ -120,21 +173,21 @@ class ContribDict(dict):
 
         ## Minor
         if minor:
-            contrib.minor += 1
+            contrib.inc_minor()
 
         ## Comment
         if not comment: return
         contrib.comment_length = len(comment)
         if self._re_welcome.search(comment) is not None:
-            contrib.welcome += 1
+            contrib.inc_welcome()
         if self._re_npov.search(comment) is not None:
-            contrib.npov += 1
+            contrib.inc_npov()
         if self._re_please.search(comment) is not None:
-            contrib.please += 1
+            contrib.inc_please()
         if self._re_thanks.search(comment) is not None:
-            contrib.thanks += 1
+            contrib.inc_thanks()
         if self._re_revert.search(comment) is not None:
-            contrib.revert += 1
+            contrib.inc_revert()
 
     #----------------------------------------------------------------------
     def save(self, lang):
@@ -146,11 +199,12 @@ class ContribDict(dict):
         iterator = self.iteritems()
         step = 100000
         for _ in xrange(0, len(self), step):
-            data = [{'user': user,
+            data = [{'username': user,
                      'lang': lang,
                      'normal_edits': d.normal_count,
                      'namespace_edits': b64encode(
-                         compress(serialize(d.namespace_count.tolist()))),
+                         compress(serialize(d.namespace_count.tolist())))
+                             if hasattr(d, 'namespace_count') else None,
                      'first_edit': d.first_time,
                      'last_edit': d.last_time,
                      'comments_count': d.comment_count,
@@ -196,7 +250,6 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
     __welcome_pattern = None
     contribution = None
     __namespaces = None
-    counter_deleted = 0
     count_revision = 0
 
     @property
@@ -251,13 +304,7 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
 
         sender_tag = contributor.find(self.tag['username'])
         if sender_tag is None:
-            try:
-                self._sender = contributor.find(self.tag['ip']).text
-                if self._sender is None: self._skip_revision = True
-            except AttributeError:
-                ## user deleted
-                self._skip_revision = True
-                self.counter_deleted += 1
+            self._skip_revision = True
         else:
             try:
                 self._sender = mwlib.capfirst(
@@ -300,12 +347,14 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
 
         self.count += 1
         if not self.count % 500:
-            print >>sys.stderr, self.count, self.count_revision
-            with Timr('guppy'):
-                print guppy.hpy().heap()
+            print >>sys.stderr, self.count, self.count_revision, \
+                  len(self.contribution)
+            #with Timr('guppy'):
+            #    print guppy.hpy().heap()
 
     def end(self):
-        self.contribution.save(self.lang)
+        with Timr('save'):
+            self.contribution.save(self.lang)
 
 
 def opt_parse():
