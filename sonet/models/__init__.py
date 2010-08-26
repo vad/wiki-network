@@ -50,7 +50,7 @@ class UserContributions(Base):
 
     id = Column(Integer, Sequence('wikinetwork_usercontribution_id_seq'),
                 primary_key=True)
-    user = Column(String)
+    username = Column(String)
     lang = Column(String)
     normal_edits = Column(Integer)
     namespace_edits = Column(String)
