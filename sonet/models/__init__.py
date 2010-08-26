@@ -14,7 +14,10 @@
 ##########################################################################
 
 from sqlalchemy import Table, MetaData, create_engine, Column, Integer, \
-     String, Boolean, Sequence
+     String, Boolean, Sequence, DateTime, Float
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 
 def get_engine():
     return create_engine(
@@ -41,3 +44,33 @@ def get_events_table(engine=None, metadata=None):
     conn = engine.connect()
 
     return (events, conn)
+
+class UserContributions(Base):
+    __tablename__ = 'wikinetwork_usercontribution'
+
+    id = Column(Integer, Sequence('wikinetwork_usercontribution_id_seq'),
+                primary_key=True)
+    user = Column(String)
+    lang = Column(String)
+    normal_edits = Column(Integer)
+    namespace_edits = Column(String)
+    first_edit = Column(DateTime)
+    last_edit = Column(DateTime)
+    comments_count = Column(Integer)
+    comments_avg = Column(Float)
+    minor = Column(Integer)
+    welcome = Column(Integer)
+    npov = Column(Integer)
+    thanks = Column(Integer)
+    revert = Column(Integer)
+
+def get_contributions_table(engine=None):
+    if engine is None:
+        engine = get_engine()
+    Base.metadata.bind = engine
+
+    table = UserContributions.__table__
+    Base.metadata.create_all()
+    conn = engine.connect()
+
+    return (table, conn)

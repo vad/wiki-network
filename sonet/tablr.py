@@ -78,6 +78,9 @@ class Tablr:
 
     def saveInDjangoModel(self):
         import os
+        import sys
+        sys.path.append('/sra0/sra/setti/Source/wiki-network/')
+        sys.path.append('/sra0/sra/setti/Source/wiki-network/django_wikinetwork/')
         os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
         from django_wikinetwork.wikinetwork.models import WikiRunData, \
              WikiRunGroupData
