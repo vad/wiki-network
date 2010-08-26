@@ -210,7 +210,7 @@ class EventsProcessor:
                                        + '.7z'], stdin=PIPE, stderr=None)
         
         self.csv_writer = csv.DictWriter(sevenzip_process.stdin, 
-                                   fieldnames = self.keys_, delimiter='>', 
+                                   fieldnames = self.keys_, delimiter=',', 
                                    quotechar='"', quoting=csv.QUOTE_ALL)
         
         self.csv_writer.writerow(dict((k,k) for k in self.keys_))
