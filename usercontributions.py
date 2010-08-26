@@ -17,12 +17,15 @@ from datetime import datetime
 import os
 import sys
 import re
+import time
 import numpy as np
-#import guppy
+import guppy
+import collections
 
 ## PROJECT LIBS
 import sonet.mediawiki as mwlib
 from sonet.lib import find_open_for_this_file
+from sonet.timr import Timr
 
 ## DATABASE
 from sonet.models import get_contributions_table
@@ -32,16 +35,20 @@ from wbin import serialize
 
 class UserContrib(object):
     __slots__ = ['namespace_count', 'normal_count', 'first_time', 'last_time',
-                 '__length_sum', '__length_count', 'minor', 'welcome',
-                 'npov', 'please', 'thanks', 'revert']
+                 'comments', 'minor', 'welcome',
+                 'npov', 'please', 'thanks', 'revert', '_attr_len']
 
     def __init__(self, attr_len):
-        self.namespace_count = np.zeros((attr_len,), dtype=np.int)
+        ##TODO: maybe attr_len contains unneeded namespace? like key=0
+        ##self.namespace_count = np.zeros((attr_len,), dtype=np.int)
+        ## TODO: class wide attribute
+        self._attr_len = attr_len
+        #self.namespace_count = None
         self.normal_count = 0
         self.first_time = None
         self.last_time = None
-        self.__length_sum = 0
-        self.__length_count = 0
+        #self.__length_sum = 0
+        #self.__length_count = 0
         self.minor = 0
         self.welcome = 0
         self.npov = 0
@@ -51,25 +58,29 @@ class UserContrib(object):
     def inc_normal(self):
         self.normal_count += 1
     def inc_namespace(self, idx):
+        if not hasattr(self, 'namespace_count'):
+            self.namespace_count = np.zeros((self._attr_len,), dtype=np.int)
         self.namespace_count[idx] += 1
     def time(self, time_):
-        if self.first_time is None or self.first_time > time_:
-            self.first_time = time_
-        if self.last_time is None or self.last_time < time_:
-            self.last_time = time_
+        epoch = int(time.mktime(time_.timetuple()))
+        if self.first_time is None or self.first_time > epoch:
+            self.first_time = epoch
+        if self.last_time is None or self.last_time < epoch:
+            self.last_time = epoch
     @property
     def comment_length(self):
-        try:
-            return 1.*self.__length_sum/self.__length_count
-        except ZeroDivisionError:
+        if not hasattr(self, 'comments'):
             return 0.
+        return 1.*self.__length_sum/self.__length_count
     @comment_length.setter
     def comment_length(self, length):
-        self.__length_sum += length
-        self.__length_count += 1
+        if not hasattr(self, 'comments'):
+            self.comments = np.zeros((2,), dtype=np.int)
+        self.comments[0] += length
+        self.comments[1] += 1
     @property
     def comment_count(self):
-        return self.__length_count
+        return self.comments[1]
 
 class ContribDict(dict):
     def __init__(self, namespaces):
@@ -130,25 +141,29 @@ class ContribDict(dict):
         """
         Save the accumulated data into DB
         """
-        #isinstance(d, UserContrib)
-        data = [{'user': user,
-                 'lang': lang,
-                 'normal_edits': d.normal_count,
-                 'namespace_edits': b64encode(
-                     compress(serialize(d.namespace_count.tolist()))),
-                 'first_edit': d.first_time,
-                 'last_edit': d.last_time,
-                 'comments_count': d.comment_count,
-                 'comments_avg': d.comment_length,
-                 'minor': d.minor,
-                 'welcome': d.welcome,
-                 'npov': d.npov,
-                 'please': d.please,
-                 'thanks': d.thanks,
-                 'revert': d.revert
-                 }
-                for user, d in self.iteritems()]
-        self.connection.execute(self.insert, data)
+        from itertools import islice
+
+        iterator = self.iteritems()
+        step = 100000
+        for _ in xrange(0, len(self), step):
+            data = [{'user': user,
+                     'lang': lang,
+                     'normal_edits': d.normal_count,
+                     'namespace_edits': b64encode(
+                         compress(serialize(d.namespace_count.tolist()))),
+                     'first_edit': d.first_time,
+                     'last_edit': d.last_time,
+                     'comments_count': d.comment_count,
+                     'comments_avg': d.comment_length,
+                     'minor': d.minor,
+                     'welcome': d.welcome,
+                     'npov': d.npov,
+                     'please': d.please,
+                     'thanks': d.thanks,
+                     'revert': d.revert
+                     }
+                    for user, d in islice(iterator, step)]
+            self.connection.execute(self.insert, data)
 
 class UserContributionsPageProcessor(mwlib.PageProcessor):
     """
@@ -286,7 +301,8 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
         self.count += 1
         if not self.count % 500:
             print >>sys.stderr, self.count, self.count_revision
-            #print guppy.hpy().heap()
+            with Timr('guppy'):
+                print guppy.hpy().heap()
 
     def end(self):
         self.contribution.save(self.lang)

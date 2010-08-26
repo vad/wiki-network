@@ -61,6 +61,7 @@ class UserContributions(Base):
     minor = Column(Integer)
     welcome = Column(Integer)
     npov = Column(Integer)
+    please = Column(Integer)
     thanks = Column(Integer)
     revert = Column(Integer)
 
