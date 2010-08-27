@@ -20,6 +20,9 @@ from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 def get_engine():
+    """
+    returns the engine used by this project
+    """
     return create_engine(
         'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki'
     )
