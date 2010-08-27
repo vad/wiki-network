@@ -35,24 +35,28 @@ from wbin import serialize
 ATTR_LEN = None
 
 class UserContrib(object):
-    __slots__ = ['comments_length', 'namespace_count', 'normal_count', 'data']
+    __slots__ = ['comments_length', 'namespace_count', 'data']
 
     def __init__(self):
         ##TODO: maybe attr_len contains unneeded namespace? like key=0
         ##self.namespace_count = np.zeros((attr_len,), dtype=np.int)
         ## TODO: class wide attribute
-        self.normal_count = 0
         ## data = [comments_count, minor, welcome, npov,
         ##         please, thanks, revert, first_time, last_time]
 
         ## 4 bytes for item on 64bit pc
-        self.data = array('I', (0,)*9)
+        self.data = array('I', (0,)*10)
 
-        ## this can be very large, in this way it uses python bigints
+        ## this can be very large, in this way it uses python bigints.
+        ## KEEP THIS OUT OF self.data!!
         self.comments_length = 0
 
+    @property
+    def normal_count(self):
+        return self.data[9]
+
     def inc_normal(self):
-        self.normal_count += 1
+        self.data[9] += 1
 
     def inc_namespace(self, idx):
         if not hasattr(self, 'namespace_count'):
