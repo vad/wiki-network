@@ -224,8 +224,8 @@ class EventsProcessor:
                                    fieldnames = self.keys_, delimiter=',', 
                                    quotechar='"', quoting=csv.QUOTE_ALL)
         
-        self.csv_writer.writerow(dict((k,k) for k in self.keys_))
-
+        self.csv_writer.writeheader()
+        
     def set_desired(self, list_):
         for l in list_:
             # split page's name and page's creation date (if any)
