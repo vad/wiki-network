@@ -217,10 +217,11 @@ class EventsProcessor:
         if not lib.find_executable('7z'):
             raise Exception, 'Cannot find 7zip executable (7z)'
         
-        sevenzip_process = Popen(['7z', 'a', '-si', kwargs['output_file']
-                                       + '.7z'], stdin=PIPE, stderr=None)
-        
-        self.csv_writer = csv.DictWriter(sevenzip_process.stdin, 
+        zip_process = Popen(['7z', 'a', '-tbzip2', '-mx=9',
+                             kwargs['output_file'] + '.bz2', '-si'],
+                            stdin=PIPE, stderr=None)
+                
+        self.csv_writer = csv.DictWriter(zip_process.stdin, 
                                    fieldnames = self.keys_, delimiter=',', 
                                    quotechar='"', quoting=csv.QUOTE_ALL)
         
