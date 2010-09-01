@@ -21,6 +21,7 @@ from base64 import b64decode
 from zlib import decompress
 from wbin import deserialize
 import sys, csv
+from os import path
 
 from django.utils.encoding import smart_str
 
@@ -217,8 +218,12 @@ class EventsProcessor:
         if not lib.find_executable('7z'):
             raise Exception, 'Cannot find 7zip executable (7z)'
         
-        zip_process = Popen(['7z', 'a', '-tbzip2', '-mx=9',
-                            kwargs['output_file'] + '.bz2', '-si'],
+        fn = kwargs['output_file'] + '.bz2'
+        
+        if path.isfile(fn):
+            raise Exception, 'Delete file ' + fn + ' before proceeding'
+        
+        zip_process = Popen(['7z', 'a', '-tbzip2', '-mx=9', fn, '-si'],
                             stdin=PIPE, stderr=None)
                 
         self.csv_writer = csv.DictWriter(zip_process.stdin, 
