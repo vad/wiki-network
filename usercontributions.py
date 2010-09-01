@@ -20,6 +20,7 @@ import time
 #import guppy
 from array import array
 from datetime import datetime
+import logging
 
 ## PROJECT LIBS
 import sonet.mediawiki as mwlib
@@ -303,7 +304,7 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
         if self._skip_revision: return
 
         if contributor is None:
-            print 'contributor is None'
+            logging.warning('contributor is None')
             self._skip_revision = True
 
         sender_tag = contributor.find(self.tag['username'])
@@ -351,10 +352,10 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
 
         self.count += 1
         if not self.count % 500:
-            print >>sys.stderr, self.count, self.count_revision, \
-                  len(self.contribution)
+            logging.debug("%d %d %d" %(self.count,self.count_revision,
+                  len(self.contribution)))
             #with Timr('guppy'):
-            #    print guppy.hpy().heap()
+            #    logging.debug(guppy.hpy().heap())
 
     def end(self):
         with Timr('save'):
@@ -384,6 +385,11 @@ def opt_parse():
 
 
 def main():
+    logging.basicConfig(#filename="usercontributions.log",
+                        stream=sys.stderr,
+                        level=logging.DEBUG)
+    logging.info('---------------------START---------------------')
+
     _, args = opt_parse()
     xml = args[0]
 
@@ -404,14 +410,15 @@ def main():
     namespaces = mwlib.getNamespaces(src)
 
     src.close()
-    print >>sys.stderr, "BEGIN PARSING"
+    logging.info("BEGIN PARSING")
     src = deflate(xml)
 
     processor = UserContributionsPageProcessor(tag=tag, lang=lang)
     processor.namespaces = namespaces
     ##TODO: only works on it.wikipedia.org! :-)
     processor.welcome_pattern = r'Benvenut'
-    processor.start(src) ## PROCESSING
+    with Timr('PROCESSING'):
+        processor.start(src) ## PROCESSING
 
 
 
