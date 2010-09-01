@@ -17,6 +17,7 @@ import sys
 from socket import inet_ntoa, inet_aton, error
 from urllib import urlopen
 from collections import namedtuple
+import logging
 
 from pageprocessor import PageProcessor, HistoryPageProcessor
 
@@ -147,7 +148,7 @@ def getCollaborators(rawWikiText, search, lang=None, re_cache = {}):
         ##      (nomi utenti strani da correggere con capfirst e replace)
         u2 = u.group(2)
         if not u2:
-            print >>sys.stderr, 'getCollaborators: empty username found'
+            logging.warn('getCollaborators: empty username found')
             continue
         un = capfirst(unicode(u2).replace('_', ' '))
         weights[un] = weights.get(un, 0) + 1
@@ -183,12 +184,12 @@ def addGroupAttribute(g, lang, group='bot'):
         res = json.load(furl)
 
         if not res.has_key('query') or not res['query']['allusers']:
-            print 'Group %s has errors or has no users' % group
+            logging.warn('Group %s has errors or has no users' % group)
             g.vs[group] = [None,]*len(g.vs)
             return
 
         for user in res['query']['allusers']:
-            print user['name'].encode('utf-8')
+            logging.info(user['name'].encode('utf-8'))
             try:
                 g.vs.select(username=user['name'].encode('utf-8')
                             )[0][group] = True
@@ -212,19 +213,19 @@ def addBlockedAttribute(g, lang):
     while True:
         if start:
             url = '%s&bkstart=%s' % (base_url, start)
-        print "BLOCKED USERS: url = %s" % url
+        logging.info("BLOCKED USERS: url = %s" % url)
         furl = urlopen(url)
         res = json.load(furl)
 
         if not res.has_key('query') or not res['query']['blocks']:
-            print 'No blocked users'
+            logging.info('No blocked users')
             return
 
         bk_list = []
         for block in res['query']['blocks']:
             if not block.has_key('user'):
                 continue
-            print block['user'].encode('utf-8')
+            logging.info(block['user'].encode('utf-8'))
             try:
                 bk_list.append(block['user'].encode('utf-8'))
             except IndexError:
@@ -247,7 +248,7 @@ def getTags(src, tags='page,title,revision,text'):
         root = src.readline()
         ns = unicode(re.findall(r'xmlns="([^"]*)', root)[0])
 
-        tag_prefix = u'{%s}' % ns
+        tag_prefix = u'{%s}' % (ns,)
 
         tag = {}
         for t in tags.split(','):
@@ -295,7 +296,7 @@ def getNamespaces(src):
         while 1:
             line = src.readline()
             if not line: break
-            keys = re.findall(r'<namespace key="(\d+)"[^>]*>([^<]*)</namespace>',
+            keys = re.findall(r'<namespace key="(-?\d+)"[^>]*>([^<]*)</namespace>',
                               line)
             for key, ns in keys:
                 namespaces.append((key, ns))
@@ -346,7 +347,7 @@ def count_renames(lang):
         res = json.load(furl)
 
         if not res.has_key('query') or not res['query']['logevents']:
-            print 'No logs'
+            logging.info('No logs')
             return
 
         counter += len(res['query']['logevents'])
@@ -355,7 +356,6 @@ def count_renames(lang):
             start = res['query-continue']['logevents']['lestart']
         else:
             break
-        print counter
 
     return counter
 
