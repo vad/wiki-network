@@ -44,7 +44,7 @@ def page_iter(lang = 'en', paginate=10000000, desired=None):
 
     count = conn.execute(count_query).fetchall()[0][0]
     
-    print >>sys.stderr, 'PAGES:', count
+    print 'PAGES:', count
 
     for offset in xrange(0, count, paginate):
         rs = conn.execute(s.offset(offset))
@@ -218,7 +218,7 @@ class EventsProcessor:
             raise Exception, 'Cannot find 7zip executable (7z)'
         
         zip_process = Popen(['7z', 'a', '-tbzip2', '-mx=9',
-                             kwargs['output_file'] + '.bz2', '-si'],
+                            kwargs['output_file'] + '.bz2', '-si'],
                             stdin=PIPE, stderr=None)
                 
         self.csv_writer = csv.DictWriter(zip_process.stdin, 
@@ -285,7 +285,7 @@ class EventsProcessor:
             self.__desired = self.is_desired()
             self.__type_of_page = talk ## 0 = article, 1 = talk
             if self.__desired and self.__title not in self.count_desired:
-                print >> sys.stderr, "PROCESSING DESIRED PAGE:", self.__title
+                print "PROCESSING DESIRED PAGE:", self.__title
                 self.count_desired.append(self.__title)
                 
             if not self.__desired and self.threshold < 1.:
@@ -368,8 +368,8 @@ class EventsProcessor:
 
     def flush(self):
         
-        print >> sys.stderr, 'PAGES:', self.count_pages, 'REVS:', \
-              self.count_revisions, 'DESIRED:', len(self.count_desired)
+        print 'PAGES:', self.count_pages, 'REVS:', self.count_revisions,
+        'DESIRED:', len(self.count_desired)
         
         self.csv_writer.writerows(self.pages)
                    
