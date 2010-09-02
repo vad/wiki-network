@@ -16,6 +16,7 @@
 from sonet.models import get_contributions_table
 from sqlalchemy import select, func
 
+import logging
 import time
 from base64 import b64decode
 from zlib import decompress
@@ -82,6 +83,12 @@ def get_xml_file():
 def main():
     from bz2 import BZ2File
     from csv import DictWriter
+
+    logging.basicConfig(#filename="usercontributions_export.log",
+                        stream=sys.stderr,
+                        level=logging.DEBUG)
+    logging.info('---------------------START---------------------')
+
     xml, out = get_xml_file()
 
     deflate, _lineno = find_open_for_this_file(xml)
@@ -113,7 +120,7 @@ def main():
 
         count += 1
         if not count % 5000:
-            print count
+            logging.info(count)
 
 if __name__ == "__main__":
     main()
