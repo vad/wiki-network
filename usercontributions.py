@@ -241,7 +241,7 @@ def use_contrib_dict(receiver, namespaces, lang):
         rev = receiver.recv()
 
         try:
-            cd.append(rev[0], rev[1], rev[2], rev[3], rev[4])
+            cd.append(*rev)
         except TypeError:
             cd.save(lang)
             return
