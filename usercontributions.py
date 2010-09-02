@@ -26,6 +26,7 @@ import logging
 import sonet.mediawiki as mwlib
 from sonet.lib import find_open_for_this_file
 from sonet.timr import Timr
+from multiprocessing import Queue, Process
 
 ## DATABASE
 from sonet.models import get_contributions_table
@@ -156,7 +157,7 @@ class ContribDict(dict):
         self.insert = contributions.insert()
 
     #----------------------------------------------------------------------
-    def append(self, user, page_title, time_, comment, minor):
+    def append(self, user, page_title, timestamp, comment, minor):
         try:
             contrib = self[user]
         except KeyError:
@@ -173,8 +174,16 @@ class ContribDict(dict):
             except KeyError:
                 contrib.inc_normal()
 
+        year = int(timestamp[:4])
+        month = int(timestamp[5:7])
+        day = int(timestamp[8:10])
+        hour = int(timestamp[11:13])
+        minutes = int(timestamp[14:16])
+        seconds = int(timestamp[17:19])
+
+        timestamp = datetime(year, month, day, hour, minutes, seconds)
         ## Time
-        contrib.time(time_)
+        contrib.time(timestamp)
 
         ## Minor
         if minor:
@@ -224,6 +233,19 @@ class ContribDict(dict):
                     for user, d in islice(iterator, step)]
             self.connection.execute(self.insert, data)
 
+
+def use_contrib_dict(queue, namespaces, lang):
+    cd = ContribDict(namespaces)
+
+    while 1:
+        rev = queue.get()
+
+        try:
+            cd.append(rev[0], rev[1], rev[2], rev[3], rev[4])
+        except TypeError:
+            cd.save(lang)
+            return
+
 class UserContributionsPageProcessor(mwlib.PageProcessor):
     """
     UserContributionsPageProcessor extracts a graph from a meta-history or a
@@ -253,7 +275,7 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
     time_start = None
     _re_welcome = None
     __welcome_pattern = None
-    contribution = None
+    queue = None
     __namespaces = None
     count_revision = 0
 
@@ -291,14 +313,8 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
 
     def process_timestamp(self, elem):
         if self._skip_revision: return
-        timestamp = elem.text
-        year = int(timestamp[:4])
-        month = int(timestamp[5:7])
-        day = int(timestamp[8:10])
-        hour = int(timestamp[11:13])
-        minutes = int(timestamp[14:16])
-        seconds = int(timestamp[17:19])
-        self._time = datetime(year, month, day, hour, minutes, seconds)
+
+        self._time = elem.text
 
     def process_contributor(self, contributor):
         if self._skip_revision: return
@@ -338,8 +354,8 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
         assert self._title is not None, "Page title not defined"
         assert self._time is not None, "time not defined"
 
-        self.contribution.append(self._sender, self._title, self._time,
-                comment, minor)
+        self.queue.put((self._sender, self._title, self._time,
+                comment, minor))
 
         self._sender = None
 
@@ -357,9 +373,9 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
             #with Timr('guppy'):
             #    logging.debug(guppy.hpy().heap())
 
-    def end(self):
-        with Timr('save'):
-            self.contribution.save(self.lang)
+    #def end(self):
+    #    with Timr('save'):
+    #        self.contribution.save(self.lang)
 
 
 def opt_parse():
@@ -390,6 +406,9 @@ def main():
                         level=logging.DEBUG)
     logging.info('---------------------START---------------------')
 
+    ## XML Reader Process
+    queue = Queue()
+
     _, args = opt_parse()
     xml = args[0]
 
@@ -414,12 +433,20 @@ def main():
     src = deflate(xml)
 
     processor = UserContributionsPageProcessor(tag=tag, lang=lang)
+    processor.queue = queue
     processor.namespaces = namespaces
     ##TODO: only works on it.wikipedia.org! :-)
     processor.welcome_pattern = r'Benvenut'
+
+    p = Process(target=use_contrib_dict, args=(queue, processor.namespaces,
+                                               lang))
+    p.start()
+
     with Timr('PROCESSING'):
         processor.start(src) ## PROCESSING
 
+    queue.put(None)
+    p.join() ## wait until save is complete
 
 
 if __name__ == "__main__":

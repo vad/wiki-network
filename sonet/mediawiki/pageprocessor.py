@@ -89,7 +89,6 @@ class HistoryPageProcessor(PageProcessor):
                 self._skip = True
                 return
 
-        #print self._title, self._title == 'Venesia'
         self._desired = self.is_desired(self._title)
         if not self._desired and self.threshold < 1.:
             if self.threshold == 0. or random() > self.threshold:
