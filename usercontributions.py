@@ -26,7 +26,7 @@ import logging
 import sonet.mediawiki as mwlib
 from sonet.lib import find_open_for_this_file
 from sonet.timr import Timr
-from multiprocessing import Queue, Process
+from multiprocessing import Process, Pipe
 
 ## DATABASE
 from sonet.models import get_contributions_table
@@ -234,11 +234,11 @@ class ContribDict(dict):
             self.connection.execute(self.insert, data)
 
 
-def use_contrib_dict(queue, namespaces, lang):
+def use_contrib_dict(receiver, namespaces, lang):
     cd = ContribDict(namespaces)
 
     while 1:
-        rev = queue.get()
+        rev = receiver.recv()
 
         try:
             cd.append(rev[0], rev[1], rev[2], rev[3], rev[4])
@@ -275,7 +275,7 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
     time_start = None
     _re_welcome = None
     __welcome_pattern = None
-    queue = None
+    sender = None ## multiprocessing Connection object
     __namespaces = None
     count_revision = 0
 
@@ -354,7 +354,7 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
         assert self._title is not None, "Page title not defined"
         assert self._time is not None, "time not defined"
 
-        self.queue.put((self._sender, self._title, self._time,
+        self.sender.send((self._sender, self._title, self._time,
                 comment, minor))
 
         self._sender = None
@@ -368,8 +368,7 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
 
         self.count += 1
         if not self.count % 500:
-            logging.debug("%d %d %d" %(self.count,self.count_revision,
-                  len(self.contribution)))
+            logging.debug("%d %d" %(self.count, self.count_revision))
             #with Timr('guppy'):
             #    logging.debug(guppy.hpy().heap())
 
@@ -406,8 +405,7 @@ def main():
                         level=logging.DEBUG)
     logging.info('---------------------START---------------------')
 
-    ## XML Reader Process
-    queue = Queue()
+    receiver, sender = Pipe(duplex=False)
 
     _, args = opt_parse()
     xml = args[0]
@@ -433,19 +431,19 @@ def main():
     src = deflate(xml)
 
     processor = UserContributionsPageProcessor(tag=tag, lang=lang)
-    processor.queue = queue
+    processor.sender = sender
     processor.namespaces = namespaces
     ##TODO: only works on it.wikipedia.org! :-)
     processor.welcome_pattern = r'Benvenut'
 
-    p = Process(target=use_contrib_dict, args=(queue, processor.namespaces,
+    p = Process(target=use_contrib_dict, args=(receiver, processor.namespaces,
                                                lang))
     p.start()
 
     with Timr('PROCESSING'):
         processor.start(src) ## PROCESSING
 
-    queue.put(None)
+    sender.send(None)
     p.join() ## wait until save is complete
 
 
