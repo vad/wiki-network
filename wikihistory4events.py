@@ -49,7 +49,7 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
                  'desired': page['desired'],
                  'total_editors': page['total_editors'],
                  'bot_editors': page['bot_editors'],
-                 'anonymous_editors': page['anonymous_editors']
+                 'anonymous_editors': page['anon_editors']
                  } for page in self.queue]
         self.connection.execute(self.insert, data)
         self.queue = []
@@ -62,7 +62,7 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
             'counter': self._counter,
             'total_editors': self.get_number_of_editors(),
             'bot_editors': self.get_number_of_editors('bot'),
-            'anonymous_editors': self.get_number_of_editors('anonymous')
+            'anon_editors': self.get_number_of_editors('anonymous')
         }
         
         self.queue.append(data)
