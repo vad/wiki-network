@@ -158,7 +158,7 @@ class WikiPage(Model):
     or talk page)
     """
     title = TextField(db_index=True)
-    lang = CharField(max_length=3, db_index=True)
+    lang = CharField(max_length=7, db_index=True)
     talk = BooleanField(default=False)
 
     class Meta:
@@ -180,15 +180,21 @@ class WikiEvent(WikiPage):
         Model used to store revisions per date per page in wiki history dump.
          * desired is used as a flag for internal use
          * talk tells us if this is a talk or a normal page
+         * total_editors: number of unique total editors
+         * bot_editors: number of unique bot editors
+         * anonymous_editors: number of unique anonymous editors
 
         If you use postgresql, execute
         CREATE INDEX wikinetwork_wikievent_title_talk_LANG ON
             wikinetwork_wikievent (title, talk) WHERE lang='LANG';
-        and replace LANG with every language you want to store (eg. en, it, de)
+        and replace LANG with every language you want to store (eg.: en, it, de)
     """
 
     desired = BooleanField(default=False)
     data = DictionaryField()
+    total_editors = IntegerField(blank=True, null=True)
+    bot_editors = IntegerField(blank=True, null=True)
+    anonymous_editors = IntegerField(blank=True, null=True)
 
 
 class WikiWord(WikiPage):

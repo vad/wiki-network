@@ -192,9 +192,30 @@ def getTemplates(rawWikiText):
 #def getWords(rawWikiText):
 #    import nltk
 
-def addGroupAttribute(g, lang, group='bot'):
+def addGroupAttribute(g, lang, group='bot', edits_only=False):
+    
+    users = getUsersGroup(lang, group, edits_only)
+    
+    if not len(users):
+        g.vs[group] = [None,]*len(g.vs)
+        return
+
+    for user in users:
+        try:
+            g.vs.select(username=user)[0][group] = True
+        except IndexError:
+            pass
+
+    return
+
+def getUsersGroup(lang, group='bot', edits_only=False):
+    list_ = []
+    
     url = ('http://%s.wikipedia.org/w/api.php?action=query&list=allusers'+
            '&augroup=%s&aulimit=500&format=json') % (lang, group)
+    
+    if edits_only:
+        url += '&auwitheditsonly'
 
     start = None
     while True:
@@ -205,24 +226,19 @@ def addGroupAttribute(g, lang, group='bot'):
 
         if not res.has_key('query') or not res['query']['allusers']:
             logging.warn('Group %s has errors or has no users' % group)
-            g.vs[group] = [None,]*len(g.vs)
             return
 
         for user in res['query']['allusers']:
-            logging.info(user['name'].encode('utf-8'))
-            try:
-                g.vs.select(username=user['name'].encode('utf-8')
-                            )[0][group] = True
-            except IndexError:
-                pass
+            username = user['name'].encode('utf-8')
+            list_.append(username)
+            logging.info(username)
 
         if res.has_key('query-continue'):
             start = res['query-continue']['allusers']['aufrom']
         else:
             break
 
-    return
-
+    return list_
 
 def addBlockedAttribute(g, lang):
     g.vs['blocked'] = [None,]*len(g.vs)

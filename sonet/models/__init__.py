@@ -24,7 +24,7 @@ def get_engine():
     returns the engine used by this project
     """
     return create_engine(
-        'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki'
+        'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki_2'
     )
 
 def get_events_table(engine=None, metadata=None):
@@ -42,7 +42,10 @@ def get_events_table(engine=None, metadata=None):
                    Column('lang', String),
                    Column('desired', Boolean),
                    Column('data', String),
-                   Column('talk', Boolean)
+                   Column('talk', Boolean),
+                   Column('total_editors', Integer),
+                   Column('bot_editors', Integer),
+                   Column('anonymous_editors', Integer)
                    )
     conn = engine.connect()
 

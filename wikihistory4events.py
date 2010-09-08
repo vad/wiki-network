@@ -20,7 +20,7 @@ from random import random
 
 ## PROJECT LIBS
 from sonet.mediawiki import HistoryPageProcessor, explode_dump_filename, \
-     getTranslations, getTags
+     getTranslations, getTags, getUsersGroup, isip
 from sonet import lib
 
 from sonet.models import get_events_table
@@ -32,6 +32,7 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
     queue = None
     connection = None
     insert = None
+    bots = []
 
     def __init__(self, **kwargs):
         super(HistoryEventsPageProcessor, self).__init__(**kwargs)
@@ -45,7 +46,11 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
                  'lang': self.lang,
                  'talk': (page['type'] == 'talk'),
                  'data': b64encode(compress(serialize(page['counter']))),
-                 'desired': page['desired']} for page in self.queue]
+                 'desired': page['desired'],
+                 'total_editors': page['total_editors'],
+                 'bot_editors': page['bot_editors'],
+                 'anonymous_editors': page['anonymous_editors']
+                 } for page in self.queue]
         self.connection.execute(self.insert, data)
         self.queue = []
 
@@ -54,17 +59,23 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
             'title': self._title,
             'type': self._type,
             'desired': self._desired,
-            'counter': self._counter
+            'counter': self._counter,
+            'total_editors': self.get_number_of_editors(),
+            'bot_editors': self.get_number_of_editors('bot'),
+            'anonymous_editors': self.get_number_of_editors('anonymous')
         }
-
+        
         self.queue.append(data)
         self.counter_pages += 1
+        
+    def set_bots(self):
+        self.bots = getUsersGroup(lang=self.lang, edits_only=True)
 
     def process_timestamp(self, elem):
         if self._skip: return
-
+        
         tag = self.tag
-
+        
         timestamp = elem.text
         year = int(timestamp[:4])
         month = int(timestamp[5:7])
@@ -79,7 +90,18 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
         if not self.count % 500000:
             self.flush()
             print 'PAGES:', self.counter_pages, 'REVS:', self.count
-
+                
+    def process_username(self, elem):
+        if not elem.text in self._editors:
+            if elem.text.encode('utf-8') in self.bots:
+                self._editors[elem.text] = 'bot'
+            else:
+                self._editors[elem.text] = None
+    
+    def process_ip(self, elem):
+        if not elem.text in self._editors:
+            self._editors[elem.text] = 'anonymous'
+                  
 
 def main():
     import optparse
@@ -111,7 +133,7 @@ def main():
 
     translation = getTranslations(src)
     tag = getTags(src, tags='page,title,revision,'+ \
-                  'minor,timestamp,redirect')
+                  'minor,timestamp,redirect,ip,username')
 
     src.close()
     src = deflate(xml)
@@ -120,7 +142,8 @@ def main():
     processor.talkns = translation['Talk']
     processor.threshold = threshold
     processor.set_desired(desired_pages)
-
+    print 'RETRIEVING BOTS'
+    processor.set_bots()
     print "BEGIN PARSING"
     processor.start(src)
     processor.flush()
