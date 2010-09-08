@@ -96,7 +96,44 @@ def isHardRedirect(rawWikiText):
     rex = r'[\n ]*#REDIRECT[\n ]*\[\[[^]]*\]\]'
     return re.match(rex, rawWikiText) is not None
 
+class SignatureFinder(object):
+    re = None
+    def __init__(self, user_aliases, lang=None, signature='Sig'):
+        self.user_aliases = user_aliases
+        self.lang = lang
+        self.signature = signature
+        self.update_re()
+
+    def update_re(self):
+        search = self.user_aliases
+        if self.lang:
+            search += tuple([":%s:%s" % (self.lang, s) for s in search])
+        rex = (
+            r'\[\[(?:%(user_aliases)s):([^/]*?)[|\]][^\]]*\]'
+            +r'|\{\{(?:%(user_aliases)s):([^/]*?)/%(sig)s\}\}'
+            ) % {
+                'user_aliases': '|'.join(search),
+                'sig': self.signature
+            }
+        self.re = re.compile(rex, re.IGNORECASE)
+
+    def find(self, rawWikiText):
+        matches = self.re.finditer(rawWikiText)
+
+        weights = dict()
+        for u in matches:
+            u2 = [name for name in u.groups() if name is not None][0]
+
+            if not u2:
+                logging.warn('getCollaborators: empty username found')
+                continue
+            un = capfirst(unicode(u2).replace('_', ' '))
+            weights[un] = weights.get(un, 0) + 1
+
+        return weights
+
 ## re_cache is a mutable, so it keeps state through function calls
+## TODO: add a deprecation warning and move the doc into SignatureFinder
 def getCollaborators(rawWikiText, search, lang=None, signature='Sig',
                      re_cache = {}):
     """
@@ -136,33 +173,8 @@ def getCollaborators(rawWikiText, search, lang=None, signature='Sig',
             'vec')
     {u'Me': 1}
     """
-    if lang:
-        search += tuple([":%s:%s" % (lang, s) for s in search])
-    rex = (
-        r'\[\[(?:%(user_aliases)s):([^/]*?)[|\]][^\]]*\]'
-        +r'|\{\{(?:%(user_aliases)s):([^/]*?)/%(sig)s\}\}'
-        ) % {
-            'user_aliases': '|'.join(search),
-            'sig': signature
-        }
-    try:
-        matches = re_cache[rex].finditer(rawWikiText)
-    except KeyError:
-        re_cache[rex] = re.compile(rex, re.IGNORECASE)
-        matches = re_cache[rex].finditer(rawWikiText)
-
-    weights = dict()
-    for u in matches:
-        u2 = [name for name in u.groups() if name is not None][0]
-
-        if not u2:
-            logging.warn('getCollaborators: empty username found')
-            continue
-        un = capfirst(unicode(u2).replace('_', ' '))
-        weights[un] = weights.get(un, 0) + 1
-
-    return weights
-
+    finder = SignatureFinder(search, lang, signature)
+    return finder.find(rawWikiText)
 
 ##TODO: add doctests
 def getTemplates(rawWikiText):
