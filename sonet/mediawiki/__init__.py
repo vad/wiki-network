@@ -97,7 +97,8 @@ def isHardRedirect(rawWikiText):
     return re.match(rex, rawWikiText) is not None
 
 ## re_cache is a mutable, so it keeps state through function calls
-def getCollaborators(rawWikiText, search, lang=None, re_cache = {}):
+def getCollaborators(rawWikiText, search, lang=None, signature='Sig',
+                     re_cache = {}):
     """
     Search for regular expression containing [[User:username|anchor text]] and
     count a new message from username to the owner of the page. It also works
@@ -131,11 +132,19 @@ def getCollaborators(rawWikiText, search, lang=None, re_cache = {}):
     >>> getCollaborators('[[:vec:Utente:me|or you]]', ('Utente', 'User'), \
             'vec')
     {u'Me': 1}
-
+    >>> getCollaborators('{{Utente:me/sig}}', ('Utente', 'User'), \
+            'vec')
+    {u'Me': 1}
     """
     if lang:
         search += tuple([":%s:%s" % (lang, s) for s in search])
-    rex = r'\[\[(%s):([^/]*?)[|\]][^\]]*\]' % ('|'.join(search),)
+    rex = (
+        r'\[\[(?:%(user_aliases)s):([^/]*?)[|\]][^\]]*\]'
+        +r'|\{\{(?:%(user_aliases)s):([^/]*?)/%(sig)s\}\}'
+        ) % {
+            'user_aliases': '|'.join(search),
+            'sig': signature
+        }
     try:
         matches = re_cache[rex].finditer(rawWikiText)
     except KeyError:
@@ -144,9 +153,8 @@ def getCollaborators(rawWikiText, search, lang=None, re_cache = {}):
 
     weights = dict()
     for u in matches:
-        ##TODO: fare un test per controllare che questo continui a funzionare
-        ##      (nomi utenti strani da correggere con capfirst e replace)
-        u2 = u.group(2)
+        u2 = [name for name in u.groups() if name is not None][0]
+
         if not u2:
             logging.warn('getCollaborators: empty username found')
             continue
