@@ -20,7 +20,7 @@ from random import random
 
 ## PROJECT LIBS
 from sonet.mediawiki import HistoryPageProcessor, explode_dump_filename, \
-     getTranslations, getTags, getUsersGroup, isip
+     getTranslations, getTags, getUsersGroup
 from sonet import lib
 
 from sonet.models import get_events_table
