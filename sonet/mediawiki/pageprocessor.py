@@ -60,6 +60,13 @@ class HistoryPageProcessor(PageProcessor):
     threshold = 1.
     talkns = None
     _desired = False
+    _editors = {}
+        
+    def get_number_of_editors(self, key_=None):
+        if key_:
+            return sum([1 for v in self._editors.values() if v == key_])
+        else:
+            return len(self._editors.keys())
 
     def set_desired(self, l):
         self.desired_pages = frozenset(l)
@@ -76,6 +83,7 @@ class HistoryPageProcessor(PageProcessor):
 
     def process_title(self, elem):
         self.delattr(("_counter", "_type", "_title", "_skip"))
+        self._editors.clear()
 
         a_title = elem.text.split(':')
         if len(a_title) == 1:
@@ -104,3 +112,4 @@ class HistoryPageProcessor(PageProcessor):
 
     def process_redirect(self, _):
         self._skip = True
+        

@@ -356,6 +356,7 @@ class EventsProcessor:
             'total_edits': total,
             'anniversary_edits': anniversary,
             'n_of_anniversaries': self.get_n_anniversaries(),
+            'anniversary_days': self.get_days_since(),
             'anniversary_edits/total_edits': ann_total_edits,
             'non_anniversary_edits/total_edits': not_ann_total_edits,
             'event_date': self.__event_date,
