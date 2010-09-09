@@ -82,26 +82,32 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
         day = int(timestamp[8:10])
         revision_time = date(year, month, day)
 
-        days = (revision_time - self.s_date).days
-        self._counter[days] = self._counter.get(days, 0) + 1
+        self._date = (revision_time - self.s_date).days
+        t = self._counter.get(self._date, [0,0,0])
+        t[0] += 1
+        self._counter[self._date] = t
 
-        del days, revision_time
+        del revision_time, t
         self.count += 1
         if not self.count % 500000:
             self.flush()
             print 'PAGES:', self.counter_pages, 'REVS:', self.count
                 
     def process_username(self, elem):
-        if not elem.text in self._editors:
-            if elem.text.encode('utf-8') in self.bots:
-                self._editors[elem.text] = 'bot'
-            else:
-                self._editors[elem.text] = None
+        u = elem.text.encode('utf-8')
+        role = 'bot' if u in self.bots else None
+        
+        if not u in self._editors:    
+            self._editors[u] = role
+            
+        if role: ## if contributor is a bot
+            self._counter[self._date][1] += 1
     
     def process_ip(self, elem):
         if not elem.text in self._editors:
             self._editors[elem.text] = 'anonymous'
-                  
+        self._counter[self._date][2] += 1
+        
 
 def main():
     import optparse
