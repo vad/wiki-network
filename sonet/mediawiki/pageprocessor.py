@@ -61,6 +61,7 @@ class HistoryPageProcessor(PageProcessor):
     talkns = None
     _desired = False
     _editors = {}
+    _date = None
         
     def get_number_of_editors(self, key_=None):
         if key_:
@@ -82,7 +83,7 @@ class HistoryPageProcessor(PageProcessor):
                 pass
 
     def process_title(self, elem):
-        self.delattr(("_counter", "_type", "_title", "_skip"))
+        self.delattr(("_counter", "_type", "_title", "_skip", "_date"))
         self._editors.clear()
 
         a_title = elem.text.split(':')
