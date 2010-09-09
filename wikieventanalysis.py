@@ -184,13 +184,14 @@ class EventsProcessor:
     dump_date = None
     initial_date = date(2000,1,1)
     lang = None
-    keys_ = ['article','type_of_page','desired','total_edits','bot_edits',
+    keys_ = ['article','type_of_page','desired','total_edits',
              'unique_editors','anniversary_edits','n_of_anniversaries',
              'anniversary_days','anniversary_edits/total_edits',
              'non_anniversary_edits/total_edits','event_date',
              'first_edit_date','first_edit_date-event_date_in_days']
     pages = []
     range_ = None
+    skip_bot = None
     skipped_days = None
     td_list = None
     threshold = None
@@ -213,6 +214,7 @@ class EventsProcessor:
         self.skipped_days = kwargs['skip']
         self.dump_date = kwargs['dump_date']
         self.desired_only = kwargs['desired']
+        self.skip_bot = kwargs['bots']
                 
         # timedelta list, used in get_days_since
         self.td_list = [timedelta(i) for i in
@@ -292,7 +294,7 @@ class EventsProcessor:
             self.__data = data
             self.__desired = self.is_desired()
             self.__type_of_page = talk ## 0 = article, 1 = talk
-            self.__unique_editors = te
+            self.__unique_editors = te if not self.skip_bot else (te - be)
             
             if self.__desired and self.__title not in self.count_desired:
                 print "PROCESSING DESIRED PAGE:", self.__title
@@ -361,8 +363,7 @@ class EventsProcessor:
             'article': smart_str(self.__title),
             'type_of_page': int(not self.__type_of_page),
             'desired': int(self.__desired),
-            'total_edits': total,
-            'bot_edits': bot_,
+            'total_edits': total if not self.skip_bot else (total - bot_),
             'unique_editors': self.__unique_editors,
             'anniversary_edits': anniversary,
             'n_of_anniversaries': self.get_n_anniversaries(),
@@ -409,6 +410,8 @@ def create_option_parser():
                  help="number of days to be skipped", default=180, type="int")
     op.add_option('-d', '--desired-only', action="store_true", dest='desired',
                  default=False, help='analysis only of desired pages')
+    op.add_option('-b', '--no-bot', action="store_true", dest='bots',
+                 default=False, help='skip revisions made by bots')
     
     return op
 
@@ -437,7 +440,7 @@ def main():
     
     ## creating processor
     processor = EventsProcessor(lang=opts.lang, range_=opts.range_,
-                                skip=opts.skip, dump_date=dump,
+                                skip=opts.skip, dump_date=dump, bots=opts.bots,
                                 desired=opts.desired, output_file=files[2])
 
     ## set desired pages
