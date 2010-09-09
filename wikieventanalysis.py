@@ -34,7 +34,8 @@ def page_iter(lang = 'en', paginate=10000000, desired=None):
 
     count_query = select([func.count(events.c.id)],
                events.c.lang == lang)
-    s = select([events.c.title, events.c.data, events.c.talk],
+    s = select([events.c.title, events.c.data, events.c.talk,
+                events.c.total_editors,events.c.bot_editors],
                 events.c.lang == lang).order_by(
         events.c.title, events.c.talk).limit(paginate)
 
@@ -52,7 +53,7 @@ def page_iter(lang = 'en', paginate=10000000, desired=None):
         for row in rs:
             yield (row[0],
                    deserialize(decompress(b64decode(row[1]))),
-                   row[2])
+                   row[2],row[3],row[4])
 
             
 def get_days_since(start_date, end_date, anniversary_date, td_list):
@@ -183,10 +184,11 @@ class EventsProcessor:
     dump_date = None
     initial_date = date(2000,1,1)
     lang = None
-    keys_ = ['article','type_of_page','desired','total_edits',
-            'anniversary_edits','n_of_anniversaries',
-            'anniversary_edits/total_edits','non_anniversary_edits/total_edits',
-            'event_date','first_edit_date','first_edit_date-event_date_in_days']
+    keys_ = ['article','type_of_page','desired','total_edits','bot_edits',
+             'unique_editors','anniversary_edits','n_of_anniversaries',
+             'anniversary_days','anniversary_edits/total_edits',
+             'non_anniversary_edits/total_edits','event_date',
+             'first_edit_date','first_edit_date-event_date_in_days']
     pages = []
     range_ = None
     skipped_days = None
@@ -200,6 +202,7 @@ class EventsProcessor:
     __n_of_anniversaries = None
     __title = None
     __type = None
+    __unique_editors = 0
 
     def __init__(self, **kwargs):
         
@@ -278,7 +281,7 @@ class EventsProcessor:
                 
         desired = self.desired_pages.keys() if self.desired_only else None
         
-        for title, data, talk in page_iter(lang=self.lang, desired=desired):
+        for title,data,talk,te,be in page_iter(lang=self.lang,desired=desired):
             ## check whether the page is an archive or not
             ## if it is a link, skip it!
             if is_archive(title):
@@ -289,6 +292,8 @@ class EventsProcessor:
             self.__data = data
             self.__desired = self.is_desired()
             self.__type_of_page = talk ## 0 = article, 1 = talk
+            self.__unique_editors = te
+            
             if self.__desired and self.__title not in self.count_desired:
                 print "PROCESSING DESIRED PAGE:", self.__title
                 self.count_desired.append(self.__title)
@@ -331,16 +336,19 @@ class EventsProcessor:
 
         anniversary = 0
         total = 0
+        bot_ = 0
         in_skipped = 0
 
-        for d, v in self.__data.iteritems():
+        for d, t in self.__data.iteritems():
+            tot_edits, bot_edits, anon_edits = t
             revision = self.initial_date + timedelta(d)
             if (revision - self.__event_date).days < self.skipped_days:
-                in_skipped += v
+                in_skipped += tot_edits
                 continue
             if is_near_anniversary(self.__event_date, revision, self.range_):
-                anniversary += v
-            total += v
+                anniversary += tot_edits
+            total += tot_edits
+            bot_ += bot_edits
         
         try:
             ann_total_edits = anniversary / total
@@ -354,6 +362,8 @@ class EventsProcessor:
             'type_of_page': int(not self.__type_of_page),
             'desired': int(self.__desired),
             'total_edits': total,
+            'bot_edits': bot_,
+            'unique_editors': self.__unique_editors,
             'anniversary_edits': anniversary,
             'n_of_anniversaries': self.get_n_anniversaries(),
             'anniversary_days': self.get_days_since(),
