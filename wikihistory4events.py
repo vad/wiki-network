@@ -94,14 +94,17 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
             print 'PAGES:', self.counter_pages, 'REVS:', self.count
                 
     def process_username(self, elem):
-        u = elem.text.encode('utf-8')
-        role = 'bot' if u in self.bots else None
+        try:
+            u = elem.text.encode('utf-8')
+            role = 'bot' if u in self.bots else None
         
-        if not u in self._editors:    
-            self._editors[u] = role
+            if not u in self._editors:    
+                self._editors[u] = role
             
-        if role: ## if contributor is a bot
-            self._counter[self._date][1] += 1
+            if role: ## if contributor is a bot
+                self._counter[self._date][1] += 1
+        except AttributeError:
+            pass
     
     def process_ip(self, elem):
         if not elem.text in self._editors:
