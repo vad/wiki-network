@@ -338,7 +338,6 @@ class EventsProcessor:
 
         anniversary = 0
         total = 0
-        bot_ = 0
         in_skipped = 0
 
         for d, t in self.__data.iteritems():
@@ -348,10 +347,11 @@ class EventsProcessor:
                 in_skipped += tot_edits
                 continue
             if is_near_anniversary(self.__event_date, revision, self.range_):
-                anniversary += tot_edits
-            total += tot_edits
-            bot_ += bot_edits
-        
+                anniversary += tot_edits if not self.skip_bot \
+                            else (tot_edits - bot_edits)
+            total += tot_edits if not self.skip_bot \
+                  else (tot_edits - bot_edits)
+                                
         try:
             ann_total_edits = anniversary / total
             not_ann_total_edits = (total - anniversary) / total
@@ -363,7 +363,7 @@ class EventsProcessor:
             'article': smart_str(self.__title),
             'type_of_page': int(not self.__type_of_page),
             'desired': int(self.__desired),
-            'total_edits': total if not self.skip_bot else (total - bot_),
+            'total_edits': total,
             'unique_editors': self.__unique_editors,
             'anniversary_edits': anniversary,
             'n_of_anniversaries': self.get_n_anniversaries(),
