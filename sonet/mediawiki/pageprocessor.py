@@ -69,8 +69,11 @@ class HistoryPageProcessor(PageProcessor):
         else:
             return len(self._editors.keys())
 
-    def set_desired(self, l):
-        self.desired_pages = frozenset(l)
+    def set_desired(self, fn):
+        import csv
+        self.desired_pages = frozenset([l[0].decode('latin-1') for l in 
+                                        csv.reader(open(fn, 'rb'))
+                                        if l and not l[0][0] == '#'])
 
     def is_desired(self, title):
         return (title in self.desired_pages)

@@ -141,7 +141,6 @@ def main():
     desired_words_fn = files[2]
     threshold = float(files[3])
 
-    desired_pages = get_lines_in_list(desired_pages_fn)
     desired_words = [w.lower() for w in get_lines_in_list(desired_words_fn)]
 
     lang, _, _ = explode_dump_filename(xml)
@@ -163,7 +162,7 @@ def main():
     processor = HistoryWordsPageProcessor(tag=tag, lang=lang)
     processor.talkns = translation['Talk']
     processor.threshold = threshold
-    processor.set_desired(desired_pages)
+    processor.set_desired(desired_pages_fn)
     processor.words = desired_words
 
     print "BEGIN PARSING"

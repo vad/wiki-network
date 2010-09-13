@@ -125,12 +125,6 @@ def main():
     desired_pages_fn = files[1]
     threshold = float(files[2])
 
-    with open(desired_pages_fn) as f:
-        lines = f.readlines()
-
-    desired_pages = [l.decode('latin-1') for l in [l.strip() for l in lines]
-                     if l and not l[0] == '#']
-
     lang, _, _ = explode_dump_filename(xml)
 
     deflate, _lineno = lib.find_open_for_this_file(xml)
@@ -150,7 +144,7 @@ def main():
     processor = HistoryEventsPageProcessor(tag=tag, lang=lang)
     processor.talkns = translation['Talk']
     processor.threshold = threshold
-    processor.set_desired(desired_pages)
+    processor.set_desired(desired_pages_fn)
     print 'RETRIEVING BOTS'
     processor.set_bots()
     print "BEGIN PARSING"
