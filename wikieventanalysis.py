@@ -443,9 +443,4 @@ def main():
     processor.process(threshold=threshold)
 
 if __name__ == "__main__":
-    #import cProfile as profile
-    #profile.run('main()', '/tmp/itprof.morail')
     main()
-    #import timeit
-    #print timeit.timeit("main.is_near_anniversary(date(2001, 9, 11), date(2005, 9, 19), 10)",
-    #              "import __main__ as main;from datetime import date")
