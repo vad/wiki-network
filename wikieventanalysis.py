@@ -236,17 +236,18 @@ class EventsProcessor:
                                    quotechar='"', quoting=csv.QUOTE_ALL)
         
         self.csv_writer.writeheader()
-        
-    def set_desired(self, list_):
-        for l in list_:
-            # split page's name and page's creation date (if any)
-            page = l.split(',')
-            if len(page) > 1:
-                s = page[1].strip()
-                self.desired_pages[page[0]] = \
-                    date(int(s[:4]),int(s[5:7]),int(s[8:10]))
-            else:
-                self.desired_pages[page[0]] = None
+                        
+    def set_desired(self, fn):
+        ## save desired pages list
+        for r in csv.reader(open(fn, 'rb')):
+            page = r[0].decode('latin-1').replace('_',' ')
+            if page[0] == '#': continue
+            
+            try:
+                self.desired_pages[page] = \
+                    date(int(r[1][:4]),int(r[1][5:7]),int(r[1][8:10]))
+            except:
+                self.desired_pages[page] = None
 
     def is_desired(self):
         return (self.__title in self.desired_pages)
@@ -428,13 +429,6 @@ def main():
     out_file = files[2]
     threshold = float(files[3])
 
-    with open(desired_pages_fn) as f:
-        lines = f.readlines()
-
-    ## parsing and extracting desired pages from file
-    desired_pages = [l.decode('latin-1').replace('_',' ') for l in [
-        l.strip() for l in lines] if l and not l[0] == '#']
-
     ## creating dump date object
     dump = lib.yyyymmdd_to_datetime(dumpdate).date()
     
@@ -444,7 +438,7 @@ def main():
                                 desired=opts.desired, output_file=files[2])
 
     ## set desired pages
-    processor.set_desired(desired_pages)
+    processor.set_desired(desired_pages_fn)
     ## main process
     processor.process(threshold=threshold)
 
