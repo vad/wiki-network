@@ -193,10 +193,10 @@ def getTemplates(rawWikiText):
 #    import nltk
 
 def addGroupAttribute(g, lang, group='bot', edits_only=False):
-    
+
     users = getUsersGroup(lang, group, edits_only)
-    
-    if not len(users):
+
+    if not users:
         g.vs[group] = [None,]*len(g.vs)
         return
 
@@ -209,34 +209,38 @@ def addGroupAttribute(g, lang, group='bot', edits_only=False):
     return
 
 def getUsersGroup(lang, group='bot', edits_only=False):
-    list_ = []
-    
-    url = ('http://%s.wikipedia.org/w/api.php?action=query&list=allusers'+
+    """
+    getUsersGroup returns a list of users on the "lang" wikipedia belonging to
+    group (role) "group". "group" should be one of:
+      bot, sysop, bureaucrat, checkuser, reviewer, steward, accountcreator,
+      import, transwiki, ipblock-exempt, oversight, founder, rollbacker,
+      confirmed, autoreviewer, researcher, abusefilter
+    edits_only: returns only users that edited at least one time
+    """
+    base_url = ('http://%s.wikipedia.org/w/api.php?action=query&list=allusers'+
            '&augroup=%s&aulimit=500&format=json') % (lang, group)
-    
+
     if edits_only:
-        url += '&auwitheditsonly'
+        base_url += '&auwitheditsonly'
 
-    start = None
+    start, list_ = None, []
     while True:
-        if start:
-            url += '&aufrom=%s' % (start,)
-        furl = urlopen(url)
-        res = json.load(furl)
+        url = base_url +'&aufrom='+start if start is not None else base_url
+        res = json.load(urlopen(url))
 
-        if not res.has_key('query') or not res['query']['allusers']:
+        try:
+            list_.extend(user['name'].encode('utf-8')
+                         for user in res['query']['allusers'])
+        except KeyError:
             logging.warn('Group %s has errors or has no users' % group)
             return
+        logging.info(len(list_))
 
-        for user in res['query']['allusers']:
-            username = user['name'].encode('utf-8')
-            list_.append(username)
-            logging.info(username)
-
-        if res.has_key('query-continue'):
-            start = res['query-continue']['allusers']['aufrom']
-        else:
+        try:
+            qc = res['query-continue']
+        except KeyError:
             break
+        start = qc['allusers']['aufrom']
 
     return list_
 
@@ -250,8 +254,7 @@ def addBlockedAttribute(g, lang):
         if start:
             url = '%s&bkstart=%s' % (base_url, start)
         logging.info("BLOCKED USERS: url = %s" % url)
-        furl = urlopen(url)
-        res = json.load(furl)
+        res = json.load(urlopen(url))
 
         if not res.has_key('query') or not res['query']['blocks']:
             logging.info('No blocked users')
@@ -270,10 +273,11 @@ def addBlockedAttribute(g, lang):
         bk_vs = g.vs.select(username_in=bk_list)
         bk_vs['blocked'] = (True,)*len(bk_vs)
 
-        if res.has_key('query-continue'):
-            start = res['query-continue']['blocks']['bkstart']
-        else:
+        try:
+            qc = res['query-continue']
+        except KeyError:
             break
+        start = qc['blocks']['bkstart']
 
     return
 
@@ -379,8 +383,7 @@ def count_renames(lang):
     while True:
         if start:
             url = '%s&lestart=%s' % (base_url, start)
-        furl = urlopen(url)
-        res = json.load(furl)
+        res = json.load(urlopen(url))
 
         if not res.has_key('query') or not res['query']['logevents']:
             logging.info('No logs')
