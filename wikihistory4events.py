@@ -83,8 +83,12 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
         revision_time = date(year, month, day)
 
         self._date = (revision_time - self.s_date).days
+        ## default value for self._date is a list where
+        ## first element is for total revisions, the second
+        ## for revisions made by bot and the last one for
+        ## anonymous' revisions
         t = self._counter.get(self._date, [0,0,0])
-        t[0] += 1
+        t[0] += 1 ## increment total revisions
         self._counter[self._date] = t
 
         del revision_time, t
@@ -96,12 +100,13 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
     def process_username(self, elem):
         try:
             u = elem.text.encode('utf-8')
+            ## whether user is a bot or not
             role = 'bot' if u in self.bots else None
         
             if not u in self._editors:    
                 self._editors[u] = role
             
-            if role: ## if contributor is a bot
+            if role: ## in case of a bot's contribution increment bot's edits
                 self._counter[self._date][1] += 1
         except AttributeError:
             pass
@@ -109,6 +114,7 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
     def process_ip(self, elem):
         if not elem.text in self._editors:
             self._editors[elem.text] = 'anonymous'
+        ## Contributor is anonymous, thus increments anonymous' contribution
         self._counter[self._date][2] += 1
         
 
