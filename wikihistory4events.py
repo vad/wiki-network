@@ -69,7 +69,7 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
         self.counter_pages += 1
         
     def set_bots(self):
-        self.bots = getUsersGroup(lang=self.lang, edits_only=True)
+        self.bots = frozenset(getUsersGroup(lang=self.lang, edits_only=True))
 
     def process_timestamp(self, elem):
         if self._skip: return
