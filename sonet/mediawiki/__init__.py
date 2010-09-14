@@ -218,9 +218,6 @@ def getUsersGroup(lang, group='bot', edits_only=False):
     """
     base_url = ('http://%s.wikipedia.org/w/api.php?action=query&list=allusers'+
            '&augroup=%s&aulimit=500&format=json') % (lang, group)
-    
-    if edits_only:
-        url += '&auwitheditsonly'
 
     if edits_only:
         base_url += '&auwitheditsonly'
