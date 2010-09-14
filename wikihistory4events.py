@@ -14,14 +14,12 @@
 ##########################################################################
 
 from datetime import date
-import sys
-import os
-from random import random
 
 ## PROJECT LIBS
 from sonet.mediawiki import HistoryPageProcessor, explode_dump_filename, \
      getTranslations, getTags, getUsersGroup
 from sonet import lib
+from sonet.timr import Timr
 
 from sonet.models import get_events_table
 from base64 import b64encode
@@ -74,8 +72,6 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
     def process_timestamp(self, elem):
         if self._skip: return
 
-        tag = self.tag
-
         timestamp = elem.text
         year = int(timestamp[:4])
         month = int(timestamp[5:7])
@@ -120,9 +116,17 @@ class HistoryEventsPageProcessor(HistoryPageProcessor):
 
 def main():
     import optparse
+    import csv
 
-    p = optparse.OptionParser(usage="usage: %prog [options] file desired_list acceptance_ratio")
-    _, files = p.parse_args()
+    p = optparse.OptionParser(
+        usage="usage: %prog [options] file desired_list acceptance_ratio")
+    p.add_option('-v', action="store_true", dest="verbose", default=False,
+                 help="Verbose output (like timings)")
+    opts, files = p.parse_args()
+    if opts.verbose:
+        import sys, logging
+        logging.basicConfig(stream=sys.stderr,
+                            level=logging.DEBUG)
 
     if len(files) != 3:
         p.error("Wrong parameters")
@@ -132,8 +136,11 @@ def main():
     threshold = float(files[2])
 
     lang, _, _ = explode_dump_filename(xml)
-
     deflate, _lineno = lib.find_open_for_this_file(xml)
+
+    with open(desired_pages_fn, 'rb') as f:
+        desired_pages = [l[0].decode('latin-1') for l in csv.reader(f)
+                                        if l and not l[0][0] == '#']
 
     if _lineno:
         src = deflate(xml, 51)
@@ -150,9 +157,9 @@ def main():
     processor = HistoryEventsPageProcessor(tag=tag, lang=lang)
     processor.talkns = translation['Talk']
     processor.threshold = threshold
-    processor.set_desired(desired_pages_fn)
-    print 'RETRIEVING BOTS'
-    processor.set_bots()
+    processor.set_desired(desired_pages)
+    with Timr('Retrieving bots'):
+        processor.set_bots()
     print "BEGIN PARSING"
     processor.start(src)
     processor.flush()

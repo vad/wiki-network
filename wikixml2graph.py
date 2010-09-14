@@ -67,7 +67,7 @@ class CurrentPageProcessor(PageProcessor):
 def main():
     import optparse
 
-    p = optparse.OptionParser(usage="usage: %prog [options] file")
+    p = optparse.OptionParser(usage="usage: %prog file")
     _, files = p.parse_args()
 
     if len(files) != 1:

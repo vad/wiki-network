@@ -24,7 +24,7 @@ def get_engine():
     returns the engine used by this project
     """
     return create_engine(
-        'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki'
+        'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki_test'
     )
 
 def get_events_table(engine=None, metadata=None):
@@ -34,19 +34,7 @@ def get_events_table(engine=None, metadata=None):
         metadata = MetaData()
         metadata.bind = engine
 
-    events = Table('wikinetwork_wikievent', metadata,
-                   Column('id', Integer,
-                          Sequence('wikinetwork_wikievent_id_seq'),
-                          primary_key=True),
-                   Column('title', String),
-                   Column('lang', String),
-                   Column('desired', Boolean),
-                   Column('data', String),
-                   Column('talk', Boolean),
-                   Column('total_editors', Integer),
-                   Column('bot_editors', Integer),
-                   Column('anonymous_editors', Integer)
-                   )
+    events = Table('wikinetwork_wikievent', metadata, autoload=True)
     conn = engine.connect()
 
     return (events, conn)

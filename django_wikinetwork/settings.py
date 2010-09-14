@@ -80,7 +80,6 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'django.contrib.admindocs',
     'wikinetwork',
-    'django_evolution',
     'djcelery',
     'django_extensions',
     #'debug_toolbar',

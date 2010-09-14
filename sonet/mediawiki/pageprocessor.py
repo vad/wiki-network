@@ -62,18 +62,22 @@ class HistoryPageProcessor(PageProcessor):
     _desired = False
     _editors = {}
     _date = None
-        
+
     def get_number_of_editors(self, key_=None):
         if key_:
             return sum([1 for v in self._editors.values() if v == key_])
         else:
             return len(self._editors.keys())
 
-    def set_desired(self, fn):
+    def set_desired(self, l):
+        self.desired_pages = frozenset(l)
+
+    def set_desired_from_csv(self, fn, encoding='latin-1'):
         import csv
-        self.desired_pages = frozenset([l[0].decode('latin-1') for l in 
-                                        csv.reader(open(fn, 'rb'))
-                                        if l and not l[0][0] == '#'])
+
+        with open(fn, 'rb') as f:
+            self.set_desired([l[0].decode(encoding) for l in csv.reader(f)
+                              if l and not l[0][0] == '#'])
 
     def is_desired(self, title):
         return (title in self.desired_pages)
@@ -116,4 +120,3 @@ class HistoryPageProcessor(PageProcessor):
 
     def process_redirect(self, _):
         self._skip = True
-        
