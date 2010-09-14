@@ -16,7 +16,6 @@
 import sys
 import os
 from datetime import date
-from random import random
 import nltk
 
 ## PROJECT LIBS
@@ -29,7 +28,6 @@ os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(PROJECT_ROOT+'/django_wikinetwork')
 from django_wikinetwork.wikinetwork.models import WikiWord
-from django.db import transaction
 
 
 class HistoryWordsPageProcessor(HistoryPageProcessor):
@@ -136,9 +134,7 @@ def main():
     if not files:
         p.error("Give me a file, please ;-)")
 
-    xml = files[0]
-    desired_pages_fn = files[1]
-    desired_words_fn = files[2]
+    xml, desired_pages_fn, desired_words_fn = files[0:3]
     threshold = float(files[3])
 
     desired_words = [w.lower() for w in get_lines_in_list(desired_words_fn)]
@@ -162,12 +158,12 @@ def main():
     processor = HistoryWordsPageProcessor(tag=tag, lang=lang)
     processor.talkns = translation['Talk']
     processor.threshold = threshold
-    processor.set_desired(desired_pages_fn)
+    processor.set_desired_from_csv(desired_pages_fn)
     processor.words = desired_words
 
     print "BEGIN PARSING"
-    processor.start(src)
-
+    with Timr('Parsing'):
+        processor.start(src)
 
 if __name__ == "__main__":
     import cProfile as profile
