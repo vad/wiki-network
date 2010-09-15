@@ -19,12 +19,40 @@ from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
-def get_engine():
+def get_engine(dbname=None):
     """
-    returns the engine used by this project
+    Returns the SQLAlchemy engine used by this project retrieving database
+    information from the Django project settings.
+
+    With dbname you can force to use a database different from the django one.
     """
+    from django_wikinetwork.settings import DATABASE_ENGINE, DATABASE_HOST, \
+         DATABASE_NAME, DATABASE_PASSWORD, DATABASE_PORT, DATABASE_USER
+
+    ## maps django database engine into SQLAlchemy drivers
+    driver_mapping = {
+        'postgresql_psycopg2': 'postgresql+psycopg2',
+        'postgresql': 'postgresql'
+    }
+    try:
+        driver = driver_mapping[DATABASE_ENGINE]
+    except KeyError:
+        raise Exception, 'Database driver not recognized: %s' % (
+            DATABASE_ENGINE,)
+
+    if dbname is None:
+        dbname = DATABASE_NAME
+
+    s_engine = '%(driver)s://%(username)s:%(password)s@%(host)s/%(dbname)s' % {
+        'driver': driver,
+        'host': DATABASE_HOST,
+        'dbname': dbname,
+        'username': DATABASE_USER,
+        'password': DATABASE_PASSWORD
+    }
+
     return create_engine(
-        'postgresql+psycopg2://pgtharpe:tharpetharpe@tharpe/research_wiki_test'
+        s_engine
     )
 
 def get_events_table(engine=None, metadata=None):
