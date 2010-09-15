@@ -29,6 +29,7 @@ import nltk
 from sonet.mediawiki import HistoryPageProcessor, explode_dump_filename, \
      getTranslations, getTags
 from sonet import lib
+from sonet.timr import Timr
 
 ## DJANGO
 os.environ['DJANGO_SETTINGS_MODULE'] = 'django_wikinetwork.settings'
@@ -135,12 +136,13 @@ def get_lines_in_list(fn):
 def main():
     import optparse
 
-    p = optparse.OptionParser(usage="usage: %prog [options] file desired_list acceptance_ratio")
+    p = optparse.OptionParser(
+        usage="usage: %prog [options] file desired_list acceptance_ratio")
     p.add_option('-v', action="store_true", dest="verbose", default=False,
                  help="Verbose output (like timings)")
     opts, files = p.parse_args()
     if opts.verbose:
-        import sys, logging
+        import logging
         logging.basicConfig(stream=sys.stderr,
                             level=logging.DEBUG)
 
