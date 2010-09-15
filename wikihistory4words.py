@@ -129,7 +129,13 @@ def main():
     import optparse
 
     p = optparse.OptionParser(usage="usage: %prog [options] file desired_list acceptance_ratio")
-    _, files = p.parse_args()
+    p.add_option('-v', action="store_true", dest="verbose", default=False,
+                 help="Verbose output (like timings)")
+    opts, files = p.parse_args()
+    if opts.verbose:
+        import sys, logging
+        logging.basicConfig(stream=sys.stderr,
+                            level=logging.DEBUG)
 
     if not files:
         p.error("Give me a file, please ;-)")

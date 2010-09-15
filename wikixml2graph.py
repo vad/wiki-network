@@ -68,7 +68,13 @@ def main():
     import optparse
 
     p = optparse.OptionParser(usage="usage: %prog file")
-    _, files = p.parse_args()
+    p.add_option('-v', action="store_true", dest="verbose", default=False,
+                 help="Verbose output (like timings)")
+    opts, files = p.parse_args()
+    if opts.verbose:
+        import sys, logging
+        logging.basicConfig(stream=sys.stderr,
+                            level=logging.DEBUG)
 
     if len(files) != 1:
         p.error("Give me one file, please")
@@ -104,12 +110,6 @@ def main():
                               search=(lang_user, en_user), lang=lang)
     mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
                     processor.process)
-
-    #import cPickle as pickle
-
-    #with open('/hardmnt/sakamoto0/sra/setti/datasets/'+
-    #          'wikipedia/itwiki-20100218-ec.pickle', 'wb') as f:
-    #    pickle.dump(ecache.temp_edges, f)
 
     ecache.flush()
     g = ecache.get_network()

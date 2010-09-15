@@ -235,7 +235,8 @@ def main():
     processor.time_end = opts.end
     ##TODO: only works on it.wikipedia.org! :-)
     processor.welcome_pattern = r'Benvenut'
-    processor.start(src) ## PROCESSING
+    with Timr('Processing'):
+        processor.start(src) ## PROCESSING
 
     with Timr('EdgeCache.get_network()'):
         g = processor.get_network()
