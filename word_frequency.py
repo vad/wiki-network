@@ -125,11 +125,11 @@ class HistoryWordsPageProcessor(HistoryPageProcessor):
         self._creation = None
 
 
-def get_lines_in_list(fn):
+def get_lines_in_list(fn, encoding='latin-1'):
     with open(fn) as f:
         lines = f.readlines()
 
-    return [l.decode('latin-1') for l in [l.strip() for l in lines]
+    return [l.decode(encoding) for l in [l.strip() for l in lines]
             if l and not l[0] == '#']
 
 

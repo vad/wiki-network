@@ -15,9 +15,6 @@
 
 from bz2 import BZ2File
 
-## LXML
-from lxml import etree
-
 ## PROJECT LIBS
 from sonet.edgecache import EdgeCache
 import sonet.mediawiki as mwlib
@@ -25,44 +22,51 @@ from sonet.mediawiki import PageProcessor
 from sonet import lib
 
 class CurrentPageProcessor(PageProcessor):
-    def process(self, elem):
-        tag = self.tag
-        user = None
-        for child in elem:
-            if child.tag == tag['title'] and child.text:
-                a_title = child.text.split('/')[0].split(':')
+    """
+    Inherits PageProcessor to process "current" dumps of wikipedia to find
+    signatures on UTP.
+    """
+    _skip = False
+    user = None
 
-                if len(a_title) > 1 and a_title[0] in self.user_talk_names:
-                    user = a_title[1]
-                else:
-                    return
-            elif child.tag == tag['revision']:
-                for rc in child:
-                    if rc.tag != tag['text']:
-                        continue
+    def process_title(self, elem):
+        text = elem.text
+        if not text:
+            self._skip = True
+            return
 
-                    assert user, "User still not defined"
-                    if not (rc.text and user):
-                        continue
+        a_title = text.split('/')[0].split(':')
 
-                    if (mwlib.isHardRedirect(rc.text) or
-                       mwlib.isSoftRedirect(rc.text)):
-                        continue
+        if len(a_title) > 1 and a_title[0] in self.user_talk_names:
+            self.user = a_title[1]
+        else:
+            self._skip = True
 
-                    #try:
-                    #talks = mwlib.getCollaborators(rc.text, self.search)
-                    talks = mwlib.getCollaborators(rc.text, ('User', 'Utente'),
-                                                   lang="vec")
-                    #except:
-                    #    print "Warning: exception with user %s" % (
-                    #        user.encode('utf-8'),)
+    def process_text(self, elem):
+        assert self.user, "User still not defined"
 
-                    self.ecache.add(mwlib.capfirst(user.replace('_', ' ')),
-                                    talks)
-                    self.count += 1
-                    if not self.count % 500:
-                        print self.count
+        text = elem.text
+        if not (text and self.user):
+            return
 
+        if (mwlib.isHardRedirect(text) or mwlib.isSoftRedirect(text)):
+            return
+
+        talks = mwlib.getCollaborators(text, ('User', 'Utente'), lang="vec")
+
+        self.ecache.add(mwlib.capfirst(self.user.replace('_', ' ')), talks)
+        self.count += 1
+        if not self.count % 500:
+            print self.count
+
+    def process_page(self, _):
+        """
+        Called at the end of every <page> tag.
+        """
+        self._skip = False
+
+    def end(self):
+        self.ecache.flush()
 
 def main():
     import optparse
@@ -76,15 +80,14 @@ def main():
         logging.basicConfig(stream=sys.stderr,
                             level=logging.DEBUG)
 
-    if len(files) != 1:
+    try:
+        xml = files[0]
+    except KeyError:
         p.error("Give me one file, please")
-    xml = files[0]
 
     en_user, en_user_talk = u"User", u"User talk"
 
     lang, date, type_ = mwlib.explode_dump_filename(xml)
-
-    ecache = EdgeCache()
 
     src = BZ2File(xml)
 
@@ -105,14 +108,14 @@ def main():
         src.close()
         src = lib.SevenZipFileExt(xml)
 
-    processor = CurrentPageProcessor(ecache=ecache, tag=tag,
+    processor = CurrentPageProcessor(ecache=EdgeCache(), tag=tag,
                               user_talk_names=(lang_user_talk, en_user_talk),
                               search=(lang_user, en_user), lang=lang)
-    mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
-                    processor.process)
+    #mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
+    #                processor.process)
+    processor.start(src)
 
-    ecache.flush()
-    g = ecache.get_network()
+    g = processor.ecache.get_network()
 
     print "Len:", len(g.vs)
     print "Edges:", len(g.es)
