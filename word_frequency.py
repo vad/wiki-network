@@ -13,6 +13,13 @@
 #                                                                        #
 ##########################################################################
 
+"""
+Given a list of words, find the frequency of these words in a random set of
+pages and in a list of desired pages (and the related talk pages).
+
+Data are stored in a database.
+"""
+
 import sys
 import os
 from datetime import date

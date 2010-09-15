@@ -69,3 +69,19 @@ Results are stored in a database. Saved informations are:
   <td>revert</td><td>Integer</td><td>Number of edits with a comment containing the word "revert"</td>
 </tr>
 </table>
+
+### usercontributions_export.py
+Export data collected by usercontributions.py in a CSV file.
+
+### events_anniversary.py
+This script collects revision times for all the article and talk pages and for
+a set of desired pages. The purpose of this analysis is to find if pages
+related to events are changed in a neighbourhood of the anniversary.
+
+Data are stored in a database.
+
+### word_frequency.py
+Given a list of words, find the frequency of these words in a random set of
+pages and in a list of desired pages (and the related talk pages).
+
+Data are stored in a database.
