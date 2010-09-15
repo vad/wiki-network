@@ -17,3 +17,55 @@ This script can be used on current dumps.
 
 ### enrich.py
 Giving a pickled iGraph object, this script downloads useful information about the users (like if the user is a bot, a sysop, ..) from the wikipedia API and creates a new pickled iGraph object.
+
+### usercontributions.py
+Given a stub dump, this script counts contributions for every user on the whole wikipedia.
+
+Results are stored in a database. Saved informations are:
+<table>
+<tr>
+  <th>Field</th><th>Type</th><th>Description</th>
+</tr>
+<tr>
+  <td>username</td><td>String</td><td></td>
+</tr>
+<tr>
+  <td>lang</td><td>String</td><td>Data on this user are related to the "lang" wikipedia</td>
+</tr>
+<tr>
+  <td>normal_edits</td><td>Integer</td><td>Edits on the article namespace</td>
+</tr>
+<tr>
+  <td>namespace_edits</td><td>String</td><td>This is an array of integers. Each integer represents the number of edits made by this user on pages in a namespace. Namespaces are numbered starting from 0 in the order found at the beginning of the XML dump file</td>
+</tr>
+<tr>
+  <td>first_edit</td><td>DateTime</td><td>Time of the first (oldest) edit</td>
+</tr>
+<tr>
+  <td>last_edit</td><td>DateTime</td><td>Time of the last (most recent) edit</td>
+</tr>
+<tr>
+  <td>comments_count</td><td>Integer</td><td>Number of comments left by this user</td>
+</tr>
+<tr>
+  <td>comments_avg</td><td>Float</td><td>Comment average length</td>
+</tr>
+<tr>
+  <td>minor</td><td>Integer</td><td>Number of minor edits</td>
+</tr>
+<tr>
+  <td>welcome</td><td>Integer</td><td>Number of edits with a comment containing the word "welcome"</td>
+</tr>
+<tr>
+  <td>npov</td><td>Integer</td><td>Number of edits with a comment containing the word "npov" (neutral point of view)</td>
+</tr>
+<tr>
+  <td>please</td><td>Integer</td><td>Number of edits with a comment containing the word "please"</td>
+</tr>
+<tr>
+  <td>thanks</td><td>Integer</td><td>Number of edits with a comment containing the word "thanks"</td>
+</tr>
+<tr>
+  <td>revert</td><td>Integer</td><td>Number of edits with a comment containing the word "revert"</td>
+</tr>
+</table>
