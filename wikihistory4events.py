@@ -161,7 +161,8 @@ def main():
     with Timr('Retrieving bots'):
         processor.set_bots()
     print "BEGIN PARSING"
-    processor.start(src)
+    with Timr('Parsing'):
+        processor.start(src)
     processor.flush()
 
 

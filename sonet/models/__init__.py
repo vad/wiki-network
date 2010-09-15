@@ -32,7 +32,9 @@ def get_engine(dbname=None):
     ## maps django database engine into SQLAlchemy drivers
     driver_mapping = {
         'postgresql_psycopg2': 'postgresql+psycopg2',
-        'postgresql': 'postgresql'
+        'postgresql': 'postgresql',
+        'mysql': 'mysql',
+        'sqlite3': 'sqlite'
     }
     try:
         driver = driver_mapping[DATABASE_ENGINE]
