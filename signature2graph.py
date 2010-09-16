@@ -20,6 +20,7 @@ from sonet.edgecache import EdgeCache
 import sonet.mediawiki as mwlib
 from sonet.mediawiki import PageProcessor
 from sonet import lib
+from sonet.timr import Timr
 
 class CurrentPageProcessor(PageProcessor):
     """
@@ -28,6 +29,15 @@ class CurrentPageProcessor(PageProcessor):
     """
     _skip = False
     user = None
+    sig_finder = None
+
+    def __init__(self, *args, **kwargs):
+        super(CurrentPageProcessor, self).__init__(*args, **kwargs)
+        sf_kwargs = {'lang': self.lang}
+        if 'signature' in kwargs:
+            sf_kwargs['signature'] = kwargs['signature']
+
+        self.sig_finder = mwlib.SignatureFinder(self.search, **sf_kwargs)
 
     def process_title(self, elem):
         text = elem.text
@@ -36,14 +46,16 @@ class CurrentPageProcessor(PageProcessor):
             return
 
         a_title = text.split('/')[0].split(':')
+        self.a_title = a_title
 
-        if len(a_title) > 1 and a_title[0] in self.user_talk_names:
+        if len(a_title) > 1 and a_title[0] in self.user_talk_names \
+           and a_title[1]:
             self.user = a_title[1]
         else:
             self._skip = True
 
     def process_text(self, elem):
-        assert self.user, "User still not defined"
+        assert self.user, "User still not defined: "+repr(self.a_title)
 
         text = elem.text
         if not (text and self.user):
@@ -52,7 +64,7 @@ class CurrentPageProcessor(PageProcessor):
         if (mwlib.isHardRedirect(text) or mwlib.isSoftRedirect(text)):
             return
 
-        talks = mwlib.getCollaborators(text, ('User', 'Utente'), lang="vec")
+        talks = self.sig_finder.find(text)
 
         self.ecache.add(mwlib.capfirst(self.user.replace('_', ' ')), talks)
         self.count += 1
@@ -74,6 +86,8 @@ def main():
     p = optparse.OptionParser(usage="usage: %prog file")
     p.add_option('-v', action="store_true", dest="verbose", default=False,
                  help="Verbose output (like timings)")
+    p.add_option('-s', action="store", dest="signature", default=None,
+                 help="Signature in this language (e.g. sig, firma..)")
     opts, files = p.parse_args()
     if opts.verbose:
         import sys, logging
@@ -108,14 +122,21 @@ def main():
         src.close()
         src = lib.SevenZipFileExt(xml)
 
-    processor = CurrentPageProcessor(ecache=EdgeCache(), tag=tag,
+    if opts.signature is not None:
+        processor = CurrentPageProcessor(ecache=EdgeCache(), tag=tag,
+                              user_talk_names=(lang_user_talk, en_user_talk),
+                              search=(lang_user, en_user), lang=lang,
+                              signature=opts.signature)
+    else:
+        processor = CurrentPageProcessor(ecache=EdgeCache(), tag=tag,
                               user_talk_names=(lang_user_talk, en_user_talk),
                               search=(lang_user, en_user), lang=lang)
-    #mwlib.fast_iter(etree.iterparse(src, tag=tag['page'], strip_cdata=False),
-    #                processor.process)
-    processor.start(src)
 
-    g = processor.ecache.get_network()
+    with Timr('Processing'):
+        processor.start(src)
+
+    with Timr('Create network'):
+        g = processor.ecache.get_network()
 
     print "Len:", len(g.vs)
     print "Edges:", len(g.es)
