@@ -85,3 +85,12 @@ Given a list of words, find the frequency of these words in a random set of
 pages and in a list of desired pages (and the related talk pages).
 
 Data are stored in a database.
+
+### wikieventanalysis.py
+The script accepts in input a list of desired pages and the wikipedia language
+to be analyzed. It retrieves data from db about all the revisions of the specified
+language and processes revisions' statistics for each found page, such as number of
+edits, number of unique editors, edits made in a range of days around event's 
+anniversary, etc...
+
+Data are outputted in a csv file, bz2 compressed
