@@ -118,17 +118,17 @@ class SignatureFinder(object):
         self.re = re.compile(rex, re.IGNORECASE)
 
     def find(self, rawWikiText):
-        matches = self.re.finditer(rawWikiText)
+        matches = self.re.findall(rawWikiText)
 
         weights = dict()
         for u in matches:
-            u2 = [name for name in u.groups() if name is not None][0]
+            sender = ''.join(u)
 
-            if not u2:
+            if not sender:
                 logging.warn('getCollaborators: empty username found')
                 continue
-            un = capfirst(unicode(u2).replace('_', ' '))
-            weights[un] = weights.get(un, 0) + 1
+            sender = unicode(capfirst(sender.replace('_', ' ')))
+            weights[sender] = weights.get(sender, 0) + 1
 
         return weights
 
