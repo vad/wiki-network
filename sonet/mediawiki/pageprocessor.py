@@ -1,5 +1,5 @@
-#import xml.etree.cElementTree as etree
-from lxml import etree
+import xml.etree.cElementTree as etree
+#from lxml import etree
 from datetime import date
 from random import random
 
@@ -33,8 +33,8 @@ class PageProcessor(object):
                      (elem.tag == tag_page or not self._skip)):
             dfunc[elem.tag](elem)
             elem.clear()
-            while elem.getprevious() is not None:
-                del elem.getparent()[0]
+            #while elem.getprevious() is not None:
+            #    del elem.getparent()[0]
         del context
 
         self.end()

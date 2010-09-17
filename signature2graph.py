@@ -46,7 +46,6 @@ class CurrentPageProcessor(PageProcessor):
             return
 
         a_title = text.split('/')[0].split(':')
-        self.a_title = a_title
 
         if len(a_title) > 1 and a_title[0] in self.user_talk_names \
            and a_title[1]:
@@ -55,7 +54,7 @@ class CurrentPageProcessor(PageProcessor):
             self._skip = True
 
     def process_text(self, elem):
-        assert self.user, "User still not defined: "+repr(self.a_title)
+        assert self.user, "User still not defined"
 
         text = elem.text
         if not (text and self.user):
@@ -117,10 +116,11 @@ def main():
     lang_user = unicode(lang_user)
     en_user = unicode(en_user)
 
+    # open dump with an external process to use multiple cores
     _fast = True
     if _fast:
         src.close()
-        src = lib.SevenZipFileExt(xml)
+        src = lib.BZ2FileExt(xml)
 
     if opts.signature is not None:
         processor = CurrentPageProcessor(ecache=EdgeCache(), tag=tag,
