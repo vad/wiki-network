@@ -299,35 +299,6 @@ def getTags(src, tags='page,title,revision,text'):
     return tag
 
 
-def getTranslations(src):
-    try:
-        counter = 0
-        translation = {}
-
-        while 1:
-            line = src.readline()
-            if not line: break
-            keys = re.findall(
-                r'<namespace key="(\d+)"[^>]*>([^<]*)</namespace>',
-                line)
-            for key, ns in keys:
-                if key == '1':
-                    translation['Talk'] = unicode(ns, 'utf-8')
-                if key == '2':
-                    translation['User'] = unicode(ns, 'utf-8')
-                elif key == '3':
-                    translation['User talk'] = unicode(ns, 'utf-8')
-                elif key == '4':
-                    translation['Wikipedia'] = unicode(ns, 'utf-8')
-
-            counter += 1
-            if counter > 50:
-                break
-    finally:
-        src.seek(0)
-
-    return translation
-
 def getNamespaces(src):
     try:
         counter = 0
@@ -348,6 +319,18 @@ def getNamespaces(src):
         src.seek(0)
 
     return namespaces
+
+
+def getTranslations(src):
+    namespaces = dict(getNamespaces(src))
+    translation = {
+        'Talk': namespaces['1'],
+        'User': namespaces['2'],
+        'User talk': namespaces['3'],
+        'Wikipedia': namespaces['4']
+    }
+
+    return translation
 
 
 def explode_dump_filename(fn):
