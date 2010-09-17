@@ -3,7 +3,7 @@
 
 from edgecache import *
 from lib import iter_csv, print_csv, ensure_dir
-from mwlib import capfirst
+from sonet.mediawiki import normalize_pagename
 import re
 import sonetgraph as sg
 import urllib as ul
@@ -52,7 +52,7 @@ def getedges(_list, _selfedge=True, _year=None, wiki='', user_ns='', clean=False
             continue
 
         # Add owner
-        o = capfirst(owner.decode('utf-8').replace('_', ' '))
+        o = normalize_pagename(owner.decode('utf-8'))
         if o not in d:
             d[o] = {}
 
@@ -71,14 +71,14 @@ def getedges(_list, _selfedge=True, _year=None, wiki='', user_ns='', clean=False
             print e
             continue
 
-        w = capfirst(ul.unquote(user).decode('utf-8').replace('_', ' '))
-        
+        w = normalize_pagename(ul.unquote(user).decode('utf-8'))
+
         if w not in d:
             d[w] = {}
 
         if info_box or redirect:
             continue
-        
+
         if clean and not welcome_tpl:
             continue
 
@@ -96,21 +96,21 @@ def main():
     from os import path
 
     global verbose
-    
+
     op = OptionParser(usage="usage: %prog [options] file")
     op.add_option('-c', '--clean', action="store_true", dest="clean",help="Skip message with signature not findable by script", default=False)
     op.add_option('-v', '--verbose', action="store_true", dest="verbose",help="Verbose output", default=False)
     op.add_option('-w', '--wiki', dest="wiki",help="wiki url", default='')
     op.add_option('-u', '--userns', dest="user_ns",help="User namespace, default \'Utente\'", default='Utente')
     op.add_option('-f', '--filename', dest="filename",help="Filename", default='network')
-    
+
     opts, args = op.parse_args()
 
     if not args:
         op.error("Need a file to run analysis")
 
     verbose = opts.verbose
-    
+
     f = args[0]
     dest = path.dirname(f) + '/'
 

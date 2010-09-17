@@ -85,7 +85,7 @@ class HistoryPageProcessor(mwlib.PageProcessor):
         a_title = title.split(':')
 
         if len(a_title) > 1 and a_title[0] in self.user_talk_names:
-            self._receiver = mwlib.capfirst(a_title[1].replace('_', ' '))
+            self._receiver = mwlib.normalize_pagename(a_title[1])
         else:
             self._skip = True
             return
@@ -130,9 +130,7 @@ class HistoryPageProcessor(mwlib.PageProcessor):
                 self.counter_deleted += 1
         else:
             try:
-                self._sender = mwlib.capfirst(
-                    sender_tag.text.replace('_', ' ')
-                )
+                self._sender = mwlib.normalize_pagename(sender_tag.text)
             except AttributeError:
                 ## if username is defined but empty, look for id tag
                 self._sender = contributor.find(self.tag['id']).text

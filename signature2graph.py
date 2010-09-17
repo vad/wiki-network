@@ -65,7 +65,7 @@ class CurrentPageProcessor(PageProcessor):
 
         talks = self.sig_finder.find(text)
 
-        self.ecache.add(mwlib.capfirst(self.user.replace('_', ' ')), talks)
+        self.ecache.add(mwlib.normalize_pagename(self.user), talks)
         self.count += 1
         if not self.count % 500:
             print self.count

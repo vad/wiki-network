@@ -122,12 +122,12 @@ class SignatureFinder(object):
 
         weights = dict()
         for u in matches:
-            sender = ''.join(u)
+            sender = u''.join(u)
 
             if not sender:
                 logging.warn('getCollaborators: empty username found')
                 continue
-            sender = unicode(capfirst(sender.replace('_', ' ')))
+            sender = normalize_pagename(sender)
             weights[sender] = weights.get(sender, 0) + 1
 
         return weights
@@ -347,12 +347,29 @@ def explode_dump_filename(fn):
 
 def capfirst(s):
     """
-    Given a string, it returns the same string with the first letter capitlized
+    Given a string, it returns the same string with the first letter
+    capitalized
 
     >>> capfirst("test")
     'Test'
+    >>> capfirst("tesT")
+    'TesT'
     """
     return s[0].upper() + s[1:]
+
+
+def normalize_pagename(s):
+    """
+
+    >>> normalize_pagename('_tesT__')
+    'TesT'
+    """
+    # replace underscore with whitespaces and remove leading and trailing
+    # spaces
+    s = s.replace('_', ' ').strip()
+
+    # then capfirst
+    return (s[0].upper() + s[1:])
 
 
 def count_renames(lang):

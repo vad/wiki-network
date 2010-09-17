@@ -328,9 +328,7 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
             self._skip_revision = True
         else:
             try:
-                self._sender = mwlib.capfirst(
-                    sender_tag.text.replace('_', ' ')
-                )
+                self._sender = mwlib.normalize_pagename(sender_tag.text)
             except AttributeError:
                 ## if username is defined but empty, look for id tag
                 self._sender = contributor.find(self.tag['id']).text
