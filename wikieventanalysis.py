@@ -28,6 +28,9 @@ from django.utils.encoding import smart_str
 from sonet.models import get_events_table
 from sonet import lib
 
+## GLOBAL VARS
+initial_date = date(2000,1,1)
+
 
 def page_iter(lang = 'en', paginate=10000000, desired=None):
     events, conn = get_events_table()
@@ -172,6 +175,17 @@ def get_first_revision(start_date, data):
         return start_date + timedelta(min(data))
     except TypeError:
         return
+    
+def print_data_file(fn, dict_):
+    """
+    Given a filename and a dictionary of day => revisions
+    it creates a csv file
+    """
+    with open(fn, 'w') as f:
+        wrt = csv.writer(f)
+        wrt.writerow(['date','total_edits','bot_edits','anon_edits'])
+        wrt.writerows([[(initial_date + timedelta(k)).strftime('%Y-%m-%d'),
+                        t[0],t[1],t[2]] for k, t in dict_.iteritems()])        
 
 class EventsProcessor:
     count_desired = []
@@ -182,13 +196,14 @@ class EventsProcessor:
     desired_only = False ## search desired pages only
     desired_pages = {}
     dump_date = None
-    initial_date = date(2000,1,1)
+    
     lang = None
     keys_ = ['article','type_of_page','desired','total_edits',
              'unique_editors','anniversary_edits','n_of_anniversaries',
              'anniversary_days','anniversary_edits/total_edits',
              'non_anniversary_edits/total_edits','event_date',
              'first_edit_date','first_edit_date-event_date_in_days']
+    output_dir = None
     pages = []
     range_ = None
     skip_bot = None
@@ -236,6 +251,11 @@ class EventsProcessor:
                                    quotechar='"', quoting=csv.QUOTE_ALL)
         
         self.csv_writer.writeheader()
+        
+        ## Outup directory for data files (only for desired pages)
+        self.output_dir = fn[0:fn.rfind('/')] + '/%s_data_files/' % self.lang
+        ## check if the directory exists. if not create it
+        lib.ensure_dir(self.output_dir)
                         
     def set_desired(self, fn):
         ## save desired pages list
@@ -316,13 +336,21 @@ class EventsProcessor:
         self.flush()
 
     def process_page(self):
+        """
+        process a page counting all the revisions made and
+        calculating some statistics as number of days since
+        creation, edits in anniversary's range, etc.
+        """
         
         ## page's (and last page as well) attributes
         title = self.__title
-        type_ = 'talk' if self.__type_of_page else 'normal'
+        
+        if self.__desired and not self.__type_of_page:
+            fn = self.output_dir + title + '.csv'
+            print_data_file(fn, self.__data)
 
         ## creation date
-        self.__first_edit_date = get_first_revision(self.initial_date,
+        self.__first_edit_date = get_first_revision(initial_date,
                                                  self.__data)
         if self.__desired:
             if self.desired_pages[title] is not None:
@@ -343,7 +371,7 @@ class EventsProcessor:
 
         for d, t in self.__data.iteritems():
             tot_edits, bot_edits, anon_edits = t
-            revision = self.initial_date + timedelta(d)
+            revision = initial_date + timedelta(d)
             if (revision - self.__event_date).days < self.skipped_days:
                 in_skipped += tot_edits
                 continue
