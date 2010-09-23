@@ -176,16 +176,25 @@ def get_first_revision(start_date, data):
     except TypeError:
         return
     
-def print_data_file(fn, dict_):
+def print_data_file(fn, dict_, s_date, e_date):
     """
     Given a filename and a dictionary of day => revisions
     it creates a csv file
     """
+    s_days = (s_date - initial_date).days
+    e_days = (e_date - initial_date).days
+    
     with open(fn, 'w') as f:
         wrt = csv.writer(f)
         wrt.writerow(['date','total_edits','bot_edits','anon_edits'])
-        wrt.writerows([[(initial_date + timedelta(k)).strftime('%Y-%m-%d'),
-                        t[0],t[1],t[2]] for k, t in dict_.iteritems()])        
+        for d in range(s_days, e_days + 1):
+            try:
+                t = dict_[d]
+                wrt.writerow([(initial_date+timedelta(d)).strftime('%Y-%m-%d'),
+                        t[0],t[1],t[2]])
+            except KeyError:
+                wrt.writerow([(initial_date+timedelta(d)).strftime('%Y-%m-%d'),
+                        0,0,0])
 
 class EventsProcessor:
     count_desired = []
@@ -344,11 +353,8 @@ class EventsProcessor:
         
         ## page's (and last page as well) attributes
         title = self.__title
+        talk = self.__type_of_page
         
-        if self.__desired and not self.__type_of_page:
-            fn = self.output_dir + title + '.csv'
-            print_data_file(fn, self.__data)
-
         ## creation date
         self.__first_edit_date = get_first_revision(initial_date,
                                                  self.__data)
@@ -359,6 +365,13 @@ class EventsProcessor:
                 self.__event_date = self.__first_edit_date
         else:
             self.__event_date = self.__first_edit_date
+           
+        ## if it is a desired page then print out data 
+        ## about its daily revisions
+        if self.__desired:
+            fn = self.output_dir + '%s%s.csv' % ('Talk:' if talk else '',title,)
+            print_data_file(fn, self.__data, self.__first_edit_date,
+                            self.dump_date)
             
         ## if the page has been created less than one year ago, skip
         ## TODO: 365 - range??
@@ -390,7 +403,7 @@ class EventsProcessor:
                     
         dict_ = {
             'article': smart_str(self.__title),
-            'type_of_page': int(not self.__type_of_page),
+            'type_of_page': int(not talk),
             'desired': int(self.__desired),
             'total_edits': total,
             'unique_editors': self.__unique_editors,
