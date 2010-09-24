@@ -38,7 +38,8 @@ def page_iter(lang = 'en', paginate=10000000, desired=None):
     count_query = select([func.count(events.c.id)],
                events.c.lang == lang)
     s = select([events.c.title, events.c.data, events.c.talk,
-                events.c.total_editors,events.c.bot_editors],
+                events.c.total_editors,events.c.bot_editors,
+                events.c.anonymous_editors],
                 events.c.lang == lang).order_by(
         events.c.title, events.c.talk).limit(paginate)
 
@@ -56,7 +57,7 @@ def page_iter(lang = 'en', paginate=10000000, desired=None):
         for row in rs:
             yield (row[0],
                    deserialize(decompress(b64decode(row[1]))),
-                   row[2],row[3],row[4])
+                   row[2],row[3],row[4],row[5])
 
             
 def get_days_since(start_date, end_date, anniversary_date, td_list):
@@ -205,7 +206,7 @@ class EventsProcessor:
     desired_only = False ## search desired pages only
     desired_pages = {}
     dump_date = None
-    
+    groups = None
     lang = None
     keys_ = ['article','type_of_page','desired','total_edits',
              'unique_editors','anniversary_edits','n_of_anniversaries',
@@ -215,7 +216,6 @@ class EventsProcessor:
     output_dir = None
     pages = []
     range_ = None
-    skip_bot = None
     skipped_days = None
     td_list = None
     threshold = None
@@ -238,7 +238,7 @@ class EventsProcessor:
         self.skipped_days = kwargs['skip']
         self.dump_date = kwargs['dump_date']
         self.desired_only = kwargs['desired']
-        self.skip_bot = kwargs['bots']
+        self.groups = kwargs['groups']
                 
         # timedelta list, used in get_days_since
         self.td_list = [timedelta(i) for i in
@@ -310,10 +310,10 @@ class EventsProcessor:
 
     def process(self, threshold=1.):
         from random import random
-                
-        desired = self.desired_pages.keys() if self.desired_only else None
+                       
+        des = self.desired_pages.keys() if self.desired_only else None
         
-        for title,data,talk,te,be in page_iter(lang=self.lang,desired=desired):
+        for title,data,talk,te,be,ae in page_iter(lang=self.lang,desired=des):
             ## check whether the page is an archive or not
             ## if it is a link, skip it!
             if is_archive(title):
@@ -324,7 +324,12 @@ class EventsProcessor:
             self.__data = data
             self.__desired = self.is_desired()
             self.__type_of_page = talk ## 0 = article, 1 = talk
-            self.__unique_editors = te if not self.skip_bot else (te - be)
+            ## unique editors
+            self.__unique_editors = abs(
+                (te if 'total' in self.groups else 0) -
+                (be if 'bots' in self.groups else 0) -
+                (ae if 'anonymous' in self.groups else 0)
+            )
             
             if self.__desired and self.__title not in self.count_desired:
                 print "PROCESSING DESIRED PAGE:", self.__title
@@ -354,6 +359,7 @@ class EventsProcessor:
         ## page's (and last page as well) attributes
         title = self.__title
         talk = self.__type_of_page
+        groups = self.groups
         
         ## creation date
         self.__first_edit_date = get_first_revision(initial_date,
@@ -389,10 +395,18 @@ class EventsProcessor:
                 in_skipped += tot_edits
                 continue
             if is_near_anniversary(self.__event_date, revision, self.range_):
-                anniversary += tot_edits if not self.skip_bot \
-                            else (tot_edits - bot_edits)
-            total += tot_edits if not self.skip_bot \
-                  else (tot_edits - bot_edits)
+                ## edits made in anniversary's range
+                anniversary += abs(
+                    (tot_edits if 'total' in groups else 0) -
+                    (bot_edits if 'bots' in groups else 0) -    
+                    (anon_edits if 'anonymous' in groups else 0)
+                )
+            ## total edits
+            total += abs(
+                (tot_edits if 'total' in groups else 0) -
+                (bot_edits if 'bots' in groups else 0) -    
+                (anon_edits if 'anonymous' in groups else 0)
+            )
                                 
         try:
             ann_total_edits = anniversary / total
@@ -448,12 +462,16 @@ def create_option_parser():
     op.add_option('-r', '--range', action="store", dest="range_",
                  help="number of days before and after anniversary date",
                  default=10, type="int")
-    op.add_option('-s', '--skip', action="store", dest="skip",
+    op.add_option('-s', '--skipped-days', action="store", dest="skip",
                  help="number of days to be skipped", default=180, type="int")
     op.add_option('-d', '--desired-only', action="store_true", dest='desired',
                  default=False, help='analysis only of desired pages')
-    op.add_option('-b', '--no-bot', action="store_true", dest='bots',
-                 default=False, help='skip revisions made by bots')
+    op.add_option('-g','--groups',action="store",dest='groups',default='total', 
+                 help='comma separated list of to-be-analyzed groups \
+                 (total|bots|anonymous)')
+    op.add_option('-R', '--ratio', action="store", dest="ratio",
+                 help="percentage of pages to be analyzed",
+                 default=1., type="float")
     
     return op
 
@@ -462,26 +480,28 @@ def main():
     p = create_option_parser()
     opts, files = p.parse_args()
 
-    if len(files) < 4:
-        p.error("Bad number of arguments!")
-
-    desired_pages_fn = files[0]
-    dumpdate = files[1]
-    out_file = files[2]
-    threshold = float(files[3])
+    try:
+        desired_pages_fn = files[0]
+        dumpdate = files[1]
+        out_file = files[2]
+    except IndexError:
+        p.error("Bad number of arguments! Try with --help option")
 
     ## creating dump date object
     dump = lib.yyyymmdd_to_datetime(dumpdate).date()
     
+    ## list of to-be-analyzed groups
+    groups = [g for g in opts.groups.split(',') if g]
+    
     ## creating processor
-    processor = EventsProcessor(lang=opts.lang, range_=opts.range_,
-                                skip=opts.skip, dump_date=dump, bots=opts.bots,
+    processor = EventsProcessor(lang=opts.lang, range_=opts.range_, 
+                                skip=opts.skip, dump_date=dump, groups=groups, 
                                 desired=opts.desired, output_file=files[2])
 
     ## set desired pages
     processor.set_desired(desired_pages_fn)
     ## main process
-    processor.process(threshold=threshold)
+    processor.process(threshold=opts.ratio)
 
 if __name__ == "__main__":
     main()
