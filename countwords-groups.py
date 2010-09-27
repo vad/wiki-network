@@ -13,20 +13,17 @@
 #                                                                        #
 ##########################################################################
 
-from bz2 import BZ2File
-import mwlib
-import os, sys
-#import re
-#from time import time
-#from itertools import ifilter
-import cProfile as profile
-from functools import partial
-from sonetgraph import load as sg_load
-import lib
-
 ## etree
 from lxml import etree
 
+from bz2 import BZ2File
+import os, sys
+import cProfile as profile
+from functools import partial
+
+from sonet.graph import load as sg_load
+from sonet import lib
+import sonet.mediawiki as mwlib
 
 ## nltk
 import nltk
@@ -51,7 +48,7 @@ stopwords = nltk.corpus.stopwords.words('italian')
 def get_freq_dist(q, done_q, fd=None, classes=None):
     dstpw = dict(zip(stopwords, [0]*len(stopwords)))
     tokenizer = nltk.PunktWordTokenizer()
-    
+
     if not classes:
         classes = ('anonymous', 'bot', 'bureaucrat', 'sysop', 'normal user')
 
@@ -59,7 +56,7 @@ def get_freq_dist(q, done_q, fd=None, classes=None):
     if not fd:
         fd = dict(zip(classes,
                       [nltk.FreqDist() for _ in range(len(classes))]))
-    
+
     while 1:
         try:
             cls, msg = q.get()
@@ -67,15 +64,15 @@ def get_freq_dist(q, done_q, fd=None, classes=None):
             for cls, freq in fd.iteritems():
                 done_q.put((cls, freq.items()))
             done_q.put(None)
-            
+
             return
-        
+
         tokens = tokenizer.tokenize(nltk.clean_html(msg.encode('utf-8')
                                                         .lower()))
-            
+
         text = nltk.Text(t for t in tokens if len(t) > 2 and t not in dstpw)
         fd[cls].update(text)
-        
+
 
 def get_freq_dist_wrapper(q, done_q, fd=None):
     profile.runctx("get_freq_dist(q, done_q, fd)",
@@ -86,7 +83,7 @@ def get_freq_dist_wrapper(q, done_q, fd=None):
 def process_page(elem, queue):
     user = None
     global count
-    
+
     for child in elem:
         if child.tag == tag['title'] and child.text:
             a_title = child.text.split('/')[0].split(':')
@@ -109,51 +106,50 @@ def process_page(elem, queue):
 
                 try:
                     queue.put((user_classes[user.encode('utf-8')], rc.text))
-                    
+
                     count += 1
-                    
+
                     if not count % 500:
                         print >> sys.stderr, count
                 except:
                     print "Warning: exception with user %s" % (
                         user.encode('utf-8'),)
                     raise
-    
+
 
 def main():
     import optparse
     from operator import itemgetter
 
-    p = optparse.OptionParser(usage="usage: %prog [options] file")
+    p = optparse.OptionParser(
+        usage="usage: %prog [options] dump enriched_pickle"
+    )
 
-    _, files = p.parse_args()
+    _, args = p.parse_args()
 
-    if not files:
-        p.error("Give me a file, please ;-)")
-    xml = files[0]
+    if len(args) != 2:
+        p.error("Too few or too many arguments")
+    xml = args[0]
+    rich_fn = args[1]
 
     global lang_user_talk, lang_user, tag, user_classes
 
     src = BZ2File(xml)
 
     tag = mwlib.getTags(src)
-    lang, date = mwlib.explode_dump_filename(xml)
-    path = os.path.split(xml)[0]
-    if path:
-        path += '/'
-    rich_fn = "%s%swiki-%s_rich.pickle" % (path,
-                                            lang, date)
+    lang, date, _ = mwlib.explode_dump_filename(xml)
     user_classes = dict(sg_load(rich_fn).get_user_class('username',
                                   ('anonymous', 'bot', 'bureaucrat','sysop')))
-    
+
     p = Process(target=get_freq_dist, args=(queue, done_queue))
     p.start()
 
-    lang_user, lang_user_talk = mwlib.getTranslations(src)
+    translations = mwlib.getTranslations(src)
+    lang_user, lang_user_talk = translations['User'], translations['User talk']
 
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
-    
+
     _fast = True
     if _fast:
         src.close()
@@ -162,25 +158,25 @@ def main():
     partial_process_page = partial(process_page, queue=queue)
     mwlib.fast_iter(etree.iterparse(src, tag=tag['page']),
                     partial_process_page)
-    
+
     queue.put(0) ## this STOPS the process
-    
+
     print >> sys.stderr, "end of parsing"
-    
+
     while 1:
         try:
             cls, fd = done_queue.get()
         except TypeError:
             break
-        
+
         with open("%swiki-%s-words-%s.dat" %
                   (lang, date,
                    cls.replace(' ', '_')), 'w') as out:
             for k, v in sorted(fd, key=itemgetter(1), reverse=True):
                 print >> out, v, k
-        
+
     p.join()
-    
+
     print >> sys.stderr, "end of FreqDist"
 
 
