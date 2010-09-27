@@ -50,7 +50,8 @@ def get_freq_dist(q, done_q, fd=None, classes=None):
     tokenizer = nltk.PunktWordTokenizer()
 
     if not classes:
-        classes = ('anonymous', 'bot', 'bureaucrat', 'sysop', 'normal user')
+        classes = ('anonymous', 'bot', 'bureaucrat', 'sysop', 'normal user',
+                   'all')
 
     # prepare a dict of empty FreqDist, one for every class
     if not fd:
@@ -70,8 +71,9 @@ def get_freq_dist(q, done_q, fd=None, classes=None):
         tokens = tokenizer.tokenize(nltk.clean_html(msg.encode('utf-8')
                                                         .lower()))
 
-        text = nltk.Text(t for t in tokens if len(t) > 2 and t not in dstpw)
+        text = nltk.Text(t for t in tokens if t not in dstpw)
         fd[cls].update(text)
+        fd['all'].update(text)
 
 
 def get_freq_dist_wrapper(q, done_q, fd=None):
