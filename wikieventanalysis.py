@@ -319,16 +319,19 @@ class EventsProcessor:
             if is_archive(title):
                 continue
             
+            ## editors who are neither bots nor anonymous
+            oe = te - be - ae
+            
             ## page's attributes
             self.__title = title
             self.__data = data
             self.__desired = self.is_desired()
             self.__type_of_page = talk ## 0 = article, 1 = talk
             ## unique editors
-            self.__unique_editors = abs(
-                (te if 'total' in self.groups else 0) -
-                (be if 'bots' in self.groups else 0) -
-                (ae if 'anonymous' in self.groups else 0)
+            self.__unique_editors = (
+                (oe if 'total' not in self.groups else 0) +
+                (be if 'bots' not in self.groups else 0) +
+                (ae if 'anonymous' not in self.groups else 0)
             )
             
             if self.__desired and self.__title not in self.count_desired:
@@ -390,24 +393,25 @@ class EventsProcessor:
 
         for d, t in self.__data.iteritems():
             tot_edits, bot_edits, anon_edits = t
+            other_edits = tot_edits - bot_edits - anon_edits
             revision = initial_date + timedelta(d)
             if (revision - self.__event_date).days < self.skipped_days:
                 in_skipped += tot_edits
                 continue
             if is_near_anniversary(self.__event_date, revision, self.range_):
                 ## edits made in anniversary's range
-                anniversary += abs(
-                    (tot_edits if 'total' in groups else 0) -
-                    (bot_edits if 'bots' in groups else 0) -    
-                    (anon_edits if 'anonymous' in groups else 0)
+                anniversary += (
+                    (other_edits if 'total' not in groups else 0) +
+                    (bot_edits if 'bots' not in groups else 0) +    
+                    (anon_edits if 'anonymous' not in groups else 0)
                 )
             ## total edits
-            total += abs(
-                (tot_edits if 'total' in groups else 0) -
-                (bot_edits if 'bots' in groups else 0) -    
-                (anon_edits if 'anonymous' in groups else 0)
+            total += (
+                (other_edits if 'total' not in groups else 0) +
+                (bot_edits if 'bots' not in groups else 0) + 
+                (anon_edits if 'anonymous' not in groups else 0)
             )
-                                
+                
         try:
             ann_total_edits = anniversary / total
             not_ann_total_edits = (total - anniversary) / total
@@ -466,8 +470,8 @@ def create_option_parser():
                  help="number of days to be skipped", default=180, type="int")
     op.add_option('-d', '--desired-only', action="store_true", dest='desired',
                  default=False, help='analysis only of desired pages')
-    op.add_option('-g','--groups',action="store",dest='groups',default='total', 
-                 help='comma separated list of to-be-analyzed groups \
+    op.add_option('-g','--groups',action="store",dest='groups',default='', 
+                 help='comma separated list of not-to-be-analyzed groups \
                  (total|bots|anonymous)')
     op.add_option('-R', '--ratio', action="store", dest="ratio",
                  help="percentage of pages to be analyzed",
@@ -490,7 +494,7 @@ def main():
     ## creating dump date object
     dump = lib.yyyymmdd_to_datetime(dumpdate).date()
     
-    ## list of to-be-analyzed groups
+    ## list of not-to-be-analyzed groups
     groups = [g for g in opts.groups.split(',') if g]
     
     ## creating processor
