@@ -48,7 +48,11 @@ def get_freq_dist(recv, send, fd=None, classes=None):
     recv and send are two Pipe connections.
     """
     from operator import itemgetter
-    stopwords = frozenset(nltk.corpus.stopwords.words('italian'))
+    stopwords = frozenset(
+        nltk.corpus.stopwords.words('italian')
+        ).union(
+            frozenset("[]':,(){}.?!")
+        )
     tokenizer = nltk.PunktWordTokenizer()
 
     if not classes:
