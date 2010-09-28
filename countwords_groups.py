@@ -17,8 +17,8 @@
 from lxml import etree
 
 from bz2 import BZ2File
-import os, sys
-import cProfile as profile
+import sys
+#import cProfile as profile
 from functools import partial
 
 from sonet.graph import load as sg_load
@@ -29,24 +29,26 @@ import sonet.mediawiki as mwlib
 import nltk
 
 ## multiprocessing
-from multiprocessing import Queue, Process
+from multiprocessing import Pipe, Process
 
 count = 0
-lang = None
 old_user = None
 g = None
 lang_user, lang_user_talk = None, None
 tag = {}
 en_user, en_user_talk = u"User", u"User talk"
-queue, done_queue = Queue(), Queue()
+#queue, done_queue = Queue(), Queue()
 user_classes = None
 
 ## frequency distribution
-stopwords = nltk.corpus.stopwords.words('italian')
+stopwords = frozenset(nltk.corpus.stopwords.words('italian'))
 
 ### CHILD PROCESS
-def get_freq_dist(q, done_q, fd=None, classes=None):
-    dstpw = dict(zip(stopwords, [0]*len(stopwords)))
+def get_freq_dist(recv, send, fd=None, classes=None):
+    """
+    recv and send are two Pipe connections.
+    """
+    from operator import itemgetter
     tokenizer = nltk.PunktWordTokenizer()
 
     if not classes:
@@ -60,29 +62,34 @@ def get_freq_dist(q, done_q, fd=None, classes=None):
 
     while 1:
         try:
-            cls, msg = q.get()
+            cls, msg = recv.recv()
         except TypeError: ## end
             for cls, freq in fd.iteritems():
-                done_q.put((cls, freq.items()))
-            done_q.put(None)
+                send.send((cls, sorted(freq.items(),
+                                       key=itemgetter(1),
+                                       reverse=True)[:1000]))
+            send.send(0)
 
             return
 
         tokens = tokenizer.tokenize(nltk.clean_html(msg.encode('utf-8')
                                                         .lower()))
 
-        text = nltk.Text(t for t in tokens if t not in dstpw)
+        text = nltk.Text(t for t in tokens if t not in stopwords)
         fd[cls].update(text)
         fd['all'].update(text)
 
 
-def get_freq_dist_wrapper(q, done_q, fd=None):
-    profile.runctx("get_freq_dist(q, done_q, fd)",
-        globals(), locals(), 'profile')
+#def get_freq_dist_wrapper(q, done_q, fd=None):
+#    profile.runctx("get_freq_dist(q, done_q, fd)",
+#        globals(), locals(), 'profile')
 
 
 ### MAIN PROCESS
-def process_page(elem, queue):
+def process_page(elem, send):
+    """
+    send is a Pipe connection, write only
+    """
     user = None
     global count
 
@@ -107,7 +114,7 @@ def process_page(elem, queue):
                     continue
 
                 try:
-                    queue.put((user_classes[user.encode('utf-8')], rc.text))
+                    send.send((user_classes[user.encode('utf-8')], rc.text))
 
                     count += 1
 
@@ -121,7 +128,6 @@ def process_page(elem, queue):
 
 def main():
     import optparse
-    from operator import itemgetter
 
     p = optparse.OptionParser(
         usage="usage: %prog [options] dump enriched_pickle"
@@ -131,10 +137,13 @@ def main():
 
     if len(args) != 2:
         p.error("Too few or too many arguments")
-    xml = args[0]
-    rich_fn = args[1]
+    xml, rich_fn = args
 
     global lang_user_talk, lang_user, tag, user_classes
+    ## pipe to send data to the  subprocess
+    p_receiver, p_sender = Pipe(duplex=False)
+    ## pipe to get elaborated data from the subprocess
+    done_p_receiver, done_p_sender = Pipe(duplex=False)
 
     src = BZ2File(xml)
 
@@ -143,7 +152,7 @@ def main():
     user_classes = dict(sg_load(rich_fn).get_user_class('username',
                                   ('anonymous', 'bot', 'bureaucrat','sysop')))
 
-    p = Process(target=get_freq_dist, args=(queue, done_queue))
+    p = Process(target=get_freq_dist, args=(p_receiver, done_p_sender))
     p.start()
 
     translations = mwlib.getTranslations(src)
@@ -152,29 +161,28 @@ def main():
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
 
-    _fast = True
-    if _fast:
-        src.close()
-        src = lib.BZ2FileExt(xml)
+    ## open with a faster decompressor (probably this cannot seek)
+    src.close()
+    src = lib.BZ2FileExt(xml)
 
-    partial_process_page = partial(process_page, queue=queue)
+    partial_process_page = partial(process_page, send=p_sender)
     mwlib.fast_iter(etree.iterparse(src, tag=tag['page']),
                     partial_process_page)
 
-    queue.put(0) ## this STOPS the process
+    p_sender.send(0) ## this STOPS the process
 
     print >> sys.stderr, "end of parsing"
 
     while 1:
         try:
-            cls, fd = done_queue.get()
+            cls, fd = done_p_receiver.recv()
         except TypeError:
             break
 
         with open("%swiki-%s-words-%s.dat" %
                   (lang, date,
                    cls.replace(' ', '_')), 'w') as out:
-            for k, v in sorted(fd, key=itemgetter(1), reverse=True):
+            for k, v in fd:
                 print >> out, v, k
 
     p.join()
