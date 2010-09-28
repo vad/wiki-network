@@ -86,7 +86,7 @@ pages and in a list of desired pages (and the related talk pages).
 
 Data are stored in a database.
 
-### wikieventanalysis.py
+### events_analysis.py
 The script accepts in input a list of desired pages and the wikipedia language
 to be analyzed. It retrieves data from db about all the revisions of the specified
 language and processes revisions' statistics for each found page, such as number of
@@ -95,6 +95,6 @@ anniversary, etc...
 
 Data are outputted in a csv file, bz2 compressed
 
-### countwords-groups.py
+### countwords_groups.py
 Given a current dump, count words found on every UTP and return the results
 by group (the group which the user belongs).
