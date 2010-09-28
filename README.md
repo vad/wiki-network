@@ -95,6 +95,6 @@ anniversary, etc...
 
 Data are outputted in a csv file, bz2 compressed
 
-### countwords-groups.py
+### countwords_groups.py
 Given a current dump, count words found on every UTP and return the results
 by group (the group which the user belongs).
