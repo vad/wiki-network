@@ -20,6 +20,7 @@ from bz2 import BZ2File
 import sys
 #import cProfile as profile
 from functools import partial
+import logging
 
 from sonet.graph import load as sg_load
 from sonet import lib
@@ -31,17 +32,15 @@ import nltk
 ## multiprocessing
 from multiprocessing import Pipe, Process
 
-count = 0
-old_user = None
-g = None
+count_utp, count_missing = 0, 0
 lang_user, lang_user_talk = None, None
 tag = {}
 en_user, en_user_talk = u"User", u"User talk"
-#queue, done_queue = Queue(), Queue()
 user_classes = None
 
 ## frequency distribution
-stopwords = frozenset(nltk.corpus.stopwords.words('italian'))
+
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 ### CHILD PROCESS
 def get_freq_dist(recv, send, fd=None, classes=None):
@@ -49,6 +48,7 @@ def get_freq_dist(recv, send, fd=None, classes=None):
     recv and send are two Pipe connections.
     """
     from operator import itemgetter
+    stopwords = frozenset(nltk.corpus.stopwords.words('italian'))
     tokenizer = nltk.PunktWordTokenizer()
 
     if not classes:
@@ -91,7 +91,7 @@ def process_page(elem, send):
     send is a Pipe connection, write only
     """
     user = None
-    global count
+    global count_utp, count_missing
 
     for child in elem:
         if child.tag == tag['title'] and child.text:
@@ -115,15 +115,15 @@ def process_page(elem, send):
 
                 try:
                     send.send((user_classes[user.encode('utf-8')], rc.text))
-
-                    count += 1
-
-                    if not count % 500:
-                        print >> sys.stderr, count
                 except:
-                    print "Warning: exception with user %s" % (
-                        user.encode('utf-8'),)
-                    raise
+                    logging.warn("Exception with user %s" % (
+                        user.encode('utf-8'),))
+                    count_missing += 1
+
+                count_utp += 1
+
+                if not count_utp % 500:
+                    print >> sys.stderr, count_utp
 
 
 def main():
@@ -168,6 +168,7 @@ def main():
     partial_process_page = partial(process_page, send=p_sender)
     mwlib.fast_iter(etree.iterparse(src, tag=tag['page']),
                     partial_process_page)
+    logging.info('Users missing in the rich file: %d' % (count_missing,))
 
     p_sender.send(0) ## this STOPS the process
 
