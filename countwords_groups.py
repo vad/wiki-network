@@ -21,6 +21,7 @@ import sys
 #import cProfile as profile
 from functools import partial
 import logging
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 from sonet.graph import load as sg_load
 from sonet import lib
@@ -37,10 +38,6 @@ lang_user, lang_user_talk = None, None
 tag = {}
 en_user, en_user_talk = u"User", u"User talk"
 user_classes = None
-
-## frequency distribution
-
-logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 ### CHILD PROCESS
 def get_freq_dist(recv, send, fd=None, classes=None):
@@ -91,11 +88,13 @@ def process_page(elem, send):
     send is a Pipe connection, write only
     """
     user = None
+    title = None
     global count_utp, count_missing
 
     for child in elem:
         if child.tag == tag['title'] and child.text:
-            a_title = child.text.split('/')[0].split(':')
+            title = child.text
+            a_title = title.split('/')[0].split(':')
 
             try:
                 if a_title[0] in (en_user_talk, lang_user_talk):
@@ -116,8 +115,8 @@ def process_page(elem, send):
                 try:
                     send.send((user_classes[user.encode('utf-8')], rc.text))
                 except:
-                    logging.warn("Exception with user %s" % (
-                        user.encode('utf-8'),))
+                    logging.warn("Exception with user %s, page %s" % (
+                        user.encode('utf-8'), title.encode('utf-8')))
                     count_missing += 1
 
                 count_utp += 1
