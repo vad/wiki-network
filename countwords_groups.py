@@ -57,10 +57,9 @@ def get_freq_dist(recv, send, fd=None, classes=None):
         classes = ('anonymous', 'bot', 'bureaucrat', 'sysop', 'normal user',
                    'all')
 
-    # prepare a dict of empty FreqDist, one for every class
+    # prepare a dict of empty FreqDist, one for class
     if not fd:
-        fd = dict(zip(classes,
-                      [nltk.FreqDist() for _ in range(len(classes))]))
+        fd = dict([(cls, nltk.FreqDist()) for cls in classes])
 
     while 1:
         try:
@@ -102,20 +101,17 @@ def process_page(elem, send):
             colon_idx = title.find(':')
             namespace = title[:colon_idx]
 
-            try:
-                if namespace in (en_user_talk, lang_user_talk):
-                    semititle = title[colon_idx+1:]
-                    a_semititle = semititle.split('/')
-                    if len(a_semititle) > 1: ##title is Namespace:User/Extra
-                        extra_title = '/'.join(a_semititle[1:])
-                        if not re.match('archiv', extra_title, re.I):
-                            logging.warn('Discard page %s' % (
-                                title.encode('utf-8')))
-                            return
-                    user = a_semititle[0]
-                else:
-                    return
-            except KeyError:
+            if colon_idx > 0 and namespace in (en_user_talk, lang_user_talk):
+                semititle = title[colon_idx+1:]
+                a_semititle = semititle.split('/')
+                if len(a_semititle) > 1: ##title is Namespace:User/Extra
+                    extra_title = '/'.join(a_semititle[1:])
+                    if not re.match('(?:archiv|vecch)', extra_title, re.I):
+                        logging.warn('Discard page %s' % (
+                            title.encode('utf-8')))
+                        return
+                user = a_semititle[0]
+            else:
                 return
         elif child.tag == tag['revision']:
             for rc in child:
