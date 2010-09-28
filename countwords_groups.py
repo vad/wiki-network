@@ -16,8 +16,9 @@
 ## etree
 from lxml import etree
 
-from bz2 import BZ2File
 import sys
+from bz2 import BZ2File
+import re
 #import cProfile as profile
 from functools import partial
 import logging
@@ -98,11 +99,20 @@ def process_page(elem, send):
     for child in elem:
         if child.tag == tag['title'] and child.text:
             title = child.text
-            a_title = title.split('/')[0].split(':')
+            colon_idx = title.find(':')
+            namespace = title[:colon_idx]
 
             try:
-                if a_title[0] in (en_user_talk, lang_user_talk):
-                    user = a_title[1]
+                if namespace in (en_user_talk, lang_user_talk):
+                    semititle = title[colon_idx+1:]
+                    a_semititle = semititle.split('/')
+                    if len(a_semititle) > 1: ##title is Namespace:User/Extra
+                        extra_title = '/'.join(a_semititle[1:])
+                        if not re.match('archiv', extra_title, re.I):
+                            logging.warn('Discard page %s' % (
+                                title.encode('utf-8')))
+                            return
+                    user = a_semititle[0]
                 else:
                     return
             except KeyError:
