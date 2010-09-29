@@ -23,3 +23,6 @@ centrality:
 all-hist: graph enrich hist
 
 all: graph enrich analysis
+
+test:
+	nosetests
