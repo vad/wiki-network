@@ -14,7 +14,6 @@
 ##########################################################################
 
 from bz2 import BZ2File
-import mwlib
 import os, sys
 import re
 from time import time
@@ -25,6 +24,7 @@ from lxml import etree
 ## multiprocessing
 from multiprocessing.dummy import Queue, Process
 
+from sonet import mediawiki as mwlib
 
 count = 0
 lang = None
@@ -44,37 +44,37 @@ def merge_templates(big, small):
         big.setdefault(k, 0) #set big[k] if not already defined
         big[k] += v
 
-        
+
 def get_freq_dist(q, done_q, templates=None):
     if not templates:
         templates = {}
-    
+
     while 1:
         s = q.get()
-        
+
         try:
             page_templates = mwlib.getTemplates(s)
             merge_templates(templates, page_templates)
         except TypeError: ## end
             done_q.put(templates)
-            
+
             return
-        
+
 ### CHILD PROCESS: XML READER
 def xml_to_queue(src, queue, lu, lut):
     global lang_user, lang_user_talk
-    
+
     lang_user = lu
     lang_user_talk = lut
-    
+
     mwlib.fast_iter_queue(etree.iterparse(src, tag=tag['page'], huge_tree=True), process_page, queue)
-        
-    
+
+
 ### MAIN PROCESS
 def process_page(elem, q):
     user = None
     global count, templates
-    
+
     for child in elem:
         if child.tag == tag['title'] and child.text:
             a_title = child.text.split('/')[0].split(':')
@@ -96,7 +96,7 @@ def process_page(elem, q):
                 try:
                     q.put(rc.text)
                     count += 1
-                    
+
                     if not count % 500:
                         print >>sys.stderr, count
                 except:
@@ -123,18 +123,18 @@ def main():
     lang_user, lang_user_talk = mwlib.getTranslations(src)
 
     assert lang_user, "User namespace not found"
-    assert lang_user_talk, "User Talk namespace not found"    
-    
+    assert lang_user_talk, "User Talk namespace not found"
+
     ## XML Reader Process
     rp = Process(target=xml_to_queue, args=(src, queue, lang_user, lang_user_talk))
     rp.start()
-    
+
     p = Process(target=get_freq_dist, args=(queue, done_queue))
     p.start()
-    
+
     rp.join()
     print >>sys.stderr, "end of XML processing"
-    
+
     queue.put(None) ## this STOPS the process
     templates = done_queue.get()
     p.join()

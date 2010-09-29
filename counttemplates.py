@@ -14,13 +14,14 @@
 ##########################################################################
 
 from bz2 import BZ2File
-import mwlib
 import os, sys
 import re
 from time import time
 
 ## etree
 from lxml import etree
+
+from sonet import mediawiki as mwlib
 
 count = 0
 lang = None
@@ -41,7 +42,7 @@ def merge_templates(big, small):
 def process_page(elem):
     user = None
     global count, templates
-    
+
     for child in elem:
         if child.tag == tag['title'] and child.text:
             a_title = child.text.split('/')[0].split(':')
@@ -64,7 +65,7 @@ def process_page(elem):
                     page_templates = mwlib.getTemplates(rc.text)
                     merge_templates(templates, page_templates)
                     count += 1
-                    
+
                     if not count % 500:
                         print >> sys.stderr, count
                 except:

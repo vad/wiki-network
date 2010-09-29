@@ -1,7 +1,7 @@
 from celery.task import Task
 from celery.registry import tasks
 from subprocess import *
-import settings
+from django_wikinetwork import settings
 
 class AnalyseTask(Task):
     def run(self, lang, options):
