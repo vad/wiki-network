@@ -193,6 +193,7 @@ def getTemplates(rawWikiText):
 #    import nltk
 
 def addGroupAttribute(g, lang, group='bot', edits_only=False):
+
     users = getUsersGroup(lang, group, edits_only)
 
     if not users:

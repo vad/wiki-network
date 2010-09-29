@@ -16,13 +16,11 @@
 ## etree
 from lxml import etree
 
-import sys
 from bz2 import BZ2File
-import re
+import sys
 #import cProfile as profile
 from functools import partial
 import logging
-logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 from sonet.graph import load as sg_load
 from sonet import lib
@@ -39,6 +37,10 @@ lang_user, lang_user_talk = None, None
 tag = {}
 en_user, en_user_talk = u"User", u"User talk"
 user_classes = None
+
+## frequency distribution
+
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 ### CHILD PROCESS
 def get_freq_dist(recv, send, fd=None, classes=None):
@@ -57,9 +59,10 @@ def get_freq_dist(recv, send, fd=None, classes=None):
         classes = ('anonymous', 'bot', 'bureaucrat', 'sysop', 'normal user',
                    'all')
 
-    # prepare a dict of empty FreqDist, one for class
+    # prepare a dict of empty FreqDist, one for every class
     if not fd:
-        fd = dict([(cls, nltk.FreqDist()) for cls in classes])
+        fd = dict(zip(classes,
+                      [nltk.FreqDist() for _ in range(len(classes))]))
 
     while 1:
         try:
@@ -92,26 +95,18 @@ def process_page(elem, send):
     send is a Pipe connection, write only
     """
     user = None
-    title = None
     global count_utp, count_missing
 
     for child in elem:
         if child.tag == tag['title'] and child.text:
-            title = child.text
-            colon_idx = title.find(':')
-            namespace = title[:colon_idx]
+            a_title = child.text.split('/')[0].split(':')
 
-            if colon_idx > 0 and namespace in (en_user_talk, lang_user_talk):
-                semititle = title[colon_idx+1:]
-                a_semititle = semititle.split('/')
-                if len(a_semititle) > 1: ##title is Namespace:User/Extra
-                    extra_title = '/'.join(a_semititle[1:])
-                    if not re.match('(?:archiv|vecch)', extra_title, re.I):
-                        logging.warn('Discard page %s' % (
-                            title.encode('utf-8')))
-                        return
-                user = a_semititle[0]
-            else:
+            try:
+                if a_title[0] in (en_user_talk, lang_user_talk):
+                    user = a_title[1]
+                else:
+                    return
+            except KeyError:
                 return
         elif child.tag == tag['revision']:
             for rc in child:
@@ -125,8 +120,8 @@ def process_page(elem, send):
                 try:
                     send.send((user_classes[user.encode('utf-8')], rc.text))
                 except:
-                    logging.warn("Exception with user %s, page %s" % (
-                        user.encode('utf-8'), title.encode('utf-8')))
+                    logging.warn("Exception with user %s" % (
+                        user.encode('utf-8'),))
                     count_missing += 1
 
                 count_utp += 1
