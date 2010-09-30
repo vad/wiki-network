@@ -53,6 +53,9 @@ dsmile = {
     'happy': (r':[ -]?[)\]>]', r'=[)\]>]', r'\^[_\- .]?\^', 'x\)', r'\(^_^\)'),
     'sad': (r':[\- ]?[(\[<]', r'=[(\[<]'),
     'laugh': (r':[ -]?D', '=D'),
+    'tongue': (':-?[pP]', '=[pP]', 'xP'),
+    'normal': (r':[\- ]?\|',),
+    'cool': (r'8[\- ]?\)',),
 }
 
 ## r argument is just for caching
@@ -76,12 +79,16 @@ def find_smiles(text, dsmile=dsmile):
     {'happy': 2}
     >>> find_smiles('^^')
     {'happy': 1}
+    >>> find_smiles(' :|')
+    {'normal': 1}
     """
     res = {}
     for name, lsmile in dsmile.iteritems():
-        regex_smile = '(?:%s)' % ('|'.join(lsmile))
-        res[name] = len([1 for match in re.findall(regex_smile, text)
+        regex_smile = r'(?:(?:\s|^)%s)' % (r'|(?:\s|^)'.join(lsmile))
+        matches = len([1 for match in re.findall(regex_smile, text)
                          if match])
+        if matches:
+            res[name] = matches
 
     return dict(res)
 
@@ -101,6 +108,7 @@ def get_freq_dist(recv, send, fd=None, dcount_smile=None, classes=None):
         Smile counters
     """
     from operator import itemgetter
+    from collections import Counter
     stopwords = frozenset(
         nltk.corpus.stopwords.words('italian')
         ).union(
@@ -118,7 +126,7 @@ def get_freq_dist(recv, send, fd=None, dcount_smile=None, classes=None):
     if not fd:
         fd = dict([(cls, nltk.FreqDist()) for cls in classes])
     if not dcount_smile:
-        dcount_smile = dict([(cls, {}) for cls in classes])
+        dcount_smile = dict([(cls, Counter()) for cls in classes])
 
     while 1:
         try:
