@@ -21,6 +21,11 @@ import sys
 #import cProfile as profile
 from functools import partial
 import logging
+import re
+from collections import defaultdict
+
+## multiprocessing
+from multiprocessing import Pipe, Process
 
 from sonet.graph import load as sg_load
 from sonet import lib
@@ -29,8 +34,7 @@ import sonet.mediawiki as mwlib
 ## nltk
 import nltk
 
-## multiprocessing
-from multiprocessing import Pipe, Process
+
 
 count_utp, count_missing = 0, 0
 lang_user, lang_user_talk = None, None
@@ -43,15 +47,66 @@ user_classes = None
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 ### CHILD PROCESS
-def get_freq_dist(recv, send, fd=None, classes=None):
+
+# smile dictionary
+dsmile = {
+    'happy': (r':[ -]?[)\]>]', r'=[)\]>]', r'\^[_\- .]?\^', 'x\)', r'\(^_^\)'),
+    'sad': (r':[\- ]?[(\[<]', r'=[(\[<]'),
+    'laugh': (r':[ -]?D', '=D'),
+}
+
+## r argument is just for caching
+def remove_templates(text, r=re.compile(r"{{.*?}}")):
     """
-    recv and send are two Pipe connections.
+    Remove Mediawiki templates from given text:
+
+    >>> remove_templates("hello{{template}} world")
+    'hello world'
+    >>> remove_templates("hello{{template}} world{{template2}}")
+    'hello world'
+    """
+    return r.sub("", text)
+
+## dsmile argument is just for caching
+def find_smiles(text, dsmile=dsmile):
+    """
+    Find smiles in text and returns a dictionary of found smiles
+
+    >>> find_smiles(':) ^^')
+    {'happy': 2}
+    >>> find_smiles('^^')
+    {'happy': 1}
+    """
+    res = {}
+    for name, lsmile in dsmile.iteritems():
+        regex_smile = '(?:%s)' % ('|'.join(lsmile))
+        res[name] = len([1 for match in re.findall(regex_smile, text)
+                         if match])
+
+    return dict(res)
+
+def get_freq_dist(recv, send, fd=None, dcount_smile=None, classes=None):
+    """
+    Find word frequency distribution and count smile in the given text.
+
+    Parameters
+    ----------
+    recv : multiprocessing.Connection
+        Read only
+    send : multiprocessing.Connection
+        Write only
+    fd : dict
+        Word frequency distributions
+    dcount_smile : dict
+        Smile counters
     """
     from operator import itemgetter
     stopwords = frozenset(
         nltk.corpus.stopwords.words('italian')
         ).union(
-            frozenset("[]':,(){}.?!")
+            frozenset("[]':,(){}.?!*\"")
+        ).union(
+            frozenset(("==", "--"))
         )
     tokenizer = nltk.PunktWordTokenizer()
 
@@ -61,20 +116,31 @@ def get_freq_dist(recv, send, fd=None, classes=None):
 
     # prepare a dict of empty FreqDist, one for every class
     if not fd:
-        fd = dict(zip(classes,
-                      [nltk.FreqDist() for _ in range(len(classes))]))
+        fd = dict([(cls, nltk.FreqDist()) for cls in classes])
+    if not dcount_smile:
+        dcount_smile = dict([(cls, {}) for cls in classes])
 
     while 1:
         try:
             cls, msg = recv.recv()
         except TypeError: ## end
-            for cls, freq in fd.iteritems():
-                send.send((cls, sorted(freq.items(),
-                                       key=itemgetter(1),
-                                       reverse=True)[:1000]))
-            send.send(0)
+            send.send([(cls, sorted(freq.items(),
+                                    key=itemgetter(1),
+                                    reverse=True)[:1000])
+                       for cls, freq in fd.iteritems()])
+            send.send([(cls, sorted(counters.items(),
+                                    key=itemgetter(1),
+                                    reverse=True))
+                       for cls, counters in dcount_smile.iteritems()])
 
             return
+
+        msg = remove_templates(msg)
+
+        ## TODO: update 'all' just before sending by summing the other fields
+        count_smile = find_smiles(msg)
+        dcount_smile[cls].update(count_smile)
+        dcount_smile['all'].update(count_smile)
 
         tokens = tokenizer.tokenize(nltk.clean_html(msg.encode('utf-8')
                                                         .lower()))
@@ -117,12 +183,16 @@ def process_page(elem, send):
                 if not (rc.text and user):
                     continue
 
+                user = user.encode('utf-8')
                 try:
-                    send.send((user_classes[user.encode('utf-8')], rc.text))
+                    send.send((user_classes[user], rc.text))
                 except:
-                    logging.warn("Exception with user %s" % (
-                        user.encode('utf-8'),))
-                    count_missing += 1
+                    ## fix for anonymous users not in the rich file
+                    if mwlib.isip(user):
+                        send.send(('anonymous', rc.text))
+                    else:
+                        logging.warn("Exception with user %s" % (user,))
+                        count_missing += 1
 
                 count_utp += 1
 
@@ -178,16 +248,20 @@ def main():
 
     print >> sys.stderr, "end of parsing"
 
-    while 1:
-        try:
-            cls, fd = done_p_receiver.recv()
-        except TypeError:
-            break
-
+    # get a list of pair (class name, frequency distributions)
+    for cls, fd in done_p_receiver.recv():
         with open("%swiki-%s-words-%s.dat" %
                   (lang, date,
                    cls.replace(' ', '_')), 'w') as out:
             for k, v in fd:
+                print >> out, v, k
+    del fd
+
+    for cls, counters in done_p_receiver.recv():
+        with open("%swiki-%s-smile-%s.dat" %
+                  (lang, date,
+                   cls.replace(' ', '_')), 'w') as out:
+            for k, v in counters:
                 print >> out, v, k
 
     p.join()
