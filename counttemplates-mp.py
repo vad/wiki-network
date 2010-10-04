@@ -71,7 +71,8 @@ def xml_to_queue(src, queue, lu, lut):
 
 
 ### MAIN PROCESS
-def process_page(elem, q):
+def process_page(elem, queue=None):
+    q = queue
     user = None
     global count, templates
 
@@ -105,7 +106,9 @@ def process_page(elem, q):
 
 
 def main():
+    from functools import partial
     import optparse
+    from operator import itemgetter
 
     p = optparse.OptionParser(usage="usage: %prog [options] file")
     opts, files = p.parse_args()
@@ -120,26 +123,27 @@ def main():
 
     tag = mwlib.getTags(src)
 
-    lang_user, lang_user_talk = mwlib.getTranslations(src)
+    translations = mwlib.getTranslations(src)
+    lang_user, lang_user_talk = translations['User'], translations['User talk']
 
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
 
-    ## XML Reader Process
-    rp = Process(target=xml_to_queue, args=(src, queue, lang_user, lang_user_talk))
-    rp.start()
-
     p = Process(target=get_freq_dist, args=(queue, done_queue))
     p.start()
 
-    rp.join()
+    ## XML Reader Process
+    partial_process_page = partial(process_page, queue=queue)
+    mwlib.fast_iter(etree.iterparse(src, tag=tag['page']),
+                    partial_process_page)
+
     print >>sys.stderr, "end of XML processing"
 
     queue.put(None) ## this STOPS the process
     templates = done_queue.get()
     p.join()
 
-    for k, v in sorted(templates.items(),cmp=lambda x,y: cmp(x[1], y[1]),reverse=True):
+    for k, v in sorted(templates.items(), key=itemgetter(1), reverse=True):
         print v, k.encode('utf-8')
 
 

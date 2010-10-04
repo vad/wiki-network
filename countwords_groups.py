@@ -173,6 +173,7 @@ def process_page(elem, send):
 
     for child in elem:
         if child.tag == tag['title'] and child.text:
+            ##TODO: fix this for archive (keep) and sandbox (discard)
             a_title = child.text.split('/')[0].split(':')
 
             try:
