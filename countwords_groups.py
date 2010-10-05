@@ -164,6 +164,18 @@ def get_freq_dist(recv, send, fd=None, dcount_smile=None, classes=None):
 
 
 ### MAIN PROCESS
+
+def get_class(g, cls):
+    if cls == 'all':
+        users = g.g.vs
+    elif cls == 'normal user':
+        users = g.g.vs.select(**{'bot_ne': True, 'anonymous_ne': True,
+                                 'sysop_ne': True,
+                                 'bureaucrat_ne': True})
+    else:
+        users = g.g.vs.select(**{cls: True})
+    return users
+
 def process_page(elem, send):
     """
     send is a Pipe connection, write only
@@ -173,16 +185,28 @@ def process_page(elem, send):
 
     for child in elem:
         if child.tag == tag['title'] and child.text:
-            ##TODO: fix this for archive (keep) and sandbox (discard)
-            a_title = child.text.split('/')[0].split(':')
+            title = child.text
 
             try:
-                if a_title[0] in (en_user_talk, lang_user_talk):
-                    user = a_title[1]
-                else:
-                    return
-            except KeyError:
+                colon_idx = title.index(':')
+            except ValueError: # ':' not found
                 return
+            namespace = title[:colon_idx]
+
+            if namespace not in (en_user_talk, lang_user_talk):
+                return
+            pagename = title[colon_idx+1:]
+            try:
+                pagename_idx = pagename.index('/')
+            except ValueError: # '/' not found
+                user = pagename
+            else:
+                suffix = pagename[pagename_idx+1:]
+                if re.match(r'(?:vecchi|archiv|old)', suffix, re.I) is None:
+                    logging.debug('Discard %s' % (title.encode('utf-8'),))
+                    return
+                logging.debug('Keep %s' % (title.encode('utf-8'),))
+                user = pagename[:pagename_idx]
         elif child.tag == tag['revision']:
             for rc in child:
                 if rc.tag != tag['text']:
@@ -232,7 +256,8 @@ def main():
 
     tag = mwlib.getTags(src)
     lang, date, _ = mwlib.explode_dump_filename(xml)
-    user_classes = dict(sg_load(rich_fn).get_user_class('username',
+    g = sg_load(rich_fn)
+    user_classes = dict(g.get_user_class('username',
                                   ('anonymous', 'bot', 'bureaucrat','sysop')))
 
     p = Process(target=get_freq_dist, args=(p_receiver, done_p_sender))
@@ -257,11 +282,16 @@ def main():
 
     print >> sys.stderr, "end of parsing"
 
+    g.set_weighted_degree()
     # get a list of pair (class name, frequency distributions)
     for cls, fd in done_p_receiver.recv():
         with open("%swiki-%s-words-%s.dat" %
                   (lang, date,
                    cls.replace(' ', '_')), 'w') as out:
+            # users in this group
+            users = get_class(g, cls)
+            print >> out, '#users: ', len(users)
+            print >> out, '#msgs: ', sum(users['weighted_indegree'])
             for k, v in fd:
                 print >> out, v, k
     del fd
@@ -270,6 +300,10 @@ def main():
         with open("%swiki-%s-smile-%s.dat" %
                   (lang, date,
                    cls.replace(' ', '_')), 'w') as out:
+            # users in this group
+            users = get_class(g, cls)
+            print >> out, '#users: ', len(users)
+            print >> out, '#msgs: ', sum(users['weighted_indegree'])
             for k, v in counters:
                 print >> out, v, k
 
