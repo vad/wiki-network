@@ -34,8 +34,6 @@ import sonet.mediawiki as mwlib
 ## nltk
 import nltk
 
-
-
 count_utp, count_missing = 0, 0
 lang_user, lang_user_talk = None, None
 tag = {}
@@ -188,25 +186,10 @@ def process_page(elem, send):
             title = child.text
 
             try:
-                colon_idx = title.index(':')
-            except ValueError: # ':' not found
+                user = mwlib.username_from_utp(title,
+                                               (en_user_talk, lang_user_talk))
+            except ValueError:
                 return
-            namespace = title[:colon_idx]
-
-            if namespace not in (en_user_talk, lang_user_talk):
-                return
-            pagename = title[colon_idx+1:]
-            try:
-                pagename_idx = pagename.index('/')
-            except ValueError: # '/' not found
-                user = pagename
-            else:
-                suffix = pagename[pagename_idx+1:]
-                if re.match(r'(?:vecchi|archiv|old)', suffix, re.I) is None:
-                    logging.debug('Discard %s' % (title.encode('utf-8'),))
-                    return
-                logging.debug('Keep %s' % (title.encode('utf-8'),))
-                user = pagename[:pagename_idx]
         elif child.tag == tag['revision']:
             for rc in child:
                 if rc.tag != tag['text']:
@@ -283,13 +266,18 @@ def main():
     print >> sys.stderr, "end of parsing"
 
     g.set_weighted_degree()
+    users_cache = {}
     # get a list of pair (class name, frequency distributions)
     for cls, fd in done_p_receiver.recv():
         with open("%swiki-%s-words-%s.dat" %
                   (lang, date,
                    cls.replace(' ', '_')), 'w') as out:
             # users in this group
-            users = get_class(g, cls)
+            try:
+                users = users_cache[cls]
+            except KeyError:
+                users = get_class(g, cls)
+                users_cache[cls] = users
             print >> out, '#users: ', len(users)
             print >> out, '#msgs: ', sum(users['weighted_indegree'])
             for k, v in fd:
@@ -301,7 +289,11 @@ def main():
                   (lang, date,
                    cls.replace(' ', '_')), 'w') as out:
             # users in this group
-            users = get_class(g, cls)
+            try:
+                users = users_cache[cls]
+            except KeyError:
+                users = get_class(g, cls)
+                users_cache[cls] = users
             print >> out, '#users: ', len(users)
             print >> out, '#msgs: ', sum(users['weighted_indegree'])
             for k, v in counters:

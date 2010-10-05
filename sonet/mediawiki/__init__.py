@@ -306,8 +306,8 @@ def getNamespaces(src):
         while 1:
             line = src.readline()
             if not line: break
-            keys = re.findall(r'<namespace key="(-?\d+)"[^>]*>([^<]*)</namespace>',
-                              line)
+            keys = re.findall(
+                r'<namespace key="(-?\d+)"[^>]*>([^<]*)</namespace>', line)
             for key, ns in keys:
                 namespaces.append((key, ns))
 
@@ -398,3 +398,46 @@ def count_renames(lang):
     return counter
 
 Message = namedtuple('Message', 'time welcome')
+
+def username_from_utp(title, namespaces=None):
+    """
+    Returns the user which owns this User Talk Page (UTP). Raise a ValueError
+    exception if this is not a UTP or if it looks like a Sandbox (or
+    something that's not a UTP or an archive). If UTP is not an english
+    wikipedia page, use namespaces to specify namespaces you're looking for.
+
+    >>> username_from_utp('User talk:Ugo')
+    'Ugo'
+    >>> username_from_utp('Discussione utente:Ugo', (u'User talk', u'Discussione utente'))
+    'Ugo'
+    >>> username_from_utp('User talk:Ugo/Archive2009')
+    'Ugo'
+    >>> username_from_utp('User talk:Ugo/Alfabeto')
+    Traceback (most recent call last):
+    ...
+    ValueError: Not an archive page
+
+    """
+    if namespaces is None:
+        namespaces = (u'User talk',)
+
+    ## can raise ValueError exception (not UTP)
+    colon_idx = title.index(':')
+
+    namespace = title[:colon_idx]
+
+    if namespace not in namespaces:
+        raise ValueError('Not a User Talk Page')
+    pagename = title[colon_idx+1:]
+    try:
+        pagename_idx = pagename.index('/')
+    except ValueError: # '/' not found
+        return pagename
+    else:
+        suffix = pagename[pagename_idx+1:]
+        ##TODO: this regex should be a parameter
+        if re.match(r'(?:vecchi|archiv|old)', suffix, re.I) is None:
+            logging.debug('Discard %s' % (title.encode('utf-8'),))
+            raise ValueError('Not an archive page')
+        logging.debug('Keep %s' % (title.encode('utf-8'),))
+        return pagename[:pagename_idx]
