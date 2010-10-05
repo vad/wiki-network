@@ -16,7 +16,7 @@ import re
 import sys
 from socket import inet_ntoa, inet_aton, error
 from urllib import urlopen
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 import logging
 
 from pageprocessor import PageProcessor, HistoryPageProcessor
@@ -181,12 +181,11 @@ def getTemplates(rawWikiText):
     rex = '\{\{(\{?[^\}\|\{]*)'
     matches = re.finditer(rex, rawWikiText)
 
-    weights = dict()
+    weights = defaultdict(int)
     for tm in matches:
-        t = tm.group(1)
-        weights[t] = weights.get(t, 0) + 1
+        weights[normalize_pagename(tm.group(1))] += 1
 
-    return weights
+    return dict(weights)
 
 
 #def getWords(rawWikiText):

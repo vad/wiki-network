@@ -2,6 +2,11 @@ import igraph as ig
 import numpy
 
 def load(fn):
+    """
+    Load a graph from file with name fn.
+
+    Returns a sonet.graph.Graph
+    """
     return Graph(ig.load(fn))
 
 
@@ -18,7 +23,8 @@ class Graph(object):
     def efficiency(self, weight=None):
         r"""Returns the efficiency of the graph
 
-        @param weight: (string) specify which attribute to use. Do not specify if the graph is not weighted
+        @param weight: (string) specify which attribute to use.
+                       Do not specify if the graph is not weighted
         """
         isinstance(self.g, ig.Graph) # helper for wing
         effSum = 0.
@@ -46,7 +52,7 @@ class Graph(object):
         return efficiency
 
     def set_weighted_degree(self, type=ig.IN, remove_loops=True):
-        #todo: improve self-loops check
+        #TODO: improve self-loops check
         stype = type == ig.IN and "in" or "out"
         k = 'weighted_%sdegree' % stype
 
