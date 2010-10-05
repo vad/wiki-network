@@ -14,17 +14,16 @@
 ##########################################################################
 
 from bz2 import BZ2File
-import os, sys
-import re
-from time import time
+import sys
 
 ## etree
 from lxml import etree
 
 ## multiprocessing
-from multiprocessing.dummy import Queue, Process
+from multiprocessing import Queue, Process
 
 from sonet import mediawiki as mwlib
+from sonet.graph import load as sg_load
 
 count = 0
 lang = None
@@ -54,27 +53,20 @@ def get_freq_dist(q, done_q, templates=None):
 
         try:
             page_templates = mwlib.getTemplates(s)
+
+            ##TODO: replace this with collections.Counter
             merge_templates(templates, page_templates)
         except TypeError: ## end
             done_q.put(templates)
 
             return
 
-### CHILD PROCESS: XML READER
-def xml_to_queue(src, queue, lu, lut):
-    global lang_user, lang_user_talk
-
-    lang_user = lu
-    lang_user_talk = lut
-
-    mwlib.fast_iter_queue(etree.iterparse(src, tag=tag['page'], huge_tree=True), process_page, queue)
-
 
 ### MAIN PROCESS
 def process_page(elem, queue=None):
     q = queue
     user = None
-    global count, templates
+    global count
 
     for child in elem:
         if child.tag == tag['title'] and child.text:
@@ -94,15 +86,20 @@ def process_page(elem, queue=None):
                 if not (rc.text and user):
                     continue
 
+                user = user.encode('utf-8')
                 try:
-                    q.put(rc.text)
-                    count += 1
-
-                    if not count % 500:
-                        print >>sys.stderr, count
+                    q.put((user_classes[user], rc.text))
                 except:
-                    print "Warning: exception with user %s" % (user.encode('utf-8'),)
-                    raise
+                    ## fix for anonymous users not in the rich file
+                    if mwlib.isip(user):
+                        send.send(('anonymous', rc.text))
+                    else:
+                        logging.warn("Exception with user %s" % (user,))
+                        count_missing += 1
+
+                count += 1
+                if not count % 500:
+                    print >>sys.stderr, count
 
 
 def main():
@@ -111,11 +108,12 @@ def main():
     from operator import itemgetter
 
     p = optparse.OptionParser(usage="usage: %prog [options] file")
-    opts, files = p.parse_args()
+    _, files = p.parse_args()
 
-    if not files:
+    if len(files) != 2:
         p.error("Give me a file, please ;-)")
     xml_filename = files[0]
+    rich_fn = files[1]
 
     global lang_user_talk, lang_user, tag, templates
 
@@ -128,6 +126,9 @@ def main():
 
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
+
+    user_classes = dict(sg_load(rich_fn).get_user_class('username',
+                            ('anonymous', 'bot', 'bureaucrat','sysop')))
 
     p = Process(target=get_freq_dist, args=(queue, done_queue))
     p.start()
