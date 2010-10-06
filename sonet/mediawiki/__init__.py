@@ -12,16 +12,18 @@
 #                                                                        #
 ##########################################################################
 
+import logging
 import re
 try:
     import re2
+    re2_compile_with_fallback = re2.compile
 except ImportError:
-    logging.warn('pyre2 not available: some functionaties can not be used')
+    logging.warn('pyre2 not available: some functionalities can not be used')
+    re2_compile_with_fallback = re.compile
 import sys
 from socket import inet_ntoa, inet_aton, error
 from urllib import urlopen
 from collections import namedtuple, defaultdict
-import logging
 import json
 
 from pageprocessor import PageProcessor, HistoryPageProcessor
@@ -53,7 +55,8 @@ def isip(s):
     except error:
         return False
 
-
+softredirect_regex = re2_compile_with_fallback(
+    r'^[\n ]*{{[\n ]*softredirect[\n ]*\|[^}\n]*\}\}')
 def isSoftRedirect(raw):
     r"""
     Find if the page starts with a soft redirect template
@@ -67,8 +70,7 @@ def isSoftRedirect(raw):
     >>> isSoftRedirect("some text {{softredirect|:en:User talk:bot}}")
     False
     """
-    rex = r'^[\n ]*{{[\n ]*softredirect[\n ]*\|[^}\n]*\}\}'
-    return re.match(rex, raw) is not None
+    return softredirect_regex.match(raw) is not None
 
 def is_archive(pagetitle):
     """
@@ -86,6 +88,8 @@ def is_archive(pagetitle):
     """
     return bool(pagetitle.count('/'))
 
+hardredirect_regex = re2_compile_with_fallback(
+    r'[\n ]*#REDIRECT[\n ]*\[\[[^]]*\]\]')
 def isHardRedirect(raw):
     """
     >>> isHardRedirect("   #REDIRECT [[User:me]]")
@@ -93,8 +97,7 @@ def isHardRedirect(raw):
     >>> isHardRedirect("[[User:me]]")
     False
     """
-    rex = r'[\n ]*#REDIRECT[\n ]*\[\[[^]]*\]\]'
-    return re.match(rex, raw) is not None
+    return hardredirect_regex.match(raw) is not None
 
 class SignatureFinder(object):
     re = None
@@ -132,10 +135,8 @@ class SignatureFinder(object):
 
         return weights
 
-## re_cache is a mutable, so it keeps state through function calls
 ## TODO: add a deprecation warning and move the doc into SignatureFinder
-def getCollaborators(rawWikiText, search, lang=None, signature='Sig',
-                     re_cache = {}):
+def getCollaborators(rawWikiText, search, lang=None, signature='Sig'):
     """
     Search for regular expression containing [[User:username|anchor text]] and
     count a new message from username to the owner of the page. It also works
@@ -176,10 +177,15 @@ def getCollaborators(rawWikiText, search, lang=None, signature='Sig',
     finder = SignatureFinder(search, lang, signature)
     return finder.find(rawWikiText)
 
-##TODO: add doctests
-def getTemplates(rawWikiText):
-    rex = '\{\{(\{?[^\}\|\{]*)'
-    matches = re.finditer(rex, rawWikiText)
+
+template_regex = re2_compile_with_fallback('\{\{(\{?[^\}\|\{]*)')
+
+def getTemplates(raw):
+    """
+    >>> getTemplates('{{template}}')
+    {'Template': 1}
+    """
+    matches = template_regex.finditer(raw)
 
     weights = defaultdict(int)
     for tm in matches:
@@ -192,7 +198,6 @@ def getTemplates(rawWikiText):
 #    import nltk
 
 def addGroupAttribute(g, lang, group='bot', edits_only=False):
-
     users = getUsersGroup(lang, group, edits_only)
 
     if not users:
@@ -399,8 +404,10 @@ def count_renames(lang):
 
 Message = namedtuple('Message', 'time welcome')
 
-def username_from_utp(title, namespaces=None,
-                      r = re2.compile(r'(?:vecchi|archiv|old)', re2.I)):
+
+utp_archive_regex = re2_compile_with_fallback(r'(?:vecchi|archiv|old)', re.I)
+
+def username_from_utp(title, namespaces=None):
     """
     Returns the user which owns this User Talk Page (UTP). Raise a ValueError
     exception if this is not a UTP or if it looks like a Sandbox (or
@@ -437,7 +444,7 @@ def username_from_utp(title, namespaces=None,
     else:
         suffix = pagename[pagename_idx+1:]
         ##TODO: this regex should be a parameter
-        if r.match(suffix) is None:
+        if utp_archive_regex.match(suffix) is None:
             logging.debug('Discard %s' % (title.encode('utf-8'),))
             raise ValueError('Not an archive page')
         logging.debug('Keep %s' % (title.encode('utf-8'),))

@@ -16,6 +16,12 @@
 import os
 import sys
 import re
+try:
+    import re2
+    re2_compile_with_fallback = re2.compile
+except ImportError:
+    logging.warn("pyre2 not available. It's gonna be a long job")
+    re2_compile_with_fallback = re.compile
 import time
 #import guppy
 from array import array
@@ -147,11 +153,14 @@ class ContribDict(dict):
         ATTR_LEN = len(namespaces)
         self._d_namespaces = dict([(name.decode('utf-8'), idx) for idx, (_,
             name) in enumerate(namespaces)])
-        self._re_welcome = re.compile(r'well?come', flags=re.IGNORECASE)
-        self._re_npov = re.compile(r'[ n]pov', flags=re.IGNORECASE)
-        self._re_please = re.compile(r'pl(s|z|ease)', flags=re.IGNORECASE)
-        self._re_thanks = re.compile(r'th(ank|anx|x)', flags=re.IGNORECASE)
-        self._re_revert = re.compile(r'(revert| rev )', flags=re.IGNORECASE)
+        self._re_welcome = re2_compile_with_fallback(r'well?come', flags=re.I)
+        self._re_npov = re2_compile_with_fallback(r'[ n]pov', flags=re.I)
+        self._re_please = re2_compile_with_fallback(r'pl(s|z|ease)',
+                                                    flags=re.I)
+        self._re_thanks = re2_compile_with_fallback(r'th(ank|anx|x)',
+                                                    flags=re.I)
+        self._re_revert = re2_compile_with_fallback(r'(revert| rev )',
+                                                    flags=re.I)
 
         contributions, self.connection = get_contributions_table()
         self.insert = contributions.insert()
