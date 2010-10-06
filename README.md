@@ -92,9 +92,8 @@ to be analyzed. It retrieves data from db about all the revisions of the specifi
 language and processes revisions' statistics for each found page, such as number of
 edits, number of unique editors, edits made in a range of days around event's
 anniversary, etc...
-
 Data are outputted in a csv file, bz2 compressed
 
 ### countwords_groups.py
 Given a current dump, count words found on every UTP and return the results
-    by group (the group which the user belongs).
+by group (the group which the user belongs).
