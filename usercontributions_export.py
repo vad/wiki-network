@@ -98,7 +98,7 @@ def main():
     else:
         src = deflate(xml)
 
-    namespaces = [v for _,v in mwlib.getNamespaces(src)]
+    namespaces = [v for _,v in mwlib.get_namespaces(src)]
 
     fout = BZ2File(out, 'w')
 

@@ -119,9 +119,9 @@ def main():
 
     src = BZ2File(xml_filename)
 
-    tag = mwlib.getTags(src)
+    tag = mwlib.get_tags(src)
 
-    translations = mwlib.getTranslations(src)
+    translations = mwlib.get_translations(src)
     lang_user, lang_user_talk = translations['User'], translations['User talk']
 
     assert lang_user, "User namespace not found"

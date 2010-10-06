@@ -427,11 +427,11 @@ def main():
     else:
         src = deflate(xml)
 
-    tag = mwlib.getTags(src,
+    tag = mwlib.get_tags(src,
         tags='page,title,revision,timestamp,contributor,username,ip'+ \
              ',comment,id,minor')
 
-    namespaces = mwlib.getNamespaces(src)
+    namespaces = mwlib.get_namespaces(src)
 
     src.close()
     logging.info("BEGIN PARSING")

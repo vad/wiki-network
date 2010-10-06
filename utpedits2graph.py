@@ -213,10 +213,10 @@ def main():
     else:
         src = deflate(xml)
 
-    tag = mwlib.getTags(src,
+    tag = mwlib.get_tags(src,
         tags='page,title,revision,timestamp,contributor,username,ip,comment')
 
-    translations = mwlib.getTranslations(src)
+    translations = mwlib.get_translations(src)
     lang_user = unicode(translations['User'])
     lang_user_talk = unicode(translations['User talk'])
 

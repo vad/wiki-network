@@ -104,9 +104,9 @@ def main():
 
     src = BZ2File(xml)
 
-    tag = mwlib.getTags(src)
+    tag = mwlib.get_tags(src)
 
-    ns_translation = mwlib.getTranslations(src)
+    ns_translation = mwlib.get_translations(src)
     lang_user, lang_user_talk = ns_translation['User'], \
              ns_translation['User talk']
 

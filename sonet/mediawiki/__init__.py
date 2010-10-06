@@ -286,7 +286,7 @@ def addBlockedAttribute(g, lang):
     return
 
 
-def getTags(src, tags='page,title,revision,text'):
+def get_tags(src, tags='page,title,revision,text'):
     # find namespace (eg: http://www.mediawiki.org/xml/export-0.3/)
     try:
         root = src.readline()
@@ -303,7 +303,7 @@ def getTags(src, tags='page,title,revision,text'):
     return tag
 
 
-def getNamespaces(src):
+def get_namespaces(src):
     try:
         counter = 0
         namespaces = []
@@ -325,8 +325,8 @@ def getNamespaces(src):
     return namespaces
 
 
-def getTranslations(src):
-    namespaces = dict(getNamespaces(src))
+def get_translations(src):
+    namespaces = dict(get_namespaces(src))
     translation = {
         'Talk': namespaces['1'],
         'User': namespaces['2'],

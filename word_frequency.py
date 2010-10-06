@@ -27,7 +27,7 @@ import nltk
 
 ## PROJECT LIBS
 from sonet.mediawiki import HistoryPageProcessor, explode_dump_filename, \
-     getTranslations, getTags
+     get_translations, get_tags
 from sonet import lib
 from sonet.timr import Timr
 
@@ -163,8 +163,8 @@ def main():
     else:
         src = deflate(xml)
 
-    translation = getTranslations(src)
-    tag = getTags(src, tags='page,title,revision,'+ \
+    translation = get_translations(src)
+    tag = get_tags(src, tags='page,title,revision,'+ \
                   'minor,timestamp,redirect,text')
 
     src.close()
