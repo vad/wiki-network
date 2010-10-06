@@ -21,6 +21,7 @@ import sys
 #import cProfile as profile
 from functools import partial
 import logging
+from collections import Counter
 #logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 try:
     import re2 as re
@@ -114,7 +115,6 @@ def get_freq_dist(recv, send, fd=None, dcount_smile=None, classes=None):
         Smile counters
     """
     from operator import itemgetter
-    from collections import Counter
     stopwords = frozenset(
         nltk.corpus.stopwords.words('italian')
         ).union(
@@ -128,16 +128,20 @@ def get_freq_dist(recv, send, fd=None, dcount_smile=None, classes=None):
         classes = ('anonymous', 'bot', 'bureaucrat', 'sysop', 'normal user',
                    'all')
 
-    # prepare a dict of empty FreqDist, one for every class
+    # prepare a dict of empty Counter, one for every class
     if not fd:
-        fd = dict([(cls, nltk.FreqDist()) for cls in classes])
+        fd = {cls: Counter() for cls in classes}
     if not dcount_smile:
-        dcount_smile = dict([(cls, Counter()) for cls in classes])
+        dcount_smile = fd = {cls: Counter() for cls in classes}
 
     while 1:
         try:
             cls, msg = recv.recv()
         except TypeError: ## end
+            for cls in set(classes).difference(('all',)):
+                fd['all'].update(fd[cls])
+                dcount_smile['all'].update(dcount_smile[cls])
+
             send.send([(cls, sorted(freq.items(),
                                     key=itemgetter(1),
                                     reverse=True)[:1000])
@@ -151,16 +155,13 @@ def get_freq_dist(recv, send, fd=None, dcount_smile=None, classes=None):
 
         msg = remove_templates(msg.encode('utf-8'))
 
-        ## TODO: update 'all' just before sending by summing the other fields
         count_smile = find_smiles(msg)
         dcount_smile[cls].update(count_smile)
-        dcount_smile['all'].update(count_smile)
 
         tokens = tokenizer.tokenize(nltk.clean_html(msg.lower()))
 
-        text = nltk.Text(t for t in tokens if t not in stopwords)
-        fd[cls].update(text)
-        fd['all'].update(text)
+        tokens = [t for t in tokens if t not in stopwords]
+        fd[cls].update(tokens)
 
 
 #def get_freq_dist_wrapper(recv, send, fd=None, dcount_smile=None, classes=None):
@@ -214,7 +215,7 @@ def process_page(elem, send):
                     if mwlib.isip(user):
                         send.send(('anonymous', rc.text))
                     else:
-                        logging.warn("Exception with user %s" % (user,))
+                        logging.warn("Exception with user %s", user)
                         count_missing += 1
 
                 count_utp += 1
@@ -244,7 +245,7 @@ def main():
 
     src = BZ2File(xml)
 
-    tag = mwlib.getTags(src)
+    tag = mwlib.get_tags(src)
     lang, date, _ = mwlib.explode_dump_filename(xml)
     g = sg_load(rich_fn)
     user_classes = dict(g.get_user_class('username',
@@ -253,7 +254,7 @@ def main():
     p = Process(target=get_freq_dist, args=(p_receiver, done_p_sender))
     p.start()
 
-    translations = mwlib.getTranslations(src)
+    translations = mwlib.get_translations(src)
     lang_user, lang_user_talk = translations['User'], translations['User talk']
 
     assert lang_user, "User namespace not found"
@@ -266,7 +267,7 @@ def main():
     partial_process_page = partial(process_page, send=p_sender)
     mwlib.fast_iter(etree.iterparse(src, tag=tag['page']),
                     partial_process_page)
-    logging.info('Users missing in the rich file: %d' % (count_missing,))
+    logging.info('Users missing in the rich file: %d', count_missing)
 
     p_sender.send(0) ## this STOPS the process
 
