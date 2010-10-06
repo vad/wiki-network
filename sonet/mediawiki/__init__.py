@@ -236,7 +236,7 @@ def getUsersGroup(lang, group='bot', edits_only=False):
             list_.extend(user['name'].encode('utf-8')
                          for user in res['query']['allusers'])
         except KeyError:
-            logging.warn('Group %s has errors or has no users' % group)
+            logging.warn('Group %s has errors or has no users', group)
             return
         logging.info(len(list_))
 
@@ -257,7 +257,7 @@ def addBlockedAttribute(g, lang):
     while True:
         if start:
             url = '%s&bkstart=%s' % (base_url, start)
-        logging.info("BLOCKED USERS: url = %s" % url)
+        logging.info("BLOCKED USERS: url = %s", url)
         res = json.load(urlopen(url))
 
         if not res.has_key('query') or not res['query']['blocks']:
@@ -445,7 +445,7 @@ def username_from_utp(title, namespaces=None):
         suffix = pagename[pagename_idx+1:]
         ##TODO: this regex should be a parameter
         if utp_archive_regex.match(suffix) is None:
-            logging.debug('Discard %s' % (title.encode('utf-8'),))
+            logging.debug('Discard %s', title.encode('utf-8'))
             raise ValueError('Not an archive page')
-        logging.debug('Keep %s' % (title.encode('utf-8'),))
+        logging.debug('Keep %s', title.encode('utf-8'))
         return pagename[:pagename_idx]

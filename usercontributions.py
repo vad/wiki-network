@@ -375,7 +375,7 @@ class UserContributionsPageProcessor(mwlib.PageProcessor):
 
         self.count += 1
         if not self.count % 500:
-            logging.debug("%d %d" %(self.count, self.count_revision))
+            logging.debug("%d %d", self.count, self.count_revision)
             #with Timr('guppy'):
             #    logging.debug(guppy.hpy().heap())
 

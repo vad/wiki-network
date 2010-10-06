@@ -94,7 +94,7 @@ def process_page(elem, queue=None):
                     if mwlib.isip(user):
                         send.send(('anonymous', rc.text))
                     else:
-                        logging.warn("Exception with user %s" % (user,))
+                        logging.warn("Exception with user %s", user)
                         count_missing += 1
 
                 count += 1
