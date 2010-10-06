@@ -21,8 +21,12 @@ import sys
 #import cProfile as profile
 from functools import partial
 import logging
-import re
-from collections import defaultdict
+#logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+try:
+    import re2 as re
+except ImportError:
+    logging.warn("pyre2 not available. It's gonna be a long job")
+    import re
 
 ## multiprocessing
 from multiprocessing import Pipe, Process
@@ -40,10 +44,6 @@ tag = {}
 en_user, en_user_talk = u"User", u"User talk"
 user_classes = None
 
-## frequency distribution
-
-logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
-
 ### CHILD PROCESS
 
 # smile dictionary
@@ -55,6 +55,15 @@ dsmile = {
     'normal': (r':[\- ]?\|',),
     'cool': (r'8[\- ]?\)',),
 }
+
+def build_smile_re(dsmile):
+    out = {}
+    for name, lsmile in dsmile.items():
+        out[name] = re.compile(r'(?:(?:\s|^)%s)' % (r'|(?:\s|^)'.join(lsmile)))
+
+    return out
+
+re_smile = build_smile_re(dsmile)
 
 ## r argument is just for caching
 def remove_templates(text, r=re.compile(r"{{.*?}}")):
@@ -69,7 +78,7 @@ def remove_templates(text, r=re.compile(r"{{.*?}}")):
     return r.sub("", text)
 
 ## dsmile argument is just for caching
-def find_smiles(text, dsmile=dsmile):
+def find_smiles(text):
     """
     Find smiles in text and returns a dictionary of found smiles
 
@@ -81,14 +90,13 @@ def find_smiles(text, dsmile=dsmile):
     {'normal': 1}
     """
     res = {}
-    for name, lsmile in dsmile.iteritems():
-        regex_smile = r'(?:(?:\s|^)%s)' % (r'|(?:\s|^)'.join(lsmile))
-        matches = len([1 for match in re.findall(regex_smile, text)
-                         if match])
+    for name, regex in re_smile.items():
+        matches = len([1 for match in regex.findall(text) if match])
+
         if matches:
             res[name] = matches
 
-    return dict(res)
+    return res
 
 def get_freq_dist(recv, send, fd=None, dcount_smile=None, classes=None):
     """
@@ -141,23 +149,22 @@ def get_freq_dist(recv, send, fd=None, dcount_smile=None, classes=None):
 
             return
 
-        msg = remove_templates(msg)
+        msg = remove_templates(msg.encode('utf-8'))
 
         ## TODO: update 'all' just before sending by summing the other fields
         count_smile = find_smiles(msg)
         dcount_smile[cls].update(count_smile)
         dcount_smile['all'].update(count_smile)
 
-        tokens = tokenizer.tokenize(nltk.clean_html(msg.encode('utf-8')
-                                                        .lower()))
+        tokens = tokenizer.tokenize(nltk.clean_html(msg.lower()))
 
         text = nltk.Text(t for t in tokens if t not in stopwords)
         fd[cls].update(text)
         fd['all'].update(text)
 
 
-#def get_freq_dist_wrapper(q, done_q, fd=None):
-#    profile.runctx("get_freq_dist(q, done_q, fd)",
+#def get_freq_dist_wrapper(recv, send, fd=None, dcount_smile=None, classes=None):
+#    profile.runctx("get_freq_dist(recv, send, dcount_smile, classes)",
 #        globals(), locals(), 'profile')
 
 
@@ -202,7 +209,7 @@ def process_page(elem, send):
                 user = user.encode('utf-8')
                 try:
                     send.send((user_classes[user], rc.text))
-                except:
+                except KeyError:
                     ## fix for anonymous users not in the rich file
                     if mwlib.isip(user):
                         send.send(('anonymous', rc.text))

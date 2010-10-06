@@ -260,3 +260,19 @@ class Graph(object):
             g.delete_edges(**kwargs)
         if remove_isolated_nodes:
             g.delete_vertices(g.vs.select(_indegree=0, _outdegree=0))
+
+    def set_role(self, classes):
+        if not classes:
+            classes = self.classes.keys()
+
+        for n in self.g.vs:
+            found = False
+            attrs = n.attributes()
+            for cls in classes:
+                if attrs[cls] == True:
+                    found = True
+                    n['role'] = cls
+                    break
+            if not found:
+                n['role'] = 'normal user'
+

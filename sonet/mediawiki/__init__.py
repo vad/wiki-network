@@ -13,18 +13,18 @@
 ##########################################################################
 
 import re
+try:
+    import re2
+except ImportError:
+    logging.warn('pyre2 not available: some functionaties can not be used')
 import sys
 from socket import inet_ntoa, inet_aton, error
 from urllib import urlopen
 from collections import namedtuple, defaultdict
 import logging
+import json
 
 from pageprocessor import PageProcessor, HistoryPageProcessor
-
-try:
-    import json
-except ImportError:
-    import simplejson as json
 
 
 def fast_iter(context, func):
@@ -54,7 +54,7 @@ def isip(s):
         return False
 
 
-def isSoftRedirect(rawWikiText):
+def isSoftRedirect(raw):
     r"""
     Find if the page starts with a soft redirect template
 
@@ -68,7 +68,7 @@ def isSoftRedirect(rawWikiText):
     False
     """
     rex = r'^[\n ]*{{[\n ]*softredirect[\n ]*\|[^}\n]*\}\}'
-    return re.match(rex, rawWikiText) is not None
+    return re.match(rex, raw) is not None
 
 def is_archive(pagetitle):
     """
@@ -86,7 +86,7 @@ def is_archive(pagetitle):
     """
     return bool(pagetitle.count('/'))
 
-def isHardRedirect(rawWikiText):
+def isHardRedirect(raw):
     """
     >>> isHardRedirect("   #REDIRECT [[User:me]]")
     True
@@ -94,7 +94,7 @@ def isHardRedirect(rawWikiText):
     False
     """
     rex = r'[\n ]*#REDIRECT[\n ]*\[\[[^]]*\]\]'
-    return re.match(rex, rawWikiText) is not None
+    return re.match(rex, raw) is not None
 
 class SignatureFinder(object):
     re = None
@@ -117,8 +117,8 @@ class SignatureFinder(object):
             }
         self.re = re.compile(rex, re.IGNORECASE)
 
-    def find(self, rawWikiText):
-        matches = self.re.findall(rawWikiText)
+    def find(self, raw):
+        matches = self.re.findall(raw)
 
         weights = dict()
         for u in matches:
@@ -399,7 +399,8 @@ def count_renames(lang):
 
 Message = namedtuple('Message', 'time welcome')
 
-def username_from_utp(title, namespaces=None):
+def username_from_utp(title, namespaces=None,
+                      r = re2.compile(r'(?:vecchi|archiv|old)', re2.I)):
     """
     Returns the user which owns this User Talk Page (UTP). Raise a ValueError
     exception if this is not a UTP or if it looks like a Sandbox (or
@@ -436,7 +437,7 @@ def username_from_utp(title, namespaces=None):
     else:
         suffix = pagename[pagename_idx+1:]
         ##TODO: this regex should be a parameter
-        if re.match(r'(?:vecchi|archiv|old)', suffix, re.I) is None:
+        if r.match(suffix) is None:
             logging.debug('Discard %s' % (title.encode('utf-8'),))
             raise ValueError('Not an archive page')
         logging.debug('Keep %s' % (title.encode('utf-8'),))
