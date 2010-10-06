@@ -458,7 +458,7 @@ def create_option_parser():
     from optparse import OptionParser, OptionGroup
     from sonet.lib import SonetOption
 
-    op = OptionParser('%prog [options] file dump-date output-file ratio', 
+    op = OptionParser('%prog [options] file dump-date output-file', 
                       option_class=SonetOption)
     
     op.add_option('-l', '--lang', action="store", dest="lang",
