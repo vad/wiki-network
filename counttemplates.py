@@ -45,6 +45,10 @@ def merge_templates(big, small):
 
 
 def get_freq_dist(q, done_q, templates=None):
+    '''
+    Accepts as input a queue q containing data to be analyzed
+    done_q is a queue with returned results
+    '''
     if not templates:
         templates = {}
 
