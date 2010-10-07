@@ -240,7 +240,7 @@ class EventsProcessor:
         self.desired_only = kwargs['desired']
         self.groups = kwargs['groups']
                 
-        # timedelta list, used in get_days_since
+        ## list of time delta, used in get_days_since
         self.td_list = [timedelta(i) for i in
                         range(-self.range_,self.range_+1)]
         
@@ -282,7 +282,10 @@ class EventsProcessor:
         return (self.__title in self.desired_pages)
 
     def get_start_date(self):
-        
+        '''
+        Returns the date to be considered as start date for the analyzed page
+        considering skipped days
+        '''
         sd = timedelta(self.skipped_days)
         
         if self.__first_edit_date == self.__event_date:
@@ -297,12 +300,20 @@ class EventsProcessor:
         return s_date
 
     def get_days_since(self):
+        '''
+        Returns the number of days between the start date and the dump date
+        in a range around the anniversary day, plus the number of anniversaries
+        '''
         s_date = self.get_start_date()
         return get_days_since(start_date=s_date, end_date=self.dump_date,
                                   anniversary_date=self.__event_date, 
                                   td_list=self.td_list)
     
     def get_n_anniversaries(self):
+        '''
+        returns number of anniversaries from the initial date
+        up to the dump date
+        '''
         s_date = self.get_start_date()
         return get_days_since(start_date=s_date, end_date=self.dump_date,
                                   anniversary_date=self.__event_date, 
@@ -328,6 +339,7 @@ class EventsProcessor:
             self.__desired = self.is_desired()
             self.__type_of_page = talk ## 0 = article, 1 = talk
             ## unique editors
+            ## skip editors belonging to not-to-be-analyzed groups
             self.__unique_editors = (
                 (oe if 'total' not in self.groups else 0) +
                 (be if 'bots' not in self.groups else 0) +
@@ -400,12 +412,14 @@ class EventsProcessor:
                 continue
             if is_near_anniversary(self.__event_date, revision, self.range_):
                 ## edits made in anniversary's range
+                ## skip edits made by not-to-be-analyzed groups
                 anniversary += (
                     (other_edits if 'total' not in groups else 0) +
                     (bot_edits if 'bots' not in groups else 0) +    
                     (anon_edits if 'anonymous' not in groups else 0)
                 )
             ## total edits
+            ## skip edits made by not-to-be-analyzed groups
             total += (
                 (other_edits if 'total' not in groups else 0) +
                 (bot_edits if 'bots' not in groups else 0) + 
@@ -444,7 +458,10 @@ class EventsProcessor:
             self.flush()       
 
     def flush(self):
-        
+        '''
+        This functions emptys the pages' queue and write it on the
+        bzipped csv file
+        '''
         print 'PAGES:', self.count_pages, 'REVS:', self.count_revisions,
         'DESIRED:', len(self.count_desired)
         
@@ -485,14 +502,12 @@ def main():
     opts, files = p.parse_args()
 
     try:
-        desired_pages_fn = files[0]
-        dumpdate = files[1]
-        out_file = files[2]
-    except IndexError:
+        desired_pages_fn, dump_date, out_file = files
+    except ValueError:
         p.error("Bad number of arguments! Try with --help option")
 
     ## creating dump date object
-    dump = lib.yyyymmdd_to_datetime(dumpdate).date()
+    dump = lib.yyyymmdd_to_datetime(dump_date).date()
     
     ## list of not-to-be-analyzed groups
     groups = [g for g in opts.groups.split(',') if g]
