@@ -5,11 +5,14 @@ import os
 import sys
 import numpy
 import igraph as ig
+import logging
 
 ## PROJECT
 from sonet.tablr import Tablr
 from sonet.timr import Timr
 from sonet import mediawiki as mwlib, graph as sg
+
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 ## GLOBAL VARIABLES
 
@@ -368,34 +371,47 @@ def main():
     if options.plot:
         ## TODO: evaluate if this can be done with
         ## http://bazaar.launchpad.net/~igraph/igraph/0.6-main/revision/2018
-        import math
-        bots = g.g.vs.select(bot=True)
-        bots['color'] = ('purple',)*len(bots)
+        with Timr('plot'):
+            import math
 
-        burs = g.g.vs.select(anonymous=True)
-        burs['color'] = ('blue',)*len(burs)
+            ## filter:
+            #print len(g.g.vs), len(g.g.es)
+            #g.set_weighted_degree(type=ig.OUT)
+            #g.g = g.g.subgraph(g.g.vs.select(weighted_indegree_ge=10,
+            #                           weighted_outdegree_ge=1))
+            #g.g.write_graphml('itwiki-20100729-stub-meta-history_in10_out1.graphml')
+            #print len(g.g.vs), len(g.g.es)
 
-        sysops = g.g.vs.select(sysop=True)
-        sysops['color'] = ('yellow',)*len(sysops)
+            bots = g.g.vs.select(bot=True)
+            bots['color'] = ('purple',)*len(bots)
+            logging.debug('bots: ok')
 
-        bur_sysops = g.g.vs.select(bureaucrat=True, sysop=True)
-        bur_sysops['color'] = ('orange',)*len(bur_sysops)
+            burs = g.g.vs.select(anonymous=True)
+            burs['color'] = ('blue',)*len(burs)
 
-        g.g.vs['size'] = [math.sqrt(v['weighted_indegree']+1)*10 for v
-                          in g.g.vs]
+            sysops = g.g.vs.select(sysop=True)
+            sysops['color'] = ('yellow',)*len(sysops)
 
-        ig.plot(g.g, target=lang+"_general.png", bbox=(0, 0, 4000, 2400),
-                edge_color='grey', layout='fr')
-        weights = g.g.es['weight']
-        max_weight = max(weights)
+            bur_sysops = g.g.vs.select(bureaucrat=True, sysop=True)
+            bur_sysops['color'] = ('orange',)*len(bur_sysops)
 
-        g.g.es['color'] = [(255.*e['weight']/max_weight, 0., 0.) for e
-                           in g.g.es]
-        g.g.es['width'] = weights
+            g.g.vs['size'] = [math.sqrt(v['weighted_indegree']+1)*10 for v
+                              in g.g.vs]
 
-        ig.plot(g.g, target=lang+"_weighted_edges.png", bbox=(0, 0, 4000,
-                                                              2400),
-                layout='fr', vertex_label=' ')
+            logging.debug('plot: begin')
+            ig.plot(g.g, target=lang+"_general.png", bbox=(0, 0, 8000, 8000),
+                    edge_color='grey', layout='drl')
+            logging.debug('plot: end')
+            weights = g.g.es['weight']
+            max_weight = max(weights)
+
+            g.g.es['color'] = [(255.*e['weight']/max_weight, 0., 0.) for e
+                               in g.g.es]
+            g.g.es['width'] = weights
+
+            ig.plot(g.g, target=lang+"_weighted_edges.png", bbox=(0, 0, 4000,
+                                                                  2400),
+                    layout='fr', vertex_label=' ')
 
 
     if options.as_table:
