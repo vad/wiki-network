@@ -10,3 +10,4 @@
 /old
 /build
 /*.egg-info
+.idea
