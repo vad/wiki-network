@@ -89,10 +89,11 @@ def GzipFileExt(fn, lines=None):
         return m
 
 
-def BZ2FileExt(fn, lines=None):
+def BZ2FileExt(fn, lines=None, parallel=True):
     from subprocess import Popen, PIPE
 
-    executable = 'lbzip2' if find_executable('lbzip2') else 'bzip2'
+    executable = 'lbzip2' if parallel and find_executable('lbzip2') \
+               else 'bzip2'
 
     unzip_process = Popen([executable, '-c', '-k', '-d', fn], stdout=PIPE)
     stdout = unzip_process.stdout

@@ -289,7 +289,7 @@ def addBlockedAttribute(g, lang):
 def get_tags(src, tags='page,title,revision,text'):
     # find namespace (eg: http://www.mediawiki.org/xml/export-0.3/)
     try:
-        root = src.readline()
+        root = src.readline()+src.readline()
         ns = unicode(re.findall(r'xmlns="([^"]*)', root)[0])
 
         tag_prefix = u'{%s}' % (ns,)

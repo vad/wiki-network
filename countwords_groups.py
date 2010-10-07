@@ -13,12 +13,9 @@
 #                                                                        #
 ##########################################################################
 
-## etree
 from lxml import etree
-
 from bz2 import BZ2File
 import sys
-#import cProfile as profile
 from functools import partial
 import logging
 from collections import Counter
@@ -49,18 +46,19 @@ user_classes = None
 
 # smile dictionary
 dsmile = {
-    'happy': (r':[ -]?[)\]>]', r'=[)\]>]', r'\^[_\- .]?\^', 'x\)', r'\(^_^\)'),
-    'sad': (r':[\- ]?[(\[<]', r'=[(\[<]'),
-    'laugh': (r':[ -]?D', '=D'),
-    'tongue': (':-?[pP]', '=[pP]', 'xP'),
-    'normal': (r':[\- ]?\|',),
-    'cool': (r'8[\- ]?\)',),
+    'happy': (r':-?[)\]>]', r'=[)\]]', r'\^[_\-.]?\^', 'x\)', r'\(^_^\)'),
+    'sad': (r':-?[(\[<]', r'=[(\[]'),
+    'laugh': (r':[ -]?D',),
+    'tongue': (':-?[pP]', '=[pP]',),
+    'normal': (r':-?\|',),
+    'cool': (r'8-?\)',),
 }
 
 def build_smile_re(dsmile):
     out = {}
     for name, lsmile in dsmile.items():
-        out[name] = re.compile(r'(?:(?:\s|^)%s)' % (r'|(?:\s|^)'.join(lsmile)))
+        out[name] = re.compile(r'(?: %s)' % (r'| '.join(lsmile)))
+        #print name, r'(?:\s%s)' % (r'|\s'.join(lsmile))
 
     return out
 
@@ -93,6 +91,10 @@ def find_smiles(text):
     res = {}
     for name, regex in re_smile.items():
         matches = len([1 for match in regex.findall(text) if match])
+        # uncomment this to print smiles with context
+        ##for match in regex.finditer(text):
+        ##    print 'sonetsmile: ', text[max(0, \
+        ##        match.start()-15):match.end()+15]
 
         if matches:
             res[name] = matches
@@ -132,7 +134,7 @@ def get_freq_dist(recv, send, fd=None, dcount_smile=None, classes=None):
     if not fd:
         fd = {cls: Counter() for cls in classes}
     if not dcount_smile:
-        dcount_smile = fd = {cls: Counter() for cls in classes}
+        dcount_smile = {cls: Counter() for cls in classes}
 
     while 1:
         try:
@@ -163,7 +165,7 @@ def get_freq_dist(recv, send, fd=None, dcount_smile=None, classes=None):
         tokens = [t for t in tokens if t not in stopwords]
         fd[cls].update(tokens)
 
-
+#import cProfile as profile
 #def get_freq_dist_wrapper(recv, send, fd=None, dcount_smile=None, classes=None):
 #    profile.runctx("get_freq_dist(recv, send, dcount_smile, classes)",
 #        globals(), locals(), 'profile')
@@ -260,9 +262,9 @@ def main():
     assert lang_user, "User namespace not found"
     assert lang_user_talk, "User Talk namespace not found"
 
-    ## open with a faster decompressor (probably this cannot seek)
+    ## open with a faster decompressor (but that probably cannot seek)
     src.close()
-    src = lib.BZ2FileExt(xml)
+    src = lib.BZ2FileExt(xml, parallel=False)
 
     partial_process_page = partial(process_page, send=p_sender)
     mwlib.fast_iter(etree.iterparse(src, tag=tag['page']),
