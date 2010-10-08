@@ -241,6 +241,11 @@ def main():
         if 'all' in centralities:
             centralities = 'betweenness,pagerank,degree'.split(',')
 
+        if set(centralities).difference(
+            'betweenness,pagerank,degree'.split(',')):
+            logging.error('Unknown centrality')
+            sys.exit(0)
+
         if "betweenness" in centralities:
             print >> sys.stderr, "betweenness"
             g.g.vs['bw'] = g.g.betweenness(weights='length', directed = True)
