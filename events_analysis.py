@@ -15,7 +15,7 @@
 
 from __future__ import division
 from datetime import date, timedelta
-from sonet.mediawiki import is_archive
+from sonet.mediawiki import is_archive, HistoryPageProcessor
 from sqlalchemy import select, func
 from base64 import b64decode
 from zlib import decompress
@@ -197,7 +197,7 @@ def print_data_file(fn, dict_, s_date, e_date):
                 wrt.writerow([(initial_date+timedelta(d)).strftime('%Y-%m-%d'),
                         0,0,0])
 
-class EventsProcessor:
+class EventsProcessor(HistoryPageProcessor):
     count_desired = []
     count_pages = 0
     count_revisions = 0
@@ -241,6 +241,8 @@ class EventsProcessor:
         self.groups = kwargs['groups']
                 
         ## list of time delta, used in get_days_since
+        ## used together with anniversary day in order to find
+        ## days in anniversary's range
         self.td_list = [timedelta(i) for i in
                         range(-self.range_,self.range_+1)]
         
@@ -277,10 +279,7 @@ class EventsProcessor:
                     date(int(r[1][:4]),int(r[1][5:7]),int(r[1][8:10]))
             except:
                 self.desired_pages[page] = None
-
-    def is_desired(self):
-        return (self.__title in self.desired_pages)
-
+    
     def get_start_date(self):
         '''
         Returns the date to be considered as start date for the analyzed page
@@ -336,7 +335,7 @@ class EventsProcessor:
             ## page's attributes
             self.__title = title
             self.__data = data
-            self.__desired = self.is_desired()
+            self.__desired = self.is_desired(self.__title)
             self.__type_of_page = talk ## 0 = article, 1 = talk
             ## unique editors
             ## skip editors belonging to not-to-be-analyzed groups
@@ -349,7 +348,8 @@ class EventsProcessor:
             if self.__desired and self.__title not in self.count_desired:
                 print "PROCESSING DESIRED PAGE:", self.__title
                 self.count_desired.append(self.__title)
-                
+
+            ## to skip or not to skip? This is the question...
             if not self.__desired and self.threshold < 1.:
                 if threshold == 0. or random() > threshold:
                     self.__skip = True
