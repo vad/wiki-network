@@ -292,7 +292,7 @@ def main():
             print >> out, '#msgs: ', sum(users['weighted_indegree'])
             for k, v in fd:
                 print >> out, v, k
-    del fd
+        del fd
 
     for cls, counters in done_p_receiver.recv():
         with open("%swiki-%s-smile-%s.dat" %
@@ -308,6 +308,7 @@ def main():
             print >> out, '#msgs: ', sum(users['weighted_indegree'])
             for k, v in counters:
                 print >> out, v, k
+        del fd
 
     p.join()
 
