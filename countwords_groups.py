@@ -82,8 +82,8 @@ def find_smiles(text):
     Find smiles in text and returns a dictionary of found smiles
 
     >>> find_smiles(':) ^^')
-    {'happy': 2}
-    >>> find_smiles('^^')
+    {'happy': 1}
+    >>> find_smiles(' ^^')
     {'happy': 1}
     >>> find_smiles(' :|')
     {'normal': 1}
