@@ -46,18 +46,21 @@ class UserContrib(object):
     __slots__ = ['comments_length', 'namespace_count', 'data']
 
     def __init__(self):
-        ##TODO: maybe attr_len contains unneeded namespace? like key=0
         ##self.namespace_count = np.zeros((attr_len,), dtype=np.int)
         ## TODO: class wide attribute
         ## data = [comments_count, minor, welcome, npov,
-        ##         please, thanks, revert, first_time, last_time]
+        ##         please, thanks, revert, first_time, last_time, normal_edits]
 
-        ## 4 bytes for item on 64bit pc
+        ## 4 bytes per item on 64bit pc
+        ## array of unsigned int, len = 10
         self.data = array('I', (0,)*10)
 
         ## this can be very large, in this way it uses python bigints.
         ## KEEP THIS OUT OF self.data!!
         self.comments_length = 0
+
+        ## we don't define namespace_count here but in inc_namespace() to save
+        ## memory
 
     @property
     def normal_count(self):
@@ -68,6 +71,7 @@ class UserContrib(object):
 
     def inc_namespace(self, idx):
         if not hasattr(self, 'namespace_count'):
+            ##TODO: maybe attr_len contains unneeded namespace? like key=0
             self.namespace_count = array('I', (0,)*ATTR_LEN)
         self.namespace_count[idx] += 1
 

@@ -65,8 +65,8 @@ def create_option_parser():
                           )
     op.add_option_group(time_group)
 
-    op.add_option('--as-table', action="store_true", dest="as_table",
-        help="Format output as a table row")
+    op.add_option('--save-db', action="store_true", dest="as_table",
+        help="Save output on a DB")
     op.add_option('--group', action="store_true", dest="group",
         help="Analyze groups")
     op.add_option('-d', '--details', action="store_true", dest="details",
@@ -123,7 +123,7 @@ def main():
         tablr = Tablr()
         tablr.start(1024*32, lang)
 
-    if options.group or options.users_role:
+    if options.group or options.users_role or options.histogram:
         for group_name, group_attr in groups.iteritems():
             g.defineClass(group_name, group_attr)
             print ' * %s : nodes number : %d' % (group_name,
@@ -391,8 +391,8 @@ def main():
             bots['color'] = ('purple',)*len(bots)
             logging.debug('bots: ok')
 
-            burs = g.g.vs.select(anonymous=True)
-            burs['color'] = ('blue',)*len(burs)
+            anonyms = g.g.vs.select(anonymous=True)
+            anonyms['color'] = ('blue',)*len(anonyms)
 
             sysops = g.g.vs.select(sysop=True)
             sysops['color'] = ('yellow',)*len(sysops)

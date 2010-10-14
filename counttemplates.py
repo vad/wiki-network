@@ -107,7 +107,9 @@ def main():
     import optparse
     from operator import itemgetter
 
-    p = optparse.OptionParser(usage="usage: %prog [options] file")
+    p = optparse.OptionParser(
+        usage="usage: %prog [options] current_dump rich_graph"
+    )
     _, files = p.parse_args()
 
     if len(files) != 2:

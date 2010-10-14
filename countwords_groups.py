@@ -144,10 +144,12 @@ def get_freq_dist(recv, send, fd=None, dcount_smile=None, classes=None):
                 fd['all'].update(fd[cls])
                 dcount_smile['all'].update(dcount_smile[cls])
 
+            # send word counters to the main process
             send.send([(cls, sorted(freq.items(),
                                     key=itemgetter(1),
                                     reverse=True)[:1000])
                        for cls, freq in fd.iteritems()])
+            # send smile counters to the main process
             send.send([(cls, sorted(counters.items(),
                                     key=itemgetter(1),
                                     reverse=True))
@@ -275,6 +277,7 @@ def main():
 
     print >> sys.stderr, "end of parsing"
 
+    ## SAVE DATA
     g.set_weighted_degree()
     users_cache = {}
     # get a list of pair (class name, frequency distributions)

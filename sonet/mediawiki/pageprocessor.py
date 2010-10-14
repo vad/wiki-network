@@ -28,6 +28,9 @@ class PageProcessor(object):
             if not inspect.ismethod(member): continue
             dfunc[tag[member_name[8:]]] = member
 
+        ## iterate over tags. skip if not in dfunc.
+        ## self._skip is set by process_*() methods if all the tags have to be
+        ## discarded up to the next page-tag (</page>)
         context = etree.iterparse(f)
         for elem in (elem for _, elem in context if elem.tag in dfunc and
                      (elem.tag == tag_page or not self._skip)):

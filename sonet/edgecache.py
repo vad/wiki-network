@@ -36,6 +36,8 @@ class EdgeCache:
             return
 
         for speaker, msgs in talks.iteritems():
+            # if msgs is an int, sum it to the number of message already counted
+            # if it's a list (i.e. a list of mwlib.Message) extend it
             if isinstance(msgs, int):
                 d[speaker] = d.get(speaker, 0) + msgs
             else:
